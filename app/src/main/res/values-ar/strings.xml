@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">yeex</string>
+    <string name="community_name">yeextars</string>
+    <string name="login_title">تسجيل الدخول</string>
+    <string name="register_title">حساب جديد</string>
+    <string name="field_identifier">المعرف</string>
+    <string name="field_password">كلمة السر</string>
+    <string name="field_display_name">الاسم</string>
+    <string name="btn_login">دخول</string>
+    <string name="btn_register">إنشاء حساب</string>
+    <string name="no_account">ليس لديك حساب؟ سجّل الآن</string>
+    <string name="have_account">لديك حساب؟ سجّل الدخول</string>
+    <string name="identifier_rules">أحرف صغيرة وأرقام ونقاط فقط، بدون _ - ~ أو أحرف كبيرة</string>
+    <string name="feed_title">الفقرات</string>
+    <string name="paragraph_expires">تُحذف بعد 24 ساعة</string>
+    <string name="create_paragraph">فقرة جديدة</string>
+    <string name="action_tek">Tek</string>
+    <string name="action_teker">Teker</string>
+    <string name="label_teking">Teking</string>
+    <string name="action_like">أعجبني</string>
+    <string name="action_dislike">لم يعجبني</string>
+    <string name="action_comment">تعليق</string>
+    <string name="action_repost">إعادة نشر</string>
+    <string name="room_label">غرفة</string>
+    <string name="room_public">عامة</string>
+    <string name="room_private">خاصة</string>
+    <string name="create_room">إنشاء غرفة</string>
+    <string name="room_bio">سيرة الغرفة</string>
+    <string name="container_label">حاوية تخصيص</string>
+    <string name="container_search_hint">@container.name[].me</string>
+    <string name="verified_badge">موثّق</string>
+    <string name="request_verification">طلب توثيق</string>
+    <string name="search_hint">بحث</string>
+    <string name="watermark_text">yeex</string>
+</resources>
