@@ -1,0 +1,34 @@
+package com.yeex.dlof.data.repository
+
+import com.google.firebase.database.FirebaseDatabase
+import com.yeex.dlof.data.model.Room
+import kotlinx.coroutines.tasks.await
+
+class RoomRepository(
+    private val db: FirebaseDatabase = FirebaseDatabase.getInstance()
+) {
+    private val roomsRef get() = db.getReference("rooms")
+    private val membersRef get() = db.getReference("roomMembers")
+
+    suspend fun createRoom(room: Room, ownerUid: String): String {
+        val id = roomsRef.push().key ?: error("no id")
+        val toSave = room.copy(id = id, ownerId = ownerUid, createdAt = System.currentTimeMillis(), memberCount = 1)
+        roomsRef.child(id).setValue(toSave).await()
+        membersRef.child(id).child(ownerUid).setValue(true).await()
+        return id
+    }
+
+    suspend fun joinRoom(roomId: String, uid: String) {
+        membersRef.child(roomId).child(uid).setValue(true).await()
+        val countRef = roomsRef.child(roomId).child("memberCount")
+        val current = countRef.get().await().getValue(Long::class.java) ?: 0L
+        countRef.setValue(current + 1).await()
+    }
+
+    suspend fun getRoom(roomId: String): Room? =
+        roomsRef.child(roomId).get().await().getValue(Room::class.java)
+
+    suspend fun listPublicRooms(): List<Room> =
+        roomsRef.orderByChild("isPublic").equalTo(true).get().await()
+            .children.mapNotNull { it.getValue(Room::class.java) }
+}
