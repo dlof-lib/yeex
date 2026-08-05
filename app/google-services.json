@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "280805036656",
+    "project_id": "yeex-90774",
+    "storage_bucket": "yeex-90774.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:280805036656:android:2091f0b134d4c8d8d89ab5",
+        "android_client_info": {
+          "package_name": "com.yeex.dlof"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCcS041fII8mAmBUOJXqaa-LXcuYYxekzA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
