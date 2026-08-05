@@ -6,29 +6,48 @@
     "identifiers": {
       ".read": true,
       "$identifier": {
-        ".write": "!data.exists() && newData.isString() && newData.val() === auth.uid"
+        ".write": "!data.exists() && newData.isString() && newData.val() === auth.uid",
+        ".validate": "newData.isString() && newData.val().length > 0 && $identifier.length >= 3 && $identifier.length <= 24 && !$identifier.matches(/[_\\-~ A-Z]/) && !$identifier.matches(/\\.\\./) && !$identifier.beginsWith('.') && !$identifier.endsWith('.')"
       }
     },
 
     "users": {
       ".read": true,
+      ".indexOn": ["identifier"],
       "$uid": {
         ".write": "auth != null && auth.uid === $uid",
         ".validate": "newData.hasChildren(['identifier','displayName'])",
+
+        "uid": { ".validate": "newData.isString() && newData.val() === $uid" },
+        "identifier": { ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 24" },
+        "displayName": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50" },
+        "bio": { ".validate": "newData.isString() && newData.val().length <= 300" },
+        "profileIconUrl": { ".validate": "newData.isString() && newData.val().length <= 2000" },
+        "language": { ".validate": "newData.isString() && (newData.val() === 'ar' || newData.val() === 'en' || newData.val() === 'es')" },
+        "createdAt": { ".validate": "newData.isNumber()" },
+
         "verified": {
-          ".write": "auth != null && root.child('admins').child(auth.uid).exists()"
+          ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
+          ".validate": "newData.isBoolean()"
         },
         "verifiedReason": {
-          ".write": "auth != null && root.child('admins').child(auth.uid).exists()"
+          ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
+          ".validate": "newData.isString() && (newData.val() === 'manual' || newData.val() === 'cross_platform' || newData.val() === 'official' || newData.val() === '')"
         },
         "isOfficial": {
-          ".write": "auth != null && root.child('admins').child(auth.uid).exists()"
+          ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
+          ".validate": "newData.isBoolean()"
+        },
+        "externalFollowerCounts": {
+          ".write": "auth != null && auth.uid === $uid"
         },
         "tekingCount": {
-          ".write": "auth != null"
+          ".write": "auth != null",
+          ".validate": "newData.isNumber() && newData.val() >= 0"
         },
         "tekerCount": {
-          ".write": "auth != null"
+          ".write": "auth != null",
+          ".validate": "newData.isNumber() && newData.val() >= 0"
         }
       }
     },
@@ -44,19 +63,62 @@
       "$paragraphId": {
         ".write": "auth != null && (!data.exists() ? newData.child('authorId').val() === auth.uid : data.child('authorId').val() === auth.uid || root.child('admins').child(auth.uid).exists())",
         ".validate": "newData.hasChildren(['authorId','type','createdAt','expiresAt']) && newData.child('expiresAt').val() === newData.child('createdAt').val() + 86400000",
-        "likeCount": { ".write": "auth != null" },
-        "dislikeCount": { ".write": "auth != null" },
-        "commentCount": { ".write": "auth != null" },
-        "repostCount": { ".write": "auth != null" }
+
+        "authorId": { ".validate": "newData.isString() && newData.val() === auth.uid" },
+        "authorIdentifier": { ".validate": "newData.isString()" },
+        "authorVerified": { ".validate": "newData.isBoolean()" },
+        "type": { ".validate": "newData.isString() && (newData.val() === 'TEXT' || newData.val() === 'IMAGE' || newData.val() === 'VIDEO')" },
+        "text": { ".validate": "newData.isString() && newData.val().length <= 2000" },
+        "mediaBase64": { ".validate": "newData.isString() && newData.val().length <= 4000000" },
+        "mediaMimeType": { ".validate": "newData.isString() && newData.val().length <= 100" },
+        "roomId": { ".validate": "newData.isString()" },
+        "createdAt": { ".validate": "newData.isNumber() && newData.val() <= now + 300000" },
+        "expiresAt": { ".validate": "newData.isNumber()" },
+        "repostOfId": { ".validate": "newData.isString()" },
+        "repostComment": { ".validate": "newData.isString() && newData.val().length <= 2000" },
+        "engagementScore": { ".validate": "newData.isNumber()" },
+
+        "likeCount": {
+          ".write": "auth != null",
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "dislikeCount": {
+          ".write": "auth != null",
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "commentCount": {
+          ".write": "auth != null",
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "repostCount": {
+          ".write": "auth != null",
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        }
+      }
+    },
+
+    "paragraphLikes": {
+      "$paragraphId": {
+        ".read": true,
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.isBoolean()"
+        }
       }
     },
 
     "comments": {
       ".read": true,
       "$paragraphId": {
+        ".indexOn": ["createdAt"],
         "$commentId": {
-          ".write": "auth != null",
-          ".validate": "newData.hasChildren(['authorId','text']) && newData.child('authorId').val() === auth.uid"
+          ".write": "auth != null && (!data.exists() ? newData.child('authorId').val() === auth.uid : data.child('authorId').val() === auth.uid || root.child('admins').child(auth.uid).exists())",
+          ".validate": "newData.hasChildren(['authorId','text']) && newData.child('authorId').val() === auth.uid",
+          "authorId": { ".validate": "newData.isString() && newData.val() === auth.uid" },
+          "authorIdentifier": { ".validate": "newData.isString()" },
+          "paragraphId": { ".validate": "newData.isString() && newData.val() === $paragraphId" },
+          "text": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 1000" },
+          "createdAt": { ".validate": "newData.isNumber() && newData.val() <= now + 300000" }
         }
       }
     },
@@ -65,8 +127,23 @@
       ".read": true,
       ".indexOn": ["isPublic"],
       "$roomId": {
-        ".write": "auth != null && (!data.exists() || data.child('ownerId').val() === auth.uid)",
-        ".validate": "newData.hasChildren(['name','ownerId'])"
+        ".write": "auth != null && (!data.exists() || data.child('ownerId').val() === auth.uid || root.child('admins').child(auth.uid).exists())",
+        ".validate": "newData.hasChildren(['name','ownerId'])",
+
+        "name": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 60" },
+        "ownerId": { ".validate": "newData.isString() && (!data.exists() ? newData.val() === auth.uid : newData.val() === data.val())" },
+        "isPublic": { ".validate": "newData.isBoolean()" },
+        "bio": { ".validate": "newData.isString() && newData.val().length <= 300" },
+        "interests": { ".validate": "newData.hasChildren() || newData.val() === null" },
+        "socialLinks": { ".validate": "true" },
+        "phone": { ".validate": "newData.isString() && newData.val().length <= 30" },
+        "iconUrl": { ".validate": "newData.isString() && newData.val().length <= 2000" },
+        "createdAt": { ".validate": "newData.isNumber()" },
+
+        "memberCount": {
+          ".write": "auth != null",
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        }
       }
     },
 
@@ -74,7 +151,8 @@
       "$roomId": {
         ".read": true,
         "$uid": {
-          ".write": "auth != null && auth.uid === $uid"
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.isBoolean() && newData.val() === true"
         }
       }
     },
@@ -83,24 +161,33 @@
       ".read": true,
       ".indexOn": ["name"],
       "$containerId": {
-        ".write": "auth != null && (!data.exists() || data.child('ownerId').val() === auth.uid)"
+        ".write": "auth != null && (!data.exists() || data.child('ownerId').val() === auth.uid || root.child('admins').child(auth.uid).exists())",
+        ".validate": "newData.hasChildren(['name','ownerId'])",
+
+        "name": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 60" },
+        "ownerId": { ".validate": "newData.isString() && (!data.exists() ? newData.val() === auth.uid : newData.val() === data.val())" },
+        "roomIds": { ".validate": "newData.hasChildren() || newData.val() === null" },
+        "memberIds": { ".validate": "newData.hasChildren() || newData.val() === null" },
+        "createdAt": { ".validate": "newData.isNumber()" }
       }
     },
 
     "tekedBy": {
-      "$uid": {
+      "$followerUid": {
         ".read": true,
         "$targetUid": {
-          ".write": "auth != null && auth.uid === $uid"
+          ".write": "auth != null && auth.uid === $followerUid && $followerUid !== $targetUid",
+          ".validate": "newData.isBoolean() && newData.val() === true"
         }
       }
     },
 
     "tekers": {
-      "$uid": {
+      "$targetUid": {
         ".read": true,
         "$followerUid": {
-          ".write": "auth != null && auth.uid === $followerUid"
+          ".write": "auth != null && auth.uid === $followerUid && $followerUid !== $targetUid",
+          ".validate": "newData.isBoolean() && newData.val() === true"
         }
       }
     },
@@ -109,7 +196,15 @@
       ".read": "auth != null && root.child('admins').child(auth.uid).exists()",
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid"
+        ".write": "auth != null && (auth.uid === $uid || root.child('admins').child(auth.uid).exists())",
+        ".validate": "newData.hasChildren(['uid','status','submittedAt']) && newData.child('uid').val() === $uid && (root.child('admins').child(auth.uid).exists() || newData.child('status').val() === 'pending')",
+
+        "uid": { ".validate": "newData.isString() && newData.val() === $uid" },
+        "note": { ".validate": "newData.isString() && newData.val().length <= 500" },
+        "status": { ".validate": "newData.isString() && (newData.val() === 'pending' || newData.val() === 'approved' || newData.val() === 'rejected')" },
+        "autoEligible": { ".validate": "newData.isBoolean()" },
+        "submittedAt": { ".validate": "newData.isNumber() && newData.val() <= now + 300000" },
+        "externalFollowerCounts": { ".validate": "true" }
       }
     }
   }
