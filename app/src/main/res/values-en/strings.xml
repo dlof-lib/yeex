@@ -33,4 +33,10 @@
     <string name="request_verification">Request Verification</string>
     <string name="search_hint">Search</string>
     <string name="watermark_text">yeex</string>
+    <string name="or_divider">or</string>
+    <string name="btn_continue_google">Continue with Google</string>
+    <string name="btn_continue_github">Continue with GitHub</string>
+    <string name="action_download">Download</string>
+    <string name="download_saved">Saved with watermark</string>
+    <string name="download_failed">Couldn\'t save</string>
 </resources>
