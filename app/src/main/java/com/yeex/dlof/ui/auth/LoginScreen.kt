@@ -1,9 +1,12 @@
 package com.yeex.dlof.ui.auth
 
+import android.app.Activity
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -18,6 +21,8 @@ fun LoginScreen(
     var identifier by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
+    val isLoading = state is AuthUiState.Loading
 
     LaunchedEffect(state) {
         if (state is AuthUiState.Success) onLoggedIn()
@@ -59,6 +64,34 @@ fun LoginScreen(
         if (state is AuthUiState.Error) {
             Spacer(Modifier.height(8.dp))
             Text("خطأ في الدخول", color = MaterialTheme.colorScheme.error)
+        }
+
+        Spacer(Modifier.height(20.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            HorizontalDivider(modifier = Modifier.weight(1f))
+            Text(
+                stringResource(R.string.or_divider),
+                modifier = Modifier.padding(horizontal = 8.dp),
+                style = MaterialTheme.typography.labelMedium
+            )
+            HorizontalDivider(modifier = Modifier.weight(1f))
+        }
+        Spacer(Modifier.height(16.dp))
+
+        OutlinedButton(
+            onClick = { viewModel.signInWithGoogle(context) },
+            enabled = !isLoading,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(stringResource(R.string.btn_continue_google))
+        }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(
+            onClick = { (context as? Activity)?.let { viewModel.signInWithGithub(it) } },
+            enabled = !isLoading,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(stringResource(R.string.btn_continue_github))
         }
 
         Spacer(Modifier.height(16.dp))
