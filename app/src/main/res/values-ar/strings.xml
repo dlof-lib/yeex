@@ -33,4 +33,10 @@
     <string name="request_verification">طلب توثيق</string>
     <string name="search_hint">بحث</string>
     <string name="watermark_text">yeex</string>
+    <string name="or_divider">أو</string>
+    <string name="btn_continue_google">المتابعة عبر Google</string>
+    <string name="btn_continue_github">المتابعة عبر GitHub</string>
+    <string name="action_download">تنزيل</string>
+    <string name="download_saved">تم الحفظ مع العلامة المائية</string>
+    <string name="download_failed">تعذّر الحفظ</string>
 </resources>
