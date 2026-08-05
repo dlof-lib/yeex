@@ -1,0 +1,116 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "identifiers": {
+      ".read": true,
+      "$identifier": {
+        ".write": "!data.exists() && newData.isString() && newData.val() === auth.uid"
+      }
+    },
+
+    "users": {
+      ".read": true,
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['identifier','displayName'])",
+        "verified": {
+          ".write": "auth != null && root.child('admins').child(auth.uid).exists()"
+        },
+        "verifiedReason": {
+          ".write": "auth != null && root.child('admins').child(auth.uid).exists()"
+        },
+        "isOfficial": {
+          ".write": "auth != null && root.child('admins').child(auth.uid).exists()"
+        },
+        "tekingCount": {
+          ".write": "auth != null"
+        },
+        "tekerCount": {
+          ".write": "auth != null"
+        }
+      }
+    },
+
+    "admins": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).exists()",
+      ".write": false
+    },
+
+    "paragraphs": {
+      ".read": true,
+      ".indexOn": ["createdAt", "roomId", "expiresAt"],
+      "$paragraphId": {
+        ".write": "auth != null && (!data.exists() ? newData.child('authorId').val() === auth.uid : data.child('authorId').val() === auth.uid || root.child('admins').child(auth.uid).exists())",
+        ".validate": "newData.hasChildren(['authorId','type','createdAt','expiresAt']) && newData.child('expiresAt').val() === newData.child('createdAt').val() + 86400000",
+        "likeCount": { ".write": "auth != null" },
+        "dislikeCount": { ".write": "auth != null" },
+        "commentCount": { ".write": "auth != null" },
+        "repostCount": { ".write": "auth != null" }
+      }
+    },
+
+    "comments": {
+      ".read": true,
+      "$paragraphId": {
+        "$commentId": {
+          ".write": "auth != null",
+          ".validate": "newData.hasChildren(['authorId','text']) && newData.child('authorId').val() === auth.uid"
+        }
+      }
+    },
+
+    "rooms": {
+      ".read": true,
+      ".indexOn": ["isPublic"],
+      "$roomId": {
+        ".write": "auth != null && (!data.exists() || data.child('ownerId').val() === auth.uid)",
+        ".validate": "newData.hasChildren(['name','ownerId'])"
+      }
+    },
+
+    "roomMembers": {
+      "$roomId": {
+        ".read": true,
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      }
+    },
+
+    "containers": {
+      ".read": true,
+      ".indexOn": ["name"],
+      "$containerId": {
+        ".write": "auth != null && (!data.exists() || data.child('ownerId').val() === auth.uid)"
+      }
+    },
+
+    "tekedBy": {
+      "$uid": {
+        ".read": true,
+        "$targetUid": {
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      }
+    },
+
+    "tekers": {
+      "$uid": {
+        ".read": true,
+        "$followerUid": {
+          ".write": "auth != null && auth.uid === $followerUid"
+        }
+      }
+    },
+
+    "verificationRequests": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).exists()",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    }
+  }
+}
