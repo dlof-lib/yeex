@@ -39,4 +39,16 @@
     <string name="action_download">Descargar</string>
     <string name="download_saved">Guardado con marca de agua</string>
     <string name="download_failed">No se pudo guardar</string>
+
+    <!-- Auth errors -->
+    <string name="auth_error_invalid_credentials">Identificador o contraseña incorrectos</string>
+    <string name="auth_error_identifier_taken">Este identificador ya está en uso</string>
+    <string name="auth_error_length">El identificador debe tener entre 3 y 24 caracteres</string>
+    <string name="auth_error_forbidden_char">El identificador contiene un carácter no permitido ( _ - ~ o espacio)</string>
+    <string name="auth_error_uppercase">El identificador debe ser solo en minúsculas</string>
+    <string name="auth_error_dot_placement">El identificador no puede empezar/terminar con punto ni tener dos puntos seguidos</string>
+    <string name="auth_error_invalid_chars">El identificador contiene caracteres no permitidos</string>
+    <string name="auth_error_profile_missing">No se encontraron los datos de la cuenta</string>
+    <string name="auth_error_google_cancelled">Se canceló el inicio de sesión con Google</string>
+    <string name="auth_error_unknown">Ocurrió un error inesperado, inténtalo de nuevo</string>
 </resources>
