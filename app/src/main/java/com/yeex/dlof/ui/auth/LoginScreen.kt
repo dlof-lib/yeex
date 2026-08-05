@@ -12,6 +12,20 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.yeex.dlof.R
 
+/** Maps an [AuthRepository][com.yeex.dlof.data.repository.AuthRepository] error key to a localized, specific message. */
+internal fun authErrorStringRes(key: String): Int = when (key) {
+    "invalid_credentials" -> R.string.auth_error_invalid_credentials
+    "identifier_taken" -> R.string.auth_error_identifier_taken
+    "length" -> R.string.auth_error_length
+    "forbidden_char" -> R.string.auth_error_forbidden_char
+    "uppercase" -> R.string.auth_error_uppercase
+    "dot_placement" -> R.string.auth_error_dot_placement
+    "invalid_chars" -> R.string.auth_error_invalid_chars
+    "profile_missing" -> R.string.auth_error_profile_missing
+    "google_cancelled" -> R.string.auth_error_google_cancelled
+    else -> R.string.auth_error_unknown
+}
+
 @Composable
 fun LoginScreen(
     viewModel: AuthViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
@@ -63,7 +77,10 @@ fun LoginScreen(
 
         if (state is AuthUiState.Error) {
             Spacer(Modifier.height(8.dp))
-            Text("خطأ في الدخول", color = MaterialTheme.colorScheme.error)
+            Text(
+                stringResource(authErrorStringRes((state as AuthUiState.Error).key)),
+                color = MaterialTheme.colorScheme.error
+            )
         }
 
         Spacer(Modifier.height(20.dp))
