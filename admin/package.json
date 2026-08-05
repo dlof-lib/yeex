@@ -1,0 +1,13 @@
+{
+  "name": "yeex-admin-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "One-time / occasional Firebase Admin SDK scripts for yeex (not part of the Android app).",
+  "main": "seedAdmin.js",
+  "scripts": {
+    "seed-admin": "node seedAdmin.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.3.0"
+  }
+}
