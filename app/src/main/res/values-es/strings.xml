@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">yeex</string>
+    <string name="community_name">yeextars</string>
+    <string name="login_title">Iniciar sesión</string>
+    <string name="register_title">Cuenta nueva</string>
+    <string name="field_identifier">Identificador</string>
+    <string name="field_password">Contraseña</string>
+    <string name="field_display_name">Nombre</string>
+    <string name="btn_login">Entrar</string>
+    <string name="btn_register">Crear cuenta</string>
+    <string name="no_account">¿Sin cuenta? Regístrate</string>
+    <string name="have_account">¿Ya tienes cuenta? Inicia sesión</string>
+    <string name="identifier_rules">Solo minúsculas, números y puntos. Sin _ - ~ ni mayúsculas</string>
+    <string name="feed_title">Párrafos</string>
+    <string name="paragraph_expires">Se elimina tras 24 horas</string>
+    <string name="create_paragraph">Nuevo párrafo</string>
+    <string name="action_tek">Tek</string>
+    <string name="action_teker">Teker</string>
+    <string name="label_teking">Teking</string>
+    <string name="action_like">Me gusta</string>
+    <string name="action_dislike">No me gusta</string>
+    <string name="action_comment">Comentar</string>
+    <string name="action_repost">Republicar</string>
+    <string name="room_label">Sala</string>
+    <string name="room_public">Pública</string>
+    <string name="room_private">Privada</string>
+    <string name="create_room">Crear sala</string>
+    <string name="room_bio">Biografía de la sala</string>
+    <string name="container_label">Contenedor personalizado</string>
+    <string name="container_search_hint">@container.name[].me</string>
+    <string name="verified_badge">Verificado</string>
+    <string name="request_verification">Solicitar verificación</string>
+    <string name="search_hint">Buscar</string>
+    <string name="watermark_text">yeex</string>
+</resources>
