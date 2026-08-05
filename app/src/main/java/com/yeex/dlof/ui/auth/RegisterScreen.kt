@@ -74,7 +74,10 @@ fun RegisterScreen(
 
         if (state is AuthUiState.Error) {
             Spacer(Modifier.height(8.dp))
-            Text("خطأ: ${(state as AuthUiState.Error).key}", color = MaterialTheme.colorScheme.error)
+            Text(
+                stringResource(authErrorStringRes((state as AuthUiState.Error).key)),
+                color = MaterialTheme.colorScheme.error
+            )
         }
 
         Spacer(Modifier.height(16.dp))
