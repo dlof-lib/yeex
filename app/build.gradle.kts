@@ -28,6 +28,15 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
+        // Compose ships several APIs (Material3, Pager, etc.) behind opt-in
+        // annotations. Without this, using them fails the build with
+        // "This API is experimental..." compile errors (not just warnings).
+        freeCompilerArgs += listOf(
+            "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
+            "-opt-in=androidx.compose.foundation.ExperimentalFoundationApi",
+            "-opt-in=androidx.compose.foundation.layout.ExperimentalLayoutApi",
+            "-opt-in=androidx.compose.animation.ExperimentalAnimationApi"
+        )
     }
 
     buildFeatures {
