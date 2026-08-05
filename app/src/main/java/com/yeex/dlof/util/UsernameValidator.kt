@@ -45,4 +45,20 @@ object UsernameValidator {
      * this email is never shown to the user.
      */
     fun toPseudoEmail(identifier: String): String = "$identifier@id.yeex.app"
+
+    /**
+     * Derives a valid, best-effort identifier from a Google/GitHub display
+     * name or email local-part when a user signs in via a social provider
+     * for the first time and has no "معرف" yet. Strips everything outside
+     * the allowed charset, lowercases, and collapses/trims dots. The caller
+     * is still responsible for resolving collisions (see AuthRepository).
+     */
+    fun sanitizeForAuto(raw: String): String {
+        val cleaned = raw.lowercase()
+            .replace(Regex("[^\\p{Ll}0-9\u0660-\u0669.]"), "")
+            .replace(Regex("\\.{2,}"), ".")
+            .trim('.')
+            .take(MAX_LENGTH)
+        return if (cleaned.length >= MIN_LENGTH) cleaned else (cleaned + "yeexuser").take(MAX_LENGTH)
+    }
 }
