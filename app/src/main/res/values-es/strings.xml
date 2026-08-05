@@ -33,4 +33,10 @@
     <string name="request_verification">Solicitar verificación</string>
     <string name="search_hint">Buscar</string>
     <string name="watermark_text">yeex</string>
+    <string name="or_divider">o</string>
+    <string name="btn_continue_google">Continuar con Google</string>
+    <string name="btn_continue_github">Continuar con GitHub</string>
+    <string name="action_download">Descargar</string>
+    <string name="download_saved">Guardado con marca de agua</string>
+    <string name="download_failed">No se pudo guardar</string>
 </resources>
