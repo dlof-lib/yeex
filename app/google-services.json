@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "280805036656",
+    "firebase_url": "https://yeex-90774-default-rtdb.firebaseio.com",
     "project_id": "yeex-90774",
     "storage_bucket": "yeex-90774.firebasestorage.app"
   },
@@ -12,7 +13,12 @@
           "package_name": "com.yeex.dlof"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "280805036656-gpds7imuu8fllmderh2aomq6konrve7c.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCcS041fII8mAmBUOJXqaa-LXcuYYxekzA"
@@ -20,7 +26,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "280805036656-gpds7imuu8fllmderh2aomq6konrve7c.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
