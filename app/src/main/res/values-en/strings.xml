@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">yeex</string>
+    <string name="community_name">yeextars</string>
+    <string name="login_title">Log In</string>
+    <string name="register_title">New Account</string>
+    <string name="field_identifier">Identifier</string>
+    <string name="field_password">Password</string>
+    <string name="field_display_name">Name</string>
+    <string name="btn_login">Log In</string>
+    <string name="btn_register">Create Account</string>
+    <string name="no_account">No account? Register now</string>
+    <string name="have_account">Have an account? Log in</string>
+    <string name="identifier_rules">Lowercase letters, numbers and dots only. No _ - ~ or capitals</string>
+    <string name="feed_title">Paragraphs</string>
+    <string name="paragraph_expires">Deletes after 24 hours</string>
+    <string name="create_paragraph">New Paragraph</string>
+    <string name="action_tek">Tek</string>
+    <string name="action_teker">Teker</string>
+    <string name="label_teking">Teking</string>
+    <string name="action_like">Like</string>
+    <string name="action_dislike">Dislike</string>
+    <string name="action_comment">Comment</string>
+    <string name="action_repost">Repost</string>
+    <string name="room_label">Room</string>
+    <string name="room_public">Public</string>
+    <string name="room_private">Private</string>
+    <string name="create_room">Create Room</string>
+    <string name="room_bio">Room Bio</string>
+    <string name="container_label">Custom Container</string>
+    <string name="container_search_hint">@container.name[].me</string>
+    <string name="verified_badge">Verified</string>
+    <string name="request_verification">Request Verification</string>
+    <string name="search_hint">Search</string>
+    <string name="watermark_text">yeex</string>
+</resources>
