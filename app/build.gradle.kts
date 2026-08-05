@@ -59,5 +59,11 @@ dependencies {
 
     implementation("io.coil-kt:coil-compose:2.6.0")
 
+    // Google Sign-In (Credential Manager, the current recommended API) + GitHub
+    // Sign-In (handled entirely by firebase-auth's OAuthProvider, no extra SDK).
+    implementation("androidx.credentials:credentials:1.3.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
