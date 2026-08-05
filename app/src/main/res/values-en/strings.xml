@@ -39,4 +39,16 @@
     <string name="action_download">Download</string>
     <string name="download_saved">Saved with watermark</string>
     <string name="download_failed">Couldn\'t save</string>
+
+    <!-- Auth errors -->
+    <string name="auth_error_invalid_credentials">Incorrect identifier or password</string>
+    <string name="auth_error_identifier_taken">This identifier is already taken</string>
+    <string name="auth_error_length">Identifier must be 3–24 characters</string>
+    <string name="auth_error_forbidden_char">Identifier contains a disallowed character ( _ - ~ or space)</string>
+    <string name="auth_error_uppercase">Identifier must be lowercase only</string>
+    <string name="auth_error_dot_placement">Identifier can\'t start/end with a dot or contain two dots in a row</string>
+    <string name="auth_error_invalid_chars">Identifier contains disallowed characters</string>
+    <string name="auth_error_profile_missing">Couldn\'t find account data</string>
+    <string name="auth_error_google_cancelled">Google sign-in was cancelled</string>
+    <string name="auth_error_unknown">Something went wrong, please try again</string>
 </resources>
