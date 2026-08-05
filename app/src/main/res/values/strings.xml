@@ -60,6 +60,18 @@
     <string name="download_saved">تم الحفظ مع العلامة المائية</string>
     <string name="download_failed">تعذّر الحفظ</string>
 
+    <!-- Auth errors -->
+    <string name="auth_error_invalid_credentials">المعرف أو كلمة السر غير صحيحة</string>
+    <string name="auth_error_identifier_taken">هذا المعرف مستخدم بالفعل</string>
+    <string name="auth_error_length">يجب أن يكون المعرف بين 3 و24 حرفًا</string>
+    <string name="auth_error_forbidden_char">المعرف يحتوي على رمز غير مسموح ( _ - ~ أو مسافة)</string>
+    <string name="auth_error_uppercase">المعرف يجب أن يكون بأحرف صغيرة فقط</string>
+    <string name="auth_error_dot_placement">لا يمكن أن يبدأ أو ينتهي المعرف بنقطة، ولا يحتوي نقطتين متتاليتين</string>
+    <string name="auth_error_invalid_chars">المعرف يحتوي على رموز غير مسموحة</string>
+    <string name="auth_error_profile_missing">تعذّر العثور على بيانات الحساب</string>
+    <string name="auth_error_google_cancelled">تم إلغاء تسجيل الدخول عبر Google</string>
+    <string name="auth_error_unknown">حدث خطأ غير متوقع، حاول مرة أخرى</string>
+
     <!--
       Web client (auto created by Google Service) OAuth Client ID, from
       Firebase Console → Authentication → Sign-in method → Google →
