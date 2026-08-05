@@ -49,4 +49,24 @@
 
     <!-- Watermark -->
     <string name="watermark_text">yeex</string>
+
+    <!-- Social sign-in -->
+    <string name="or_divider">أو</string>
+    <string name="btn_continue_google">المتابعة عبر Google</string>
+    <string name="btn_continue_github">المتابعة عبر GitHub</string>
+
+    <!-- Download / watermark action -->
+    <string name="action_download">تنزيل</string>
+    <string name="download_saved">تم الحفظ مع العلامة المائية</string>
+    <string name="download_failed">تعذّر الحفظ</string>
+
+    <!--
+      Web client (auto created by Google Service) OAuth Client ID, from
+      Firebase Console → Authentication → Sign-in method → Google →
+      Web SDK configuration. NOTE: app/google-services.json still ships
+      with an empty oauth_client list — re-download it from Firebase
+      Console → Project Settings → Your apps once Google Sign-In is
+      enabled, so the Google Play Services SDK also recognizes this client.
+    -->
+    <string name="default_web_client_id" translatable="false">280805036656-gpds7imuu8fllmderh2aomq6konrve7c.apps.googleusercontent.com</string>
 </resources>
