@@ -1,0 +1,46 @@
+name: Build APK
+
+# Runs automatically on every push/PR to main, and can also be triggered
+# manually from the "Actions" tab on GitHub (Run workflow button).
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug APK
+        # No committed Gradle wrapper jar in this repo (binary file, can't be
+        # generated in the environment that scaffolded this project) — this
+        # step installs Gradle itself instead of relying on ./gradlew.
+        # To use ./gradlew locally instead, run `gradle wrapper` once in
+        # Android Studio's terminal and commit the generated gradle/wrapper/
+        # folder; then swap this step back to `./gradlew assembleDebug`.
+        run: gradle assembleDebug --stacktrace
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: yeex-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
