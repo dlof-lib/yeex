@@ -1,5 +1,7 @@
 package com.yeex.dlof.ui.auth
 
+import android.app.Activity
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yeex.dlof.data.repository.AuthRepository
@@ -33,6 +35,26 @@ class AuthViewModel(private val repo: AuthRepository = AuthRepository()) : ViewM
         viewModelScope.launch {
             _state.value = AuthUiState.Loading
             when (val result = repo.login(identifier, password)) {
+                is AuthRepository.AuthResult.Success -> _state.value = AuthUiState.Success
+                is AuthRepository.AuthResult.Failure -> _state.value = AuthUiState.Error(result.messageKey)
+            }
+        }
+    }
+
+    fun signInWithGoogle(context: Context) {
+        viewModelScope.launch {
+            _state.value = AuthUiState.Loading
+            when (val result = repo.signInWithGoogle(context)) {
+                is AuthRepository.AuthResult.Success -> _state.value = AuthUiState.Success
+                is AuthRepository.AuthResult.Failure -> _state.value = AuthUiState.Error(result.messageKey)
+            }
+        }
+    }
+
+    fun signInWithGithub(activity: Activity) {
+        viewModelScope.launch {
+            _state.value = AuthUiState.Loading
+            when (val result = repo.signInWithGithub(activity)) {
                 is AuthRepository.AuthResult.Success -> _state.value = AuthUiState.Success
                 is AuthRepository.AuthResult.Failure -> _state.value = AuthUiState.Error(result.messageKey)
             }
