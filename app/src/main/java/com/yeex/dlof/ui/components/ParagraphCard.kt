@@ -1,10 +1,12 @@
 package com.yeex.dlof.ui.components
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.ThumbDown
@@ -16,12 +18,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.yeex.dlof.R
 import com.yeex.dlof.data.model.Paragraph
 import com.yeex.dlof.data.model.ParagraphType
+import com.yeex.dlof.util.DownloadUtil
 import com.yeex.dlof.util.MediaBase64
+import com.yeex.dlof.util.WatermarkUtil
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Renders a single paragraph as a SQUARE card (1:1 aspect ratio) — the unit
@@ -38,6 +46,16 @@ fun ParagraphCard(
     onRepost: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val watermarkLabel = stringResource(R.string.watermark_text)
+    val savedMessage = stringResource(R.string.download_saved)
+    val failedMessage = stringResource(R.string.download_failed)
+    val hasMedia = paragraph.mediaBase64.isNotEmpty()
+    val bitmap = remember(paragraph.id) {
+        if (hasMedia) MediaBase64.decodeToBitmap(paragraph.mediaBase64) else null
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -47,8 +65,7 @@ fun ParagraphCard(
         Box(modifier = Modifier.fillMaxSize()) {
             when (paragraph.type) {
                 ParagraphType.IMAGE.name, ParagraphType.VIDEO.name -> {
-                    if (paragraph.mediaBase64.isNotEmpty()) {
-                        val bitmap = remember(paragraph.id) { MediaBase64.decodeToBitmap(paragraph.mediaBase64) }
+                    if (bitmap != null) {
                         Image(
                             bitmap = bitmap.asImageBitmap(),
                             contentDescription = null,
@@ -106,6 +123,23 @@ fun ParagraphCard(
                 Spacer(Modifier.width(8.dp))
                 TextButton(onClick = onComment) { Text(stringResource(R.string.action_comment), color = Color.White) }
                 TextButton(onClick = onRepost) { Text(stringResource(R.string.action_repost), color = Color.White) }
+                if (bitmap != null) {
+                    IconButton(onClick = {
+                        scope.launch {
+                            val ok = withContext(Dispatchers.Default) {
+                                val watermarked = WatermarkUtil.applyWatermark(bitmap, watermarkLabel)
+                                DownloadUtil.saveToGallery(context, watermarked, "yeex_${paragraph.id}")
+                            }
+                            Toast.makeText(
+                                context,
+                                if (ok) savedMessage else failedMessage,
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }) {
+                        Icon(Icons.Filled.Download, contentDescription = stringResource(R.string.action_download), tint = Color.White)
+                    }
+                }
             }
         }
     }
