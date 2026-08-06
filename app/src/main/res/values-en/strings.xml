@@ -50,5 +50,7 @@
     <string name="auth_error_invalid_chars">Identifier contains disallowed characters</string>
     <string name="auth_error_profile_missing">Couldn\'t find account data</string>
     <string name="auth_error_google_cancelled">Google sign-in was cancelled</string>
+    <string name="auth_error_weak_password">Password is too weak, use at least 6 characters</string>
+    <string name="auth_error_network">Couldn\'t reach the server, check your connection</string>
     <string name="auth_error_unknown">Something went wrong, please try again</string>
 </resources>
