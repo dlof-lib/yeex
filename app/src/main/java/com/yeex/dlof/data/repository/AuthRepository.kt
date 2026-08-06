@@ -33,11 +33,16 @@ class AuthRepository(
         val validation = UsernameValidator.validate(identifier)
         if (!validation.isValid) return AuthResult.Failure(validation.errorKey ?: "invalid")
 
-        // Reserve the identifier first so two people can't race for the same handle.
-        val existing = identifiersRef.child(identifier).get().await()
-        if (existing.exists()) return AuthResult.Failure("identifier_taken")
-
         return try {
+            // Reserve the identifier first so two people can't race for the same handle.
+            // (This read was previously outside the try/catch: any hiccup here — a slow
+            // or dropped connection, a permission edge case — threw all the way up through
+            // viewModelScope.launch with nothing to catch it, crashing the whole app instead
+            // of showing an error. That's the "doesn't create an account and kicks me out
+            // of the app" bug.)
+            val existing = identifiersRef.child(identifier).get().await()
+            if (existing.exists()) return AuthResult.Failure("identifier_taken")
+
             val pseudoEmail = UsernameValidator.toPseudoEmail(identifier)
             val authResult = auth.createUserWithEmailAndPassword(pseudoEmail, password).await()
             val uid = authResult.user?.uid ?: return AuthResult.Failure("unknown")
@@ -49,8 +54,17 @@ class AuthRepository(
                 createdAt = System.currentTimeMillis(),
                 language = language
             )
-            usersRef.child(uid).setValue(user).await()
-            identifiersRef.child(identifier).setValue(uid).await()
+            try {
+                usersRef.child(uid).setValue(user).await()
+                identifiersRef.child(identifier).setValue(uid).await()
+            } catch (writeError: Exception) {
+                // The auth account was created but the profile/identifier writes failed
+                // (e.g. rules mismatch, connection dropped mid-registration). Delete the
+                // orphaned auth account so a retry with the same "معرف" doesn't fail with
+                // a confusing "email already in use" error.
+                authResult.user?.delete()?.await()
+                throw writeError
+            }
             AuthResult.Success(user)
         } catch (e: Exception) {
             AuthResult.Failure(e.message ?: "unknown")
