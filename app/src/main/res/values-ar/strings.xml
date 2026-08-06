@@ -50,5 +50,7 @@
     <string name="auth_error_invalid_chars">المعرف يحتوي على رموز غير مسموحة</string>
     <string name="auth_error_profile_missing">تعذّر العثور على بيانات الحساب</string>
     <string name="auth_error_google_cancelled">تم إلغاء تسجيل الدخول عبر Google</string>
+    <string name="auth_error_weak_password">كلمة السر ضعيفة جدًا، استخدم 6 أحرف على الأقل</string>
+    <string name="auth_error_network">تعذّر الاتصال بالخادم، تحقق من الإنترنت</string>
     <string name="auth_error_unknown">حدث خطأ غير متوقع، حاول مرة أخرى</string>
 </resources>
