@@ -50,5 +50,7 @@
     <string name="auth_error_invalid_chars">El identificador contiene caracteres no permitidos</string>
     <string name="auth_error_profile_missing">No se encontraron los datos de la cuenta</string>
     <string name="auth_error_google_cancelled">Se canceló el inicio de sesión con Google</string>
+    <string name="auth_error_weak_password">La contraseña es demasiado débil, usa al menos 6 caracteres</string>
+    <string name="auth_error_network">No se pudo conectar con el servidor, revisa tu conexión</string>
     <string name="auth_error_unknown">Ocurrió un error inesperado, inténtalo de nuevo</string>
 </resources>
