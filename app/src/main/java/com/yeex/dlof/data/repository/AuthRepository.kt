@@ -29,6 +29,29 @@ class AuthRepository(
     private val usersRef get() = db.getReference("users")
     private val identifiersRef get() = db.getReference("identifiers") // identifier -> uid, for uniqueness + lookup
 
+    /**
+     * Fields a normal (non-admin) user is allowed to write to their own /users/{uid} node,
+     * per database.rules.json. "verified", "verifiedReason", and "isOfficial" have
+     * admin-only .write rules — writing the full User object (which always carries their
+     * false/"" defaults) via setValue() therefore fails the whole multi-location write with
+     * PERMISSION_DENIED, which was surfacing to users as a generic "حدث خطأ غير متوقع" on
+     * every registration and every first Google/GitHub sign-in. Omitting them here is safe:
+     * they're not in the ".validate" hasChildren(...) requirement, and getValue(User::class.java)
+     * fills in the Kotlin data class defaults for any missing keys on read.
+     */
+    private fun User.toOwnWriteMap(): Map<String, Any?> = mapOf(
+        "uid" to uid,
+        "identifier" to identifier,
+        "displayName" to displayName,
+        "bio" to bio,
+        "profileIconUrl" to profileIconUrl,
+        "externalFollowerCounts" to externalFollowerCounts,
+        "tekingCount" to tekingCount,
+        "tekerCount" to tekerCount,
+        "createdAt" to createdAt,
+        "language" to language
+    )
+
     sealed class AuthResult {
         data class Success(val user: User) : AuthResult()
         data class Failure(val messageKey: String) : AuthResult()
@@ -82,7 +105,7 @@ class AuthRepository(
                 language = language
             )
             try {
-                usersRef.child(uid).setValue(user).await()
+                usersRef.child(uid).setValue(user.toOwnWriteMap()).await()
                 identifiersRef.child(identifier).setValue(uid).await()
             } catch (writeError: Exception) {
                 // The auth account was created but the profile/identifier writes failed
@@ -190,7 +213,7 @@ class AuthRepository(
             createdAt = System.currentTimeMillis(),
             language = "ar"
         )
-        usersRef.child(fbUser.uid).setValue(user).await()
+        usersRef.child(fbUser.uid).setValue(user.toOwnWriteMap()).await()
         identifiersRef.child(candidate).setValue(fbUser.uid).await()
         return AuthResult.Success(user)
     }
