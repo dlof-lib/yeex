@@ -23,6 +23,8 @@ internal fun authErrorStringRes(key: String): Int = when (key) {
     "invalid_chars" -> R.string.auth_error_invalid_chars
     "profile_missing" -> R.string.auth_error_profile_missing
     "google_cancelled" -> R.string.auth_error_google_cancelled
+    "weak_password" -> R.string.auth_error_weak_password
+    "network_error" -> R.string.auth_error_network
     else -> R.string.auth_error_unknown
 }
 
