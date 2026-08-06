@@ -22,41 +22,36 @@ class AuthViewModel(private val repo: AuthRepository = AuthRepository()) : ViewM
     val state: StateFlow<AuthUiState> = _state
 
     fun register(identifier: String, password: String, displayName: String, language: String) {
-        viewModelScope.launch {
-            _state.value = AuthUiState.Loading
-            when (val result = repo.register(identifier, password, displayName, language)) {
-                is AuthRepository.AuthResult.Success -> _state.value = AuthUiState.Success
-                is AuthRepository.AuthResult.Failure -> _state.value = AuthUiState.Error(result.messageKey)
-            }
-        }
+        runAuthAction { repo.register(identifier, password, displayName, language) }
     }
 
     fun login(identifier: String, password: String) {
-        viewModelScope.launch {
-            _state.value = AuthUiState.Loading
-            when (val result = repo.login(identifier, password)) {
-                is AuthRepository.AuthResult.Success -> _state.value = AuthUiState.Success
-                is AuthRepository.AuthResult.Failure -> _state.value = AuthUiState.Error(result.messageKey)
-            }
-        }
+        runAuthAction { repo.login(identifier, password) }
     }
 
     fun signInWithGoogle(context: Context) {
-        viewModelScope.launch {
-            _state.value = AuthUiState.Loading
-            when (val result = repo.signInWithGoogle(context)) {
-                is AuthRepository.AuthResult.Success -> _state.value = AuthUiState.Success
-                is AuthRepository.AuthResult.Failure -> _state.value = AuthUiState.Error(result.messageKey)
-            }
-        }
+        runAuthAction { repo.signInWithGoogle(context) }
     }
 
     fun signInWithGithub(activity: Activity) {
+        runAuthAction { repo.signInWithGithub(activity) }
+    }
+
+    /**
+     * Runs an auth suspend call and always lands on Success/Error — never lets an
+     * unexpected exception escape viewModelScope.launch uncaught, which would otherwise
+     * crash the whole app instead of showing an in-UI error message.
+     */
+    private fun runAuthAction(action: suspend () -> AuthRepository.AuthResult) {
         viewModelScope.launch {
             _state.value = AuthUiState.Loading
-            when (val result = repo.signInWithGithub(activity)) {
-                is AuthRepository.AuthResult.Success -> _state.value = AuthUiState.Success
-                is AuthRepository.AuthResult.Failure -> _state.value = AuthUiState.Error(result.messageKey)
+            _state.value = try {
+                when (val result = action()) {
+                    is AuthRepository.AuthResult.Success -> AuthUiState.Success
+                    is AuthRepository.AuthResult.Failure -> AuthUiState.Error(result.messageKey)
+                }
+            } catch (e: Exception) {
+                AuthUiState.Error(e.message ?: "unknown")
             }
         }
     }
