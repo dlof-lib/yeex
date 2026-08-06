@@ -2,12 +2,17 @@ package com.yeex.dlof.data.repository
 
 import android.app.Activity
 import android.content.Context
+import android.util.Log
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.OAuthProvider
@@ -27,6 +32,28 @@ class AuthRepository(
     sealed class AuthResult {
         data class Success(val user: User) : AuthResult()
         data class Failure(val messageKey: String) : AuthResult()
+    }
+
+    companion object {
+        private const val TAG = "AuthRepository"
+    }
+
+    /**
+     * Turns a raw exception into a UI-facing error key. Previously every failure that
+     * wasn't already a known key fell into "unknown" ("حدث خطأ غير متوقع") with no way
+     * to tell what actually happened — this logs the real exception to Logcat (adb logcat
+     * -s AuthRepository) and returns a specific key for the common Firebase Auth failure
+     * types so they can be shown/localized precisely instead of hidden behind one message.
+     */
+    private fun mapAuthException(context: String, e: Exception): String {
+        Log.e(TAG, "$context failed: ${e.javaClass.simpleName}: ${e.message}", e)
+        return when (e) {
+            is FirebaseAuthUserCollisionException -> "identifier_taken"
+            is FirebaseAuthWeakPasswordException -> "weak_password"
+            is FirebaseAuthInvalidCredentialsException -> "invalid_credentials"
+            is FirebaseNetworkException -> "network_error"
+            else -> e.message ?: "unknown"
+        }
     }
 
     suspend fun register(identifier: String, password: String, displayName: String, language: String): AuthResult {
@@ -67,7 +94,7 @@ class AuthRepository(
             }
             AuthResult.Success(user)
         } catch (e: Exception) {
-            AuthResult.Failure(e.message ?: "unknown")
+            AuthResult.Failure(mapAuthException("register", e))
         }
     }
 
@@ -80,7 +107,11 @@ class AuthRepository(
             val user = snapshot.getValue(User::class.java) ?: return AuthResult.Failure("profile_missing")
             AuthResult.Success(user)
         } catch (e: Exception) {
-            AuthResult.Failure("invalid_credentials")
+            // Deliberately don't expose *why* login failed (wrong id vs wrong password vs
+            // account doesn't exist) to the UI — that's a standard security practice, not
+            // a bug. The real exception is still logged for debugging though.
+            val key = mapAuthException("login", e)
+            AuthResult.Failure(if (key == "network_error") key else "invalid_credentials")
         }
     }
 
@@ -106,9 +137,10 @@ class AuthRepository(
             val fbUser = authResult.user ?: return AuthResult.Failure("unknown")
             ensureUserProfile(fbUser)
         } catch (e: GetCredentialException) {
+            Log.e(TAG, "Google sign-in failed: ${e.javaClass.simpleName}: ${e.message}", e)
             AuthResult.Failure("google_cancelled")
         } catch (e: Exception) {
-            AuthResult.Failure(e.message ?: "unknown")
+            AuthResult.Failure(mapAuthException("Google sign-in", e))
         }
     }
 
@@ -128,7 +160,7 @@ class AuthRepository(
             val fbUser = authResult.user ?: return AuthResult.Failure("unknown")
             ensureUserProfile(fbUser)
         } catch (e: Exception) {
-            AuthResult.Failure(e.message ?: "unknown")
+            AuthResult.Failure(mapAuthException("GitHub sign-in", e))
         }
     }
 
