@@ -6,9 +6,12 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.yeex.dlof.data.model.Comment
 import com.yeex.dlof.data.model.Paragraph
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 private const val TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000L
@@ -41,9 +44,14 @@ class ParagraphRepository(
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val now = System.currentTimeMillis()
-                val items = snapshot.children.mapNotNull { it.getValue(Paragraph::class.java) }
-                    .filter { it.expiresAt > now } // client-side expiry backstop, see FeedRanking
-                trySend(items)
+                val all = snapshot.children.mapNotNull { it.getValue(Paragraph::class.java) }
+                val (expired, live) = all.partition { it.expiresAt <= now }
+                trySend(live)
+                if (expired.isNotEmpty()) {
+                    // Fire-and-forget: actually remove expired rows from Firebase
+                    // (not just hide them locally). See purgeExpired() doc.
+                    CoroutineScope(Dispatchers.IO).launch { purgeExpired(expired) }
+                }
             }
             override fun onCancelled(error: DatabaseError) { close(error.toException()) }
         }
@@ -62,9 +70,25 @@ class ParagraphRepository(
         bump(comment.paragraphId, "commentCount", 1)
     }
 
-    /** Reposts an existing paragraph into a room, with an optional added comment. */
-    suspend fun repostIntoRoom(original: Paragraph, roomId: String, comment: String): String {
+    /**
+     * Reposts an existing paragraph into a room, with an optional added comment.
+     * The repost is published as a new paragraph *owned by the reposting user*
+     * ([reposterUid]/[reposterIdentifier]) — not the original author — since
+     * database.rules.json requires authorId === auth.uid on create.
+     */
+    suspend fun repostIntoRoom(
+        original: Paragraph,
+        roomId: String,
+        comment: String,
+        reposterUid: String,
+        reposterIdentifier: String,
+        reposterVerified: Boolean
+    ): String {
         val reposted = original.copy(
+            id = "",
+            authorId = reposterUid,
+            authorIdentifier = reposterIdentifier,
+            authorVerified = reposterVerified,
             repostOfId = original.id,
             repostComment = comment,
             roomId = roomId,
@@ -76,6 +100,20 @@ class ParagraphRepository(
         val newId = publish(reposted)
         bump(original.id, "repostCount", 1)
         return newId
+    }
+
+    /**
+     * Best-effort distributed cleanup: since the free (Spark) Firebase plan has
+     * no scheduled Cloud Functions to sweep expired paragraphs server-side, any
+     * signed-in client that observes an already-expired paragraph deletes it.
+     * Safe under database.rules.json, which permits deletion of a paragraph by
+     * *any* authenticated user once data.child('expiresAt') is in the past —
+     * see the $paragraphId ".write" rule. Duplicate deletes are harmless.
+     */
+    suspend fun purgeExpired(expired: List<Paragraph>) {
+        for (p in expired) {
+            runCatching { paragraphsRef.child(p.id).removeValue().await() }
+        }
     }
 
     private suspend fun bump(paragraphId: String, field: String, delta: Int) {
