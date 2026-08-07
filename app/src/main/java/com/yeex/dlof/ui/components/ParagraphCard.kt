@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.dp
 import com.yeex.dlof.R
 import com.yeex.dlof.data.model.Paragraph
 import com.yeex.dlof.data.model.ParagraphType
+import com.yeex.dlof.ui.theme.YeexAccent
+import com.yeex.dlof.ui.theme.YeexCrimson
 import com.yeex.dlof.util.DownloadUtil
 import com.yeex.dlof.util.MediaBase64
 import com.yeex.dlof.util.WatermarkUtil
@@ -100,7 +102,7 @@ fun ParagraphCard(
                 Text("@${paragraph.authorIdentifier}", color = Color.White, style = MaterialTheme.typography.labelMedium)
                 if (paragraph.authorVerified) {
                     Spacer(Modifier.width(4.dp))
-                    Icon(Icons.Filled.Verified, contentDescription = stringResource(R.string.verified_badge), tint = Color(0xFFC81D3D))
+                    Icon(Icons.Filled.Verified, contentDescription = stringResource(R.string.verified_badge), tint = YeexCrimson)
                 }
             }
 
@@ -113,7 +115,7 @@ fun ParagraphCard(
                     Icon(
                         if (hasLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                         contentDescription = stringResource(R.string.action_like),
-                        tint = if (hasLiked) Color(0xFFC81D3D) else Color.White
+                        tint = if (hasLiked) YeexAccent else Color.White
                     )
                 }
                 Text("${paragraph.likeCount}", color = Color.White)
@@ -122,7 +124,7 @@ fun ParagraphCard(
                     Icon(
                         Icons.Filled.ThumbDown,
                         contentDescription = stringResource(R.string.action_dislike),
-                        tint = if (hasDisliked) Color(0xFFC81D3D) else Color.White
+                        tint = if (hasDisliked) YeexAccent else Color.White
                     )
                 }
                 Spacer(Modifier.width(8.dp))
