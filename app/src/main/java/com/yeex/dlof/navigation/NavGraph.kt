@@ -23,6 +23,7 @@ import com.yeex.dlof.ui.create.CreateParagraphScreen
 import com.yeex.dlof.ui.feed.FeedScreen
 import com.yeex.dlof.ui.profile.ProfileScreen
 import com.yeex.dlof.ui.repost.RepostScreen
+import com.yeex.dlof.ui.room.BrowseRoomsScreen
 import com.yeex.dlof.ui.room.CreateRoomScreen
 import com.yeex.dlof.ui.room.RoomScreen
 import com.yeex.dlof.ui.search.SearchScreen
@@ -34,6 +35,7 @@ object Routes {
     const val REGISTER = "register"
     const val FEED = "feed"
     const val CREATE_PARAGRAPH = "create_paragraph"
+    const val ROOMS = "rooms"
     const val ROOM = "room/{roomId}"
     const val CREATE_ROOM = "create_room"
     const val PROFILE = "profile/{uid}"
@@ -131,8 +133,18 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
             composable(Routes.CREATE_PARAGRAPH) {
                 CreateParagraphScreen(onPublished = { navController.popBackStack() })
             }
+            composable(Routes.ROOMS) {
+                BrowseRoomsScreen(
+                    onOpenRoom = { id -> navController.navigate(Routes.room(id)) },
+                    onCreateRoom = { navController.navigate(Routes.CREATE_ROOM) }
+                )
+            }
             composable(Routes.CREATE_ROOM) {
-                CreateRoomScreen(onCreated = { id -> navController.navigate(Routes.room(id)) })
+                CreateRoomScreen(onCreated = { id ->
+                    navController.navigate(Routes.room(id)) {
+                        popUpTo(Routes.ROOMS)
+                    }
+                })
             }
             composable(
                 Routes.ROOM,
@@ -156,7 +168,10 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
                 )
             }
             composable(Routes.SEARCH) {
-                SearchScreen(onOpenContainer = { })
+                SearchScreen(
+                    onOpenContainer = { },
+                    onOpenRooms = { navController.navigate(Routes.ROOMS) }
+                )
             }
             composable(Routes.VERIFY) {
                 VerificationRequestScreen(onSubmitted = { navController.popBackStack() })
