@@ -88,10 +88,11 @@ class FeedViewModel(
         }
 
         viewModelScope.launch {
-            repo.toggleLike(paragraphId, uid)
-            // Reconcile with the authoritative server value in case of races.
+            val committed = repo.toggleLike(paragraphId, uid)
+            // Reconcile with the exact value the atomic transaction committed
+            // (covers the rare case where another device/tab raced this one).
             _reactions.value = _reactions.value.toMutableMap().apply {
-                this[paragraphId] = repo.getReaction(paragraphId, uid)
+                this[paragraphId] = committed
             }
         }
     }
@@ -111,9 +112,9 @@ class FeedViewModel(
         }
 
         viewModelScope.launch {
-            repo.toggleDislike(paragraphId, uid)
+            val committed = repo.toggleDislike(paragraphId, uid)
             _reactions.value = _reactions.value.toMutableMap().apply {
-                this[paragraphId] = repo.getReaction(paragraphId, uid)
+                this[paragraphId] = committed
             }
         }
     }
