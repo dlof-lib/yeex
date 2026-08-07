@@ -1,8 +1,22 @@
 package com.yeex.dlof.ui.components
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -14,15 +28,18 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -34,6 +51,9 @@ import com.yeex.dlof.data.model.Paragraph
 import com.yeex.dlof.data.model.ParagraphType
 import com.yeex.dlof.ui.theme.YeexAccent
 import com.yeex.dlof.ui.theme.YeexCrimson
+import com.yeex.dlof.ui.theme.YeexDislike
+import com.yeex.dlof.ui.theme.YeexLike
+import com.yeex.dlof.ui.theme.YeexLikeGlow
 import com.yeex.dlof.util.DownloadUtil
 import com.yeex.dlof.util.MediaBase64
 import com.yeex.dlof.util.WatermarkUtil
@@ -132,16 +152,22 @@ fun ParagraphCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            RailAction(
-                icon = if (hasLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                tint = if (hasLiked) YeexCrimson else Color.White,
+            ReactionButton(
+                isActive = hasLiked,
+                activeIcon = Icons.Filled.Favorite,
+                inactiveIcon = Icons.Filled.FavoriteBorder,
+                activeColor = YeexLike,
+                glowColor = YeexLikeGlow,
                 count = paragraph.likeCount,
                 contentDescription = stringResource(R.string.action_like),
                 onClick = onLike
             )
-            RailAction(
-                icon = Icons.Filled.ThumbDown,
-                tint = if (hasDisliked) YeexAccent else Color.White,
+            ReactionButton(
+                isActive = hasDisliked,
+                activeIcon = Icons.Filled.ThumbDown,
+                inactiveIcon = Icons.Outlined.ThumbDown,
+                activeColor = YeexDislike,
+                glowColor = YeexDislike,
                 count = paragraph.dislikeCount,
                 contentDescription = stringResource(R.string.action_dislike),
                 onClick = onDislike
@@ -263,4 +289,136 @@ private fun formatCount(count: Long): String = when {
     count >= 1_000_000 -> "%.1fM".format(count / 1_000_000.0)
     count >= 1_000 -> "%.1fK".format(count / 1_000.0)
     else -> count.toString()
+}
+
+/**
+ * A premium, punchy like/dislike control for the reaction rail.
+ *
+ * - The icon crossfades + scales between its outline and filled states.
+ * - A radial "glow" ring bursts outward and fades whenever the reaction
+ *   becomes active, giving tactile confirmation (like Instagram/YouTube).
+ * - The whole button springs (overshoot + settle) on every tap.
+ * - When active, the circular backdrop turns into a soft brand-colored
+ *   gradient instead of the flat translucent-black used by neutral rail
+ *   actions, so "liked"/"disliked" state reads instantly at a glance.
+ */
+@Composable
+private fun ReactionButton(
+    isActive: Boolean,
+    activeIcon: ImageVector,
+    inactiveIcon: ImageVector,
+    activeColor: Color,
+    glowColor: Color,
+    count: Long,
+    contentDescription: String,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+
+    // Tap "punch": overshoots past 1f then settles — feels alive, not linear.
+    val pressScale = remember { Animatable(1f) }
+    // Burst ring: 0f (hidden) -> 1f (fully expanded + faded) on activation.
+    val burst = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+
+    val backdropColor by animateColorAsState(
+        targetValue = if (isActive) activeColor.copy(alpha = 0.22f) else Color.Black.copy(alpha = 0.28f),
+        animationSpec = tween(220),
+        label = "reactionBackdrop"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isActive) activeColor.copy(alpha = 0.9f) else Color.White.copy(alpha = 0.18f),
+        animationSpec = tween(220),
+        label = "reactionBorder"
+    )
+    val iconTint by animateColorAsState(
+        targetValue = if (isActive) activeColor else Color.White,
+        animationSpec = tween(220),
+        label = "reactionIconTint"
+    )
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(50.dp)
+                .scale(pressScale.value)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = LocalIndication.current,
+                    onClick = {
+                        scope.launch {
+                            pressScale.animateTo(
+                                targetValue = 1.28f,
+                                animationSpec = tween(90, easing = FastOutSlowInEasing)
+                            )
+                            pressScale.animateTo(
+                                targetValue = 1f,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessMedium
+                                )
+                            )
+                        }
+                        if (!isActive) {
+                            scope.launch {
+                                burst.snapTo(0f)
+                                burst.animateTo(1f, animationSpec = tween(420, easing = FastOutSlowInEasing))
+                            }
+                        }
+                        onClick()
+                    }
+                )
+        ) {
+            // Expanding, fading glow burst behind the icon on activation.
+            if (burst.value > 0f) {
+                Box(
+                    modifier = Modifier
+                        .size(50.dp)
+                        .scale(0.7f + burst.value * 0.9f)
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    glowColor.copy(alpha = 0.55f * (1f - burst.value)),
+                                    glowColor.copy(alpha = 0f)
+                                )
+                            ),
+                            shape = CircleShape
+                        )
+                )
+            }
+
+            // Circular backdrop that shifts from neutral to brand-tinted.
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(backdropColor)
+                    .border(width = 1.2.dp, color = borderColor, shape = CircleShape)
+            )
+
+            AnimatedContent(
+                targetState = isActive,
+                transitionSpec = {
+                    (scaleIn(initialScale = 0.4f, animationSpec = tween(200)))
+                        .togetherWith(scaleOut(targetScale = 0.4f, animationSpec = tween(150)))
+                },
+                label = "reactionIconSwap"
+            ) { active ->
+                Icon(
+                    imageVector = if (active) activeIcon else inactiveIcon,
+                    contentDescription = contentDescription,
+                    tint = iconTint,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+        Spacer(Modifier.height(2.dp))
+        Text(
+            formatCount(count),
+            color = if (isActive) activeColor else Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp
+        )
+    }
 }
