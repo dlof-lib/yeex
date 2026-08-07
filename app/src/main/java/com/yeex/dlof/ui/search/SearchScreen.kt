@@ -2,8 +2,11 @@ package com.yeex.dlof.ui.search
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -16,12 +19,14 @@ import kotlinx.coroutines.launch
  * Search box. If the query matches "@container.<name>[].me" it's routed to
  * container lookup first (per spec: "اولا اكتب @container.name[].me");
  * anything else falls through to identifier/room search (left as a
- * follow-up — see README).
+ * follow-up — see README). [onOpenRooms] is the entry point into
+ * [com.yeex.dlof.ui.room.BrowseRoomsScreen] for discovering/joining rooms.
  */
 @Composable
 fun SearchScreen(
     containerRepo: ContainerRepository = ContainerRepository(),
-    onOpenContainer: (Container) -> Unit
+    onOpenContainer: (Container) -> Unit,
+    onOpenRooms: () -> Unit = {}
 ) {
     var query by remember { mutableStateOf("") }
     var containerResults by remember { mutableStateOf<List<Container>>(emptyList()) }
@@ -29,14 +34,20 @@ fun SearchScreen(
     val scope = rememberCoroutineScope()
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = { query = it },
-            label = { Text(stringResource(R.string.search_hint)) },
-            placeholder = { Text(stringResource(R.string.container_search_hint)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                label = { Text(stringResource(R.string.search_hint)) },
+                placeholder = { Text(stringResource(R.string.container_search_hint)) },
+                singleLine = true,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(8.dp))
+            FilledTonalIconButton(onClick = onOpenRooms) {
+                Icon(Icons.Filled.Groups, contentDescription = stringResource(R.string.browse_rooms))
+            }
+        }
         Spacer(Modifier.height(8.dp))
         Button(onClick = {
             scope.launch {
