@@ -76,6 +76,8 @@
     <string name="auth_error_invalid_chars">Identifier contains disallowed characters</string>
     <string name="auth_error_profile_missing">Couldn\'t find account data</string>
     <string name="auth_error_google_cancelled">Google sign-in was cancelled</string>
+    <string name="auth_error_google_no_account">No Google account is available on this device, or the app isn't yet enabled for Google sign-in. Add a Google account in device settings and try again</string>
+    <string name="auth_error_google_config_error">Google sign-in isn't configured correctly for this app right now. Please try again later</string>
     <string name="auth_error_weak_password">Password is too weak, use at least 6 characters</string>
     <string name="auth_error_network">Couldn\'t reach the server, check your connection</string>
     <string name="auth_error_unknown">Something went wrong, please try again</string>
