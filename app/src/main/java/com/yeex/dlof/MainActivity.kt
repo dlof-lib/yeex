@@ -6,10 +6,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import com.yeex.dlof.navigation.YeexNavGraph
+import com.yeex.dlof.ui.common.NoInternetScreen
 import com.yeex.dlof.ui.theme.YeexTheme
 import com.yeex.dlof.util.LocaleUtil
+import com.yeex.dlof.util.NetworkUtil
 
 class MainActivity : ComponentActivity() {
 
@@ -26,7 +30,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             YeexTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    YeexNavGraph()
+                    val context = LocalContext.current
+                    val isOnline by NetworkUtil.rememberIsOnline(context)
+                    if (isOnline) {
+                        YeexNavGraph()
+                    } else {
+                        NoInternetScreen(onRetry = { /* state re-evaluates automatically via the live network callback */ })
+                    }
                 }
             }
         }
