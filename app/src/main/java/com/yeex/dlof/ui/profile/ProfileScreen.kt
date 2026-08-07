@@ -3,9 +3,7 @@ package com.yeex.dlof.ui.profile
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -17,7 +15,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image as ImageIcon
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Verified
@@ -29,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -43,6 +39,7 @@ import com.yeex.dlof.data.repository.AuthRepository
 import com.yeex.dlof.data.repository.ParagraphRepository
 import com.yeex.dlof.data.repository.UserRepository
 import com.yeex.dlof.ui.components.TekButton
+import com.yeex.dlof.ui.components.UserAvatar
 import com.yeex.dlof.ui.theme.YeexAccent
 import com.yeex.dlof.ui.theme.YeexCrimson
 import com.yeex.dlof.ui.theme.YeexNavy
@@ -136,7 +133,7 @@ fun ProfileScreen(
                             .background(MaterialTheme.colorScheme.background)
                             .padding(4.dp)
                     ) {
-                        ProfileAvatar(iconBase64 = u.profileIconUrl, size = 88.dp)
+                        UserAvatar(iconBase64 = u.profileIconUrl, size = 88.dp)
                     }
                 }
 
@@ -258,9 +255,7 @@ private fun StatPill(count: Long, label: String) {
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
-        modifier = Modifier
-            .weight(1f)
-            .fillMaxHeight()
+        modifier = Modifier.weight(1f)
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
@@ -307,27 +302,6 @@ private fun LatestParagraphRow(p: Paragraph) {
     }
 }
 
-@Composable
-private fun ProfileAvatar(iconBase64: String, size: androidx.compose.ui.unit.Dp) {
-    val bitmap = remember(iconBase64) {
-        if (iconBase64.isNotBlank()) runCatching { MediaBase64.decodeToBitmap(iconBase64) }.getOrNull() else null
-    }
-    Box(
-        modifier = Modifier
-            .size(size)
-            .clip(CircleShape)
-            .border(2.dp, Brush.horizontalGradient(listOf(YeexNavy, YeexAccent)), CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant),
-        contentAlignment = Alignment.Center
-    ) {
-        if (bitmap != null) {
-            Image(bitmap = bitmap.asImageBitmap(), contentDescription = null, modifier = Modifier.fillMaxSize())
-        } else {
-            Icon(Icons.Filled.Person, contentDescription = null, modifier = Modifier.size(size * 0.6f))
-        }
-    }
-}
-
 /**
  * "Edit account" pop-up (ModalBottomSheet) — lets the user change their
  * account icon, display name, and bio without leaving the profile screen,
@@ -362,7 +336,7 @@ private fun EditAccountSheet(
             Spacer(Modifier.height(16.dp))
 
             Box(contentAlignment = Alignment.BottomEnd) {
-                ProfileAvatar(iconBase64 = pendingIconBase64 ?: user?.profileIconUrl ?: "", size = 88.dp)
+                UserAvatar(iconBase64 = pendingIconBase64 ?: user?.profileIconUrl ?: "", size = 88.dp)
                 IconButton(
                     onClick = { pickIcon.launch("image/*") },
                     modifier = Modifier
