@@ -19,6 +19,7 @@ import com.google.firebase.auth.OAuthProvider
 import com.google.firebase.database.FirebaseDatabase
 import com.yeex.dlof.R
 import com.yeex.dlof.data.model.User
+import com.yeex.dlof.util.LocaleUtil
 import com.yeex.dlof.util.UsernameValidator
 import kotlinx.coroutines.tasks.await
 
@@ -158,7 +159,7 @@ class AuthRepository(
             val firebaseCredential = GoogleAuthProvider.getCredential(googleIdTokenCredential.idToken, null)
             val authResult = auth.signInWithCredential(firebaseCredential).await()
             val fbUser = authResult.user ?: return AuthResult.Failure("unknown")
-            ensureUserProfile(fbUser)
+            ensureUserProfile(fbUser, context)
         } catch (e: GetCredentialException) {
             Log.e(TAG, "Google sign-in failed: ${e.javaClass.simpleName}: ${e.message}", e)
             AuthResult.Failure("google_cancelled")
@@ -181,7 +182,7 @@ class AuthRepository(
             val authResult = if (pending != null) pending.await()
             else auth.startActivityForSignInWithProvider(activity, githubProvider).await()
             val fbUser = authResult.user ?: return AuthResult.Failure("unknown")
-            ensureUserProfile(fbUser)
+            ensureUserProfile(fbUser, activity)
         } catch (e: Exception) {
             AuthResult.Failure(mapAuthException("GitHub sign-in", e))
         }
@@ -189,7 +190,7 @@ class AuthRepository(
 
     // ---- Shared: first-time social sign-in needs a /users/{uid} profile --
 
-    private suspend fun ensureUserProfile(fbUser: FirebaseUser): AuthResult {
+    private suspend fun ensureUserProfile(fbUser: FirebaseUser, context: Context): AuthResult {
         val existingSnap = usersRef.child(fbUser.uid).get().await()
         if (existingSnap.exists()) {
             val user = existingSnap.getValue(User::class.java) ?: return AuthResult.Failure("profile_missing")
@@ -211,7 +212,7 @@ class AuthRepository(
             identifier = candidate,
             displayName = fbUser.displayName ?: candidate,
             createdAt = System.currentTimeMillis(),
-            language = "ar"
+            language = LocaleUtil.getSavedLanguage(context) // whatever the picker was set to pre-login
         )
         usersRef.child(fbUser.uid).setValue(user.toOwnWriteMap()).await()
         identifiersRef.child(candidate).setValue(fbUser.uid).await()
