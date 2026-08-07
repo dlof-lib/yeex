@@ -17,6 +17,12 @@ val YeexAccent = Color(0xFF4C57C9)
 // general UI/button color so the badge stays visually unique.
 val YeexCrimson = Color(0xFFC81D3D)
 
+// Reaction-rail colors — distinct from YeexCrimson so the verified badge
+// stays visually unique to verification only.
+val YeexLike = Color(0xFFFF2D55)
+val YeexLikeGlow = Color(0xFFFF6B8B)
+val YeexDislike = Color(0xFF6C7BFF)
+
 val YeexBlack = Color(0xFF0E0E10)
 val YeexDarkSurface = Color(0xFF181A2E)
 val YeexWhite = Color(0xFFF5F5F5)
