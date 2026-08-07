@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.Yeex" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:statusBarColor">@color/yeex_black</item>
+        <item name="android:statusBarColor">@color/yeex_navy_dark</item>
         <item name="android:windowBackground">@color/yeex_black</item>
+        <item name="android:navigationBarColor">@color/yeex_navy_dark</item>
     </style>
 </resources>
