@@ -258,7 +258,9 @@ private fun StatPill(count: Long, label: String) {
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
-        modifier = Modifier.weight(1f)
+        modifier = Modifier
+            .weight(1f)
+            .fillMaxHeight()
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
