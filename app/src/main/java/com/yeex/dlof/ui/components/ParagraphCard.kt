@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.ThumbDown
@@ -57,6 +58,7 @@ import com.yeex.dlof.ui.theme.YeexLike
 import com.yeex.dlof.ui.theme.YeexLikeGlow
 import com.yeex.dlof.util.DownloadUtil
 import com.yeex.dlof.util.MediaBase64
+import com.yeex.dlof.util.PdfExportUtil
 import com.yeex.dlof.util.WatermarkUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -235,6 +237,46 @@ fun ParagraphCard(
                     }
                 )
             }
+            // PDF export: works for any paragraph. IMAGE reuses the same
+            // decoded bitmap as the gallery download above; TEXT (which has
+            // no bitmap at all) is rendered onto a card first via
+            // PdfExportUtil.renderTextCard. Both paths get the same
+            // WatermarkUtil stamp before being wrapped into a one-page PDF.
+            RailAction(
+                icon = Icons.Filled.PictureAsPdf,
+                tint = Color.White,
+                count = null,
+                contentDescription = stringResource(R.string.action_download_pdf),
+                onClick = {
+                    scope.launch {
+                        val author = runCatching { userRepo.getUser(paragraph.authorId) }.getOrNull()
+                        val authorAvatar = author?.profileIconUrl
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { MediaBase64.decodeToBitmap(it) }
+                        val authorName = author?.displayName ?: paragraph.authorIdentifier
+                        val ok = withContext(Dispatchers.Default) {
+                            val sourceBitmap = bitmap
+                                ?: PdfExportUtil.renderTextCard(
+                                    text = paragraph.text,
+                                    authorLine = "@${paragraph.authorIdentifier}"
+                                )
+                            val watermarked = WatermarkUtil.applyWatermark(
+                                source = sourceBitmap,
+                                appLabel = watermarkLabel,
+                                authorIdentifier = paragraph.authorIdentifier,
+                                authorDisplayName = authorName,
+                                authorAvatar = authorAvatar
+                            )
+                            PdfExportUtil.exportBitmap(context, watermarked, "yeex_${paragraph.id}")
+                        }
+                        Toast.makeText(
+                            context,
+                            if (ok) savedMessage else failedMessage,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            )
         }
 
         // ---- Bottom-left author + caption overlay ----
