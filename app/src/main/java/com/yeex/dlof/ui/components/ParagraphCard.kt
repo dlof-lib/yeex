@@ -86,8 +86,12 @@ fun ParagraphCard(
     val savedMessage = stringResource(R.string.download_saved)
     val failedMessage = stringResource(R.string.download_failed)
     val hasMedia = paragraph.mediaBase64.isNotEmpty()
+    val isVideo = paragraph.type == ParagraphType.VIDEO.name
+    // Only IMAGE paragraphs decode to a Bitmap. VIDEO paragraphs store raw
+    // MP4 bytes, which BitmapFactory can't decode (see MediaBase64.decodeToBitmap) —
+    // those are rendered with VideoPlayer below instead.
     val bitmap = remember(paragraph.id) {
-        if (hasMedia) MediaBase64.decodeToBitmap(paragraph.mediaBase64) else null
+        if (hasMedia && !isVideo) MediaBase64.decodeToBitmap(paragraph.mediaBase64) else null
     }
 
     Box(
@@ -97,7 +101,16 @@ fun ParagraphCard(
     ) {
         // ---- Background layer: media fills the whole screen, cropped like TikTok ----
         when (paragraph.type) {
-            ParagraphType.IMAGE.name, ParagraphType.VIDEO.name -> {
+            ParagraphType.VIDEO.name -> {
+                if (hasMedia) {
+                    VideoPlayer(
+                        paragraphId = paragraph.id,
+                        mediaBase64 = paragraph.mediaBase64,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+            ParagraphType.IMAGE.name -> {
                 if (bitmap != null) {
                     Image(
                         bitmap = bitmap.asImageBitmap(),
