@@ -62,4 +62,20 @@
     <string name="auth_error_weak_password">La contraseña es demasiado débil, usa al menos 6 caracteres</string>
     <string name="auth_error_network">No se pudo conectar con el servidor, revisa tu conexión</string>
     <string name="auth_error_unknown">Ocurrió un error inesperado, inténtalo de nuevo</string>
+
+    <!-- No internet -->
+    <string name="no_internet_title">Sin conexión a internet</string>
+    <string name="no_internet_message">Revisa tu conexión de red — la app se reanudará automáticamente al recuperar internet</string>
+    <string name="retry">Reintentar</string>
+
+    <!-- Account / edit profile -->
+    <string name="edit_profile">Editar cuenta</string>
+    <string name="change_icon">Cambiar ícono</string>
+    <string name="display_name_label">Nombre visible</string>
+    <string name="bio_label">Biografía</string>
+    <string name="save">Guardar</string>
+    <string name="cancel">Cancelar</string>
+    <string name="latest_paragraphs">Últimos párrafos</string>
+    <string name="publish_action">Publicar</string>
+    <string name="publishing_in_progress">Publicando…</string>
 </resources>
