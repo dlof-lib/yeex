@@ -21,6 +21,7 @@ fun CreateRoomScreen(
     var name by remember { mutableStateOf("") }
     var bio by remember { mutableStateOf("") }
     var isPublic by remember { mutableStateOf(true) }
+    var interests by remember { mutableStateOf("") }
     var socialLink by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
@@ -33,9 +34,17 @@ fun CreateRoomScreen(
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(bio, { bio = it }, label = { Text(stringResource(R.string.room_bio)) }, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(socialLink, { socialLink = it }, label = { Text("رابط تواصل اجتماعي (اختياري)") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(
+            interests,
+            { interests = it },
+            label = { Text(stringResource(R.string.room_interests_hint)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(phone, { phone = it }, label = { Text("رقم هاتف (اختياري)") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(socialLink, { socialLink = it }, label = { Text(stringResource(R.string.room_social_link_hint)) }, modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(phone, { phone = it }, label = { Text(stringResource(R.string.room_phone_hint)) }, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(12.dp))
 
         Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
@@ -53,6 +62,9 @@ fun CreateRoomScreen(
                             name = name,
                             bio = bio,
                             isPublic = isPublic,
+                            interests = interests.split(",")
+                                .map { it.trim() }
+                                .filter { it.isNotEmpty() },
                             socialLinks = if (socialLink.isNotBlank()) mapOf("link" to socialLink) else emptyMap(),
                             phone = phone
                         ),
