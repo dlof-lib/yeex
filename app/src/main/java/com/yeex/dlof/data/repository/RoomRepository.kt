@@ -9,17 +9,20 @@ class RoomRepository(
 ) {
     private val roomsRef get() = db.getReference("rooms")
     private val membersRef get() = db.getReference("roomMembers")
+    private val userRoomsRef get() = db.getReference("userRooms")
 
     suspend fun createRoom(room: Room, ownerUid: String): String {
         val id = roomsRef.push().key ?: error("no id")
         val toSave = room.copy(id = id, ownerId = ownerUid, createdAt = System.currentTimeMillis(), memberCount = 1)
         roomsRef.child(id).setValue(toSave).await()
         membersRef.child(id).child(ownerUid).setValue(true).await()
+        userRoomsRef.child(ownerUid).child(id).setValue(true).await()
         return id
     }
 
     suspend fun joinRoom(roomId: String, uid: String) {
         membersRef.child(roomId).child(uid).setValue(true).await()
+        userRoomsRef.child(uid).child(roomId).setValue(true).await()
         val countRef = roomsRef.child(roomId).child("memberCount")
         val current = countRef.get().await().getValue(Long::class.java) ?: 0L
         countRef.setValue(current + 1).await()
@@ -31,4 +34,10 @@ class RoomRepository(
     suspend fun listPublicRooms(): List<Room> =
         roomsRef.orderByChild("isPublic").equalTo(true).get().await()
             .children.mapNotNull { it.getValue(Room::class.java) }
+
+    /** Rooms the given user owns or has joined — used by the repost-into-room picker. */
+    suspend fun listMyRooms(uid: String): List<Room> {
+        val roomIds = userRoomsRef.child(uid).get().await().children.mapNotNull { it.key }
+        return roomIds.mapNotNull { getRoom(it) }
+    }
 }
