@@ -12,6 +12,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.yeex.dlof.R
 import com.yeex.dlof.ui.components.ParagraphCard
+import com.yeex.dlof.ui.components.ParagraphSkeleton
 
 @Composable
 fun FeedScreen(
@@ -25,6 +26,7 @@ fun FeedScreen(
 ) {
     val paragraphs by viewModel.paragraphs.collectAsState()
     val reactions by viewModel.reactions.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
 
     Scaffold(
         topBar = { TopAppBar(title = { Text(stringResource(R.string.feed_title)) }) },
@@ -34,30 +36,38 @@ fun FeedScreen(
             }
         }
     ) { padding ->
-        if (paragraphs.isEmpty()) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = androidx.compose.ui.Alignment.Center) {
-                Text(stringResource(R.string.paragraph_expires))
+        when {
+            // First Firebase snapshot hasn't arrived yet — skeleton, not the empty state.
+            isLoading -> {
+                ParagraphSkeleton(
+                    modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)
+                )
             }
-            return@Scaffold
-        }
-
-        val pagerState = rememberPagerState(pageCount = { paragraphs.size })
-        // Swiping left/right (horizontal pager) moves between paragraphs, one square card at a time.
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)
-        ) { page ->
-            val item = paragraphs[page]
-            val myReaction = reactions[item.id]
-            ParagraphCard(
-                paragraph = item,
-                hasLiked = myReaction == com.yeex.dlof.data.repository.Reaction.LIKE,
-                hasDisliked = myReaction == com.yeex.dlof.data.repository.Reaction.DISLIKE,
-                onLike = { viewModel.like(item.id) },
-                onDislike = { viewModel.dislike(item.id) },
-                onComment = { onOpenComments(item.id) },
-                onRepost = { onRepost(item.id) }
-            )
+            paragraphs.isEmpty() -> {
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                    Text(stringResource(R.string.paragraph_expires))
+                }
+            }
+            else -> {
+                val pagerState = rememberPagerState(pageCount = { paragraphs.size })
+                // Swiping left/right (horizontal pager) moves between paragraphs, one square card at a time.
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)
+                ) { page ->
+                    val item = paragraphs[page]
+                    val myReaction = reactions[item.id]
+                    ParagraphCard(
+                        paragraph = item,
+                        hasLiked = myReaction == com.yeex.dlof.data.repository.Reaction.LIKE,
+                        hasDisliked = myReaction == com.yeex.dlof.data.repository.Reaction.DISLIKE,
+                        onLike = { viewModel.like(item.id) },
+                        onDislike = { viewModel.dislike(item.id) },
+                        onComment = { onOpenComments(item.id) },
+                        onRepost = { onRepost(item.id) }
+                    )
+                }
+            }
         }
     }
 }
