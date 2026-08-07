@@ -23,6 +23,11 @@ class UserRepository(
     suspend fun getUser(uid: String): User? =
         usersRef.child(uid).get().await().getValue(User::class.java)
 
+    /** Cross-device sync for LocaleUtil's in-app language switcher. */
+    suspend fun updateLanguage(uid: String, languageCode: String) {
+        usersRef.child(uid).child("language").setValue(languageCode).await()
+    }
+
     suspend fun isTeking(currentUid: String, targetUid: String): Boolean =
         tekedByRef.child(currentUid).child(targetUid).get().await().exists()
 
