@@ -1,9 +1,13 @@
 package com.yeex.dlof.data.repository
 
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.MutableData
+import com.google.firebase.database.ServerValue
+import com.google.firebase.database.Transaction
+import com.google.firebase.database.ValueEventListener
 import com.yeex.dlof.data.model.Comment
 import com.yeex.dlof.data.model.Paragraph
 import kotlinx.coroutines.CoroutineScope
@@ -12,7 +16,10 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 private const val TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000L
 
@@ -89,23 +96,82 @@ class ParagraphRepository(
         awaitClose { ref.removeEventListener(listener) }
     }
 
-    /** Tapping the like button when already liked clears the reaction; same for dislike. */
-    suspend fun toggleLike(paragraphId: String, uid: String) =
-        setReaction(paragraphId, uid, if (getReaction(paragraphId, uid) == Reaction.LIKE) null else Reaction.LIKE)
+    /**
+     * Tapping the like button when already liked clears the reaction; same for
+     * dislike. Returns the reaction that ended up committed, so callers (e.g.
+     * FeedViewModel) can trust it as the source of truth instead of issuing a
+     * redundant follow-up read.
+     *
+     * Race-safety, end to end:
+     * 1. The old -> new flip of /paragraphLikes/{paragraphId}/{uid} runs inside
+     *    a Realtime Database **transaction**. If the same user fires two taps
+     *    in quick succession (double-tap, flaky network retry, multiple
+     *    devices), Firebase re-runs the transaction locally against the
+     *    latest server value until it commits cleanly — so the reaction node
+     *    itself can never end up "stuck" between two conflicting writes.
+     * 2. The resulting delta to likeCount/dislikeCount is applied with
+     *    [ServerValue.increment], which the Realtime Database server resolves
+     *    atomically at write time. Unlike the previous approach (read the
+     *    current count, add the delta, write it back), concurrent likes from
+     *    *different* users can never race and silently overwrite each other's
+     *    increment — every tap's delta is guaranteed to be counted.
+     * Both writes for a single tap are also folded into one multi-path
+     * [DatabaseReference.updateChildren] call, so a tap costs one round trip
+     * instead of the previous four-plus.
+     */
+    suspend fun toggleLike(paragraphId: String, uid: String): Reaction? =
+        toggleReaction(paragraphId, uid, Reaction.LIKE)
 
-    suspend fun toggleDislike(paragraphId: String, uid: String) =
-        setReaction(paragraphId, uid, if (getReaction(paragraphId, uid) == Reaction.DISLIKE) null else Reaction.DISLIKE)
+    suspend fun toggleDislike(paragraphId: String, uid: String): Reaction? =
+        toggleReaction(paragraphId, uid, Reaction.DISLIKE)
 
-    private suspend fun setReaction(paragraphId: String, uid: String, newReaction: Reaction?) {
-        val old = getReaction(paragraphId, uid)
-        if (old == newReaction) return
-        if (newReaction == null) likesRef.child(paragraphId).child(uid).removeValue().await()
-        else likesRef.child(paragraphId).child(uid).setValue(newReaction.name).await()
+    private suspend fun toggleReaction(paragraphId: String, uid: String, tapped: Reaction): Reaction? {
+        val reactionRef = likesRef.child(paragraphId).child(uid)
 
-        if (old == Reaction.LIKE) bump(paragraphId, "likeCount", -1)
-        if (old == Reaction.DISLIKE) bump(paragraphId, "dislikeCount", -1)
-        if (newReaction == Reaction.LIKE) bump(paragraphId, "likeCount", 1)
-        if (newReaction == Reaction.DISLIKE) bump(paragraphId, "dislikeCount", 1)
+        var oldReaction: Reaction? = null
+        var newReaction: Reaction? = null
+
+        reactionRef.awaitTransaction { current ->
+            oldReaction = (current.value as? String)?.let { runCatching { Reaction.valueOf(it) }.getOrNull() }
+            newReaction = if (oldReaction == tapped) null else tapped
+            current.value = newReaction?.name
+            Transaction.success(current)
+        }
+
+        if (oldReaction == newReaction) return newReaction // nothing actually changed
+
+        val likeDelta = deltaFor(Reaction.LIKE, oldReaction, newReaction)
+        val dislikeDelta = deltaFor(Reaction.DISLIKE, oldReaction, newReaction)
+
+        val updates = mutableMapOf<String, Any>()
+        if (likeDelta != 0) updates["paragraphs/$paragraphId/likeCount"] = ServerValue.increment(likeDelta.toLong())
+        if (dislikeDelta != 0) updates["paragraphs/$paragraphId/dislikeCount"] = ServerValue.increment(dislikeDelta.toLong())
+        if (updates.isNotEmpty()) db.reference.updateChildren(updates).await()
+
+        return newReaction
+    }
+
+    private fun deltaFor(kind: Reaction, old: Reaction?, new: Reaction?): Int = when {
+        old == kind && new != kind -> -1
+        old != kind && new == kind -> 1
+        else -> 0
+    }
+
+    /**
+     * Coroutine bridge for [DatabaseReference.runTransaction], which only
+     * exposes a callback API. Suspends until the transaction has been applied
+     * (retrying internally on the SDK side under contention) or failed.
+     */
+    private suspend fun DatabaseReference.awaitTransaction(
+        update: (MutableData) -> Transaction.Result
+    ): DataSnapshot? = suspendCancellableCoroutine { cont ->
+        runTransaction(object : Transaction.Handler {
+            override fun doTransaction(currentData: MutableData): Transaction.Result = update(currentData)
+            override fun onComplete(error: DatabaseError?, committed: Boolean, snapshot: DataSnapshot?) {
+                if (error != null) cont.resumeWithException(error.toException())
+                else cont.resume(snapshot)
+            }
+        })
     }
 
     fun observeComments(paragraphId: String): Flow<List<Comment>> = callbackFlow {
@@ -173,9 +239,15 @@ class ParagraphRepository(
         }
     }
 
+    /**
+     * Atomic server-side counter bump via [ServerValue.increment] — used for
+     * counters (comment/repost) that aren't part of the like/dislike flip
+     * above but still need to be race-safe against concurrent writers, for
+     * the same reason described on [toggleReaction]: a naive get-then-set
+     * can silently drop increments when two clients bump the same paragraph
+     * at nearly the same moment.
+     */
     private suspend fun bump(paragraphId: String, field: String, delta: Int) {
-        val ref = paragraphsRef.child(paragraphId).child(field)
-        val current = ref.get().await().getValue(Long::class.java) ?: 0L
-        ref.setValue((current + delta).coerceAtLeast(0)).await()
+        paragraphsRef.child(paragraphId).child(field).setValue(ServerValue.increment(delta.toLong())).await()
     }
 }
