@@ -1,7 +1,13 @@
 package com.yeex.dlof.data.repository
 
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
 import com.yeex.dlof.data.model.User
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
 /**
@@ -22,6 +28,24 @@ class UserRepository(
 
     suspend fun getUser(uid: String): User? =
         usersRef.child(uid).get().await().getValue(User::class.java)
+
+    /**
+     * Live version of [getUser] — pushes updates whenever /users/{uid} changes,
+     * including tekingCount/tekerCount right after [toggleTek] writes them.
+     * ProfileScreen uses this instead of a one-shot read so the Tek/Teker
+     * counters reflect real Firebase data instead of going stale after a tap.
+     */
+    fun observeUser(uid: String): Flow<User?> = callbackFlow {
+        val ref = usersRef.child(uid)
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                trySend(snapshot.getValue(User::class.java))
+            }
+            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+        }
+        ref.addValueEventListener(listener)
+        awaitClose { ref.removeEventListener(listener) }
+    }
 
     /** Cross-device sync for LocaleUtil's in-app language switcher. */
     suspend fun updateLanguage(uid: String, languageCode: String) {
