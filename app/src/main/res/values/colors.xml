@@ -1,8 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Primary brand identity (from the app icon) -->
+    <color name="yeex_navy">#12185A</color>
+    <color name="yeex_navy_dark">#0B0E3C</color>
+    <color name="yeex_navy_light">#2C3480</color>
+    <color name="yeex_accent">#4C57C9</color>
+
+    <!-- Verification badge stays crimson, separate from brand color -->
     <color name="yeex_crimson">#C81D3D</color>
+
     <color name="yeex_black">#0E0E10</color>
-    <color name="yeex_dark_surface">#18181B</color>
+    <color name="yeex_dark_surface">#181A2E</color>
     <color name="yeex_white">#F5F5F5</color>
     <color name="yeex_gray">#8A8A8E</color>
 </resources>
