@@ -164,12 +164,19 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
                 val uid = backStackEntry.arguments?.getString("uid") ?: return@composable
                 ProfileScreen(
                     targetUid = uid,
-                    onRequestVerification = { navController.navigate(Routes.VERIFY) }
+                    onRequestVerification = { navController.navigate(Routes.VERIFY) },
+                    onLogout = {
+                        navController.navigate(Routes.LOGIN) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
                 )
             }
             composable(Routes.SEARCH) {
                 SearchScreen(
                     onOpenContainer = { },
+                    onOpenUser = { user -> navController.navigate(Routes.profile(user.uid)) },
+                    onOpenRoom = { room -> navController.navigate(Routes.room(room.id)) },
                     onOpenRooms = { navController.navigate(Routes.ROOMS) }
                 )
             }
