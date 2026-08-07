@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.yeex.dlof.R
@@ -18,6 +19,7 @@ import com.yeex.dlof.data.repository.AuthRepository
 import com.yeex.dlof.data.repository.ParagraphRepository
 import com.yeex.dlof.data.repository.UserRepository
 import com.yeex.dlof.ui.components.TekButton
+import com.yeex.dlof.util.LocaleUtil
 import kotlinx.coroutines.launch
 
 @Composable
@@ -85,6 +87,11 @@ fun ProfileScreen(
                 OutlinedButton(onClick = onRequestVerification) { Text(stringResource(R.string.request_verification)) }
             }
 
+            if (isMe) {
+                Spacer(Modifier.height(16.dp))
+                LanguageSwitcher(userRepo = userRepo, myUid = myUid, scope = scope)
+            }
+
             Spacer(Modifier.height(20.dp))
             Text("آخر الفقرات", style = MaterialTheme.typography.titleMedium)
             latest.forEach { p ->
@@ -92,6 +99,50 @@ fun ProfileScreen(
                     "• " + p.text.ifBlank { "[${p.type}]" },
                     modifier = Modifier.padding(vertical = 4.dp),
                     maxLines = 1
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Own-profile-only language picker (ar/en/es). Persists the choice locally
+ * (LocaleUtil) so it survives before/after login, writes it through to
+ * /users/{uid}/language for cross-device consistency, then recreates the
+ * activity so MainActivity.attachBaseContext picks up the new Configuration
+ * immediately — no app restart required.
+ */
+@Composable
+private fun LanguageSwitcher(
+    userRepo: UserRepository,
+    myUid: String?,
+    scope: kotlinx.coroutines.CoroutineScope
+) {
+    val context = LocalContext.current
+    var current by remember { mutableStateOf(LocaleUtil.getSavedLanguage(context)) }
+    val labels = mapOf("ar" to "العربية", "en" to "English", "es" to "Español")
+
+    Column {
+        Text(stringResource(R.string.language_label), style = MaterialTheme.typography.labelLarge)
+        Spacer(Modifier.height(6.dp))
+        Row {
+            LocaleUtil.SUPPORTED.forEach { code ->
+                FilterChip(
+                    selected = current == code,
+                    onClick = {
+                        if (current != code) {
+                            current = code
+                            LocaleUtil.saveLanguage(context, code)
+                            if (myUid != null) {
+                                scope.launch {
+                                    runCatching { userRepo.updateLanguage(myUid, code) }
+                                }
+                            }
+                            (context as? android.app.Activity)?.recreate()
+                        }
+                    },
+                    label = { Text(labels[code] ?: code) },
+                    modifier = Modifier.padding(end = 8.dp)
                 )
             }
         }
