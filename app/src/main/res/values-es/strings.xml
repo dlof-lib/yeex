@@ -56,6 +56,7 @@
     <string name="search_users_section">Cuentas</string>
     <string name="search_rooms_section">Salas</string>
     <string name="search_no_results">Sin resultados</string>
+    <string name="search_user_stats">%1$d Teking · %2$d Teker</string>
     <string name="watermark_text">yeex</string>
     <string name="or_divider">o</string>
     <string name="btn_continue_google">Continuar con Google</string>
