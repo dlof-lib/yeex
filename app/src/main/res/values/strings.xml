@@ -43,6 +43,7 @@
     <!-- Verification -->
     <string name="verified_badge">موثّق</string>
     <string name="request_verification">طلب توثيق</string>
+    <string name="language_label">اللغة</string>
 
     <!-- Search -->
     <string name="search_hint">بحث</string>
