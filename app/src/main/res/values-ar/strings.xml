@@ -22,6 +22,8 @@
     <string name="action_dislike">لم يعجبني</string>
     <string name="action_comment">تعليق</string>
     <string name="action_repost">إعادة نشر</string>
+    <string name="repost_no_rooms">لا تملك أي غرفة بعد لإعادة النشر فيها. أنشئ غرفة أولاً.</string>
+    <string name="repost_pick_room">اختر غرفة لإعادة النشر فيها</string>
     <string name="room_label">غرفة</string>
     <string name="room_public">عامة</string>
     <string name="room_private">خاصة</string>
