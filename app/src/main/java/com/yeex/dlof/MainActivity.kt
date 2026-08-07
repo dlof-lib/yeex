@@ -10,6 +10,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.splashscreen.installSplashScreen
 import com.yeex.dlof.navigation.YeexNavGraph
 import com.yeex.dlof.ui.common.NoInternetScreen
 import com.yeex.dlof.ui.theme.YeexTheme
@@ -27,6 +28,11 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Must run before super.onCreate() per the core-splashscreen contract.
+        // This is the brief OS-level splash (Theme.Yeex.Splash); it hands off
+        // immediately to the branded Compose SplashScreen (see NavGraph's
+        // Routes.SPLASH) which owns the actual animated logo + hold + navigate.
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         // Lets the feed (ParagraphCard) draw its media behind the status/nav
         // bars for a true full-screen TikTok-style look; NoInternetScreen and
