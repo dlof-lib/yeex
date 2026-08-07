@@ -53,11 +53,15 @@
     <string name="request_verification">طلب توثيق</string>
     <string name="language_label">اللغة</string>
     <string name="search_hint">بحث</string>
+    <string name="search_users_section">الحسابات</string>
+    <string name="search_rooms_section">الغرف</string>
+    <string name="search_no_results">لا نتائج</string>
     <string name="watermark_text">yeex</string>
     <string name="or_divider">أو</string>
     <string name="btn_continue_google">المتابعة عبر Google</string>
     <string name="btn_continue_github">المتابعة عبر GitHub</string>
     <string name="action_download">تنزيل</string>
+    <string name="action_download_pdf">تنزيل PDF</string>
     <string name="download_saved">تم الحفظ مع العلامة المائية</string>
     <string name="download_failed">تعذّر الحفظ</string>
 
@@ -88,6 +92,11 @@
     <string name="save">حفظ</string>
     <string name="cancel">إلغاء</string>
     <string name="latest_paragraphs">آخر الفقرات</string>
+    <string name="logout">تسجيل الخروج</string>
+    <string name="logout_confirm_title">تسجيل الخروج؟</string>
+    <string name="logout_confirm_body">سيتم تسجيل خروجك من هذا الحساب على هذا الجهاز.</string>
+    <string name="switch_account">تبديل الحساب</string>
+    <string name="no_paragraphs_yet">لا توجد فقرات بعد</string>
     <string name="publish_action">نشر</string>
     <string name="publishing_in_progress">جارٍ النشر…</string>
 </resources>
