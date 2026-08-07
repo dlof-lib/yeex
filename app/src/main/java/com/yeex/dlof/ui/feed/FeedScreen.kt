@@ -24,6 +24,7 @@ fun FeedScreen(
     onRepost: (String) -> Unit
 ) {
     val paragraphs by viewModel.paragraphs.collectAsState()
+    val reactions by viewModel.reactions.collectAsState()
 
     Scaffold(
         topBar = { TopAppBar(title = { Text(stringResource(R.string.feed_title)) }) },
@@ -47,9 +48,11 @@ fun FeedScreen(
             modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)
         ) { page ->
             val item = paragraphs[page]
+            val myReaction = reactions[item.id]
             ParagraphCard(
                 paragraph = item,
-                hasLiked = false, // TODO: wire per-user like state from /paragraphLikes/{id}/{uid}
+                hasLiked = myReaction == com.yeex.dlof.data.repository.Reaction.LIKE,
+                hasDisliked = myReaction == com.yeex.dlof.data.repository.Reaction.DISLIKE,
                 onLike = { viewModel.like(item.id) },
                 onDislike = { viewModel.dislike(item.id) },
                 onComment = { onOpenComments(item.id) },
