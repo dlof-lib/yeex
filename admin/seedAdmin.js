@@ -17,11 +17,16 @@
  *
  * This creates:
  *   - Firebase Auth user for yeex.open@id.yeex.app / majd740143
- *   - /users/{uid} profile: identifier "yeex.open", verified, isOfficial
+ *   - /users/{uid} profile: identifier "yeex.open", verified, isOfficial,
+ *     with the brand icon at admin/assets/yeex_open_icon.png set as
+ *     profileIconUrl (Base64, same encoding the app itself uses for
+ *     avatars — see MediaBase64.encodeAvatar: 320x320 JPEG q82)
  *   - /identifiers/yeex.open -> uid
  *   - /admins/{uid} = true  (grants moderation rights per database.rules.json)
  */
 
+const fs = require("fs");
+const path = require("path");
 const admin = require("firebase-admin");
 const serviceAccount = require("./serviceAccountKey.json");
 
@@ -33,6 +38,14 @@ admin.initializeApp({
 const IDENTIFIER = "yeex.open";
 const PASSWORD = "majd740143"; // change this after first login in production
 const PSEUDO_EMAIL = `${IDENTIFIER}@id.yeex.app`;
+
+// Pre-baked 320x320 JPEG q82 Base64 (matches MediaBase64.encodeAvatar's
+// output format exactly), so the app's ProfileAvatar/ProfileScreen render it
+// with zero extra code. Regenerate with a 512x512 source image resized to
+// 320x320 and re-exported as JPEG q82 if the brand icon ever changes.
+const ICON_BASE64 = fs
+  .readFileSync(path.join(__dirname, "assets", "yeex_open_icon.base64.txt"), "utf8")
+  .trim();
 
 async function seed() {
   let userRecord;
@@ -57,7 +70,7 @@ async function seed() {
     identifier: IDENTIFIER,
     displayName: "yeex",
     bio: "الحساب الرسمي لمنصة yeex",
-    profileIconUrl: "",
+    profileIconUrl: ICON_BASE64,
     verified: true,
     verifiedReason: "official",
     externalFollowerCounts: {},
