@@ -19,6 +19,14 @@
     <string name="feed_title">الفقرات</string>
     <string name="paragraph_expires">تُحذف بعد 24 ساعة</string>
     <string name="create_paragraph">فقرة جديدة</string>
+    <string name="attach_image">صورة</string>
+    <string name="attach_video">فيديو 5-10 ثواني</string>
+
+    <!-- Bottom navigation -->
+    <string name="nav_home">الرئيسية</string>
+    <string name="nav_search">بحث</string>
+    <string name="nav_create">جديد</string>
+    <string name="nav_profile">حسابي</string>
 
     <!-- Social terms -->
     <string name="action_tek">Tek</string>
