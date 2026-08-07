@@ -22,12 +22,36 @@ class UserRepository(
     private val db: FirebaseDatabase = FirebaseDatabase.getInstance()
 ) {
     private val usersRef get() = db.getReference("users")
+    private val identifiersRef get() = db.getReference("identifiers")
     private val tekersRef get() = db.getReference("tekers")
     private val tekedByRef get() = db.getReference("tekedBy")
     private val verificationRequestsRef get() = db.getReference("verificationRequests")
 
     suspend fun getUser(uid: String): User? =
         usersRef.child(uid).get().await().getValue(User::class.java)
+
+    /**
+     * Prefix search over /identifiers (identifier -> uid), used by
+     * [com.yeex.dlof.ui.search.SearchScreen] for plain "@identifier" or bare
+     * identifier queries (anything that isn't the "@container.name[].me"
+     * syntax handled by [ContainerRepository]). Firebase Realtime Database
+     * doesn't support arbitrary substring search, so this relies on
+     * lexicographic prefix range queries (startAt/endAt with the Unicode
+     * "highest character" sentinel) same as [RoomRepository.searchByName].
+     * Case is already normalized because [com.yeex.dlof.util.UsernameValidator]
+     * forbids uppercase letters in identifiers.
+     */
+    suspend fun searchByIdentifierPrefix(prefix: String, limit: Int = 20): List<User> {
+        val clean = prefix.removePrefix("@").trim()
+        if (clean.isEmpty()) return emptyList()
+        val snapshot = identifiersRef.orderByKey()
+            .startAt(clean)
+            .endAt(clean + "\uf8ff")
+            .limitToFirst(limit)
+            .get().await()
+        val uids = snapshot.children.mapNotNull { it.getValue(String::class.java) }
+        return uids.mapNotNull { getUser(it) }
+    }
 
     /**
      * Live version of [getUser] — pushes updates whenever /users/{uid} changes,
