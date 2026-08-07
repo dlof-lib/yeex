@@ -251,7 +251,7 @@ fun ProfileScreen(
 }
 
 @Composable
-private fun StatPill(count: Long, label: String) {
+private fun RowScope.StatPill(count: Long, label: String) {
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
