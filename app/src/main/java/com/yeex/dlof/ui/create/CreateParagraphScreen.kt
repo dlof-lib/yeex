@@ -15,13 +15,16 @@ import com.yeex.dlof.data.model.Paragraph
 import com.yeex.dlof.data.model.ParagraphType
 import com.yeex.dlof.data.repository.AuthRepository
 import com.yeex.dlof.data.repository.ParagraphRepository
+import com.yeex.dlof.data.repository.UserRepository
 import com.yeex.dlof.util.MediaBase64
+import com.yeex.dlof.util.MediaDuration
 import kotlinx.coroutines.launch
 
 @Composable
 fun CreateParagraphScreen(
     roomId: String? = null,
     authRepo: AuthRepository = AuthRepository(),
+    userRepo: UserRepository = UserRepository(),
     repo: ParagraphRepository = ParagraphRepository(),
     onPublished: () -> Unit
 ) {
@@ -84,6 +87,12 @@ fun CreateParagraphScreen(
                                 mime = "image/jpeg"
                             }
                             videoUri != null -> {
+                                val durationMs = MediaDuration.getDurationMs(context, videoUri!!)
+                                if (durationMs == null || durationMs < MediaDuration.MIN_VIDEO_MS || durationMs > MediaDuration.MAX_VIDEO_MS) {
+                                    error = "يجب أن تكون مدة الفيديو بين 5 و10 ثوانٍ"
+                                    isPublishing = false
+                                    return@launch
+                                }
                                 val encoded = MediaBase64.encodeVideoIfSmallEnough(context.contentResolver, videoUri!!)
                                 if (encoded == null) {
                                     error = "حجم الفيديو كبير جدًا"
@@ -95,9 +104,14 @@ fun CreateParagraphScreen(
                                 mime = "video/mp4"
                             }
                         }
+                        // authorIdentifier/authorVerified are denormalized onto every paragraph
+                        // so ParagraphCard and the feed never need a per-post user lookup.
+                        val me = userRepo.getUser(uid)
                         repo.publish(
                             Paragraph(
                                 authorId = uid,
+                                authorIdentifier = me?.identifier ?: "",
+                                authorVerified = me?.verified ?: false,
                                 type = type,
                                 text = text,
                                 mediaBase64 = mediaBase64,
