@@ -102,7 +102,7 @@
         ".read": true,
         "$uid": {
           ".write": "auth != null && auth.uid === $uid",
-          ".validate": "newData.isBoolean()"
+          ".validate": "newData.isString() && (newData.val() === 'LIKE' || newData.val() === 'DISLIKE')"
         }
       }
     },
@@ -151,6 +151,16 @@
       "$roomId": {
         ".read": true,
         "$uid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.isBoolean() && newData.val() === true"
+        }
+      }
+    },
+
+    "userRooms": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$roomId": {
           ".write": "auth != null && auth.uid === $uid",
           ".validate": "newData.isBoolean() && newData.val() === true"
         }
