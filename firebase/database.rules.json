@@ -22,7 +22,7 @@
         "identifier": { ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 24" },
         "displayName": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50" },
         "bio": { ".validate": "newData.isString() && newData.val().length <= 300" },
-        "profileIconUrl": { ".validate": "newData.isString() && newData.val().length <= 2000" },
+        "profileIconUrl": { ".validate": "newData.isString() && newData.val().length <= 900000" },
         "language": { ".validate": "newData.isString() && (newData.val() === 'ar' || newData.val() === 'en' || newData.val() === 'es')" },
         "createdAt": { ".validate": "newData.isNumber()" },
 
