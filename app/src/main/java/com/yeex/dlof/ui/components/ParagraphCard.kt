@@ -4,23 +4,31 @@ import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ContentScale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.yeex.dlof.R
 import com.yeex.dlof.data.model.Paragraph
 import com.yeex.dlof.data.model.ParagraphType
@@ -34,9 +42,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Renders a single paragraph as a SQUARE card (1:1 aspect ratio) — the unit
- * that's swiped left/right in [com.yeex.dlof.ui.feed.FeedScreen]'s
- * HorizontalPager. Works for text-only, image, and video-cover paragraphs.
+ * Renders a single paragraph as an immersive, edge-to-edge FULL-SCREEN page —
+ * TikTok-style — the unit [com.yeex.dlof.ui.feed.FeedScreen]'s HorizontalPager
+ * swipes between left/right. Media fills the entire device screen (cropped,
+ * like a short-video app) instead of sitting inside a padded square card;
+ * actions live in a right-side vertical rail and author/caption sit above a
+ * bottom scrim, both floating over the media.
  */
 @Composable
 fun ParagraphCard(
@@ -59,79 +70,103 @@ fun ParagraphCard(
         if (hasMedia) MediaBase64.decodeToBitmap(paragraph.mediaBase64) else null
     }
 
-    Card(
+    Box(
         modifier = modifier
-            .fillMaxWidth()
-            .aspectRatio(1f), // square, per spec
-        shape = RoundedCornerShape(16.dp)
+            .fillMaxSize()
+            .background(Color.Black)
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            when (paragraph.type) {
-                ParagraphType.IMAGE.name, ParagraphType.VIDEO.name -> {
-                    if (bitmap != null) {
-                        Image(
-                            bitmap = bitmap.asImageBitmap(),
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                    if (paragraph.text.isNotBlank()) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .fillMaxWidth()
-                                .background(Color.Black.copy(alpha = 0.45f))
-                                .padding(8.dp)
-                        ) {
-                            Text(paragraph.text, color = Color.White, maxLines = 2)
-                        }
-                    }
-                }
-                else -> {
-                    Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
-                        Text(paragraph.text, style = MaterialTheme.typography.bodyLarge)
-                    }
-                }
-            }
-
-            // author + verified badge
-            Row(
-                modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("@${paragraph.authorIdentifier}", color = Color.White, style = MaterialTheme.typography.labelMedium)
-                if (paragraph.authorVerified) {
-                    Spacer(Modifier.width(4.dp))
-                    Icon(Icons.Filled.Verified, contentDescription = stringResource(R.string.verified_badge), tint = YeexCrimson)
-                }
-            }
-
-            // action row
-            Row(
-                modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onLike) {
-                    Icon(
-                        if (hasLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                        contentDescription = stringResource(R.string.action_like),
-                        tint = if (hasLiked) YeexAccent else Color.White
-                    )
-                }
-                Text("${paragraph.likeCount}", color = Color.White)
-                Spacer(Modifier.width(8.dp))
-                IconButton(onClick = onDislike) {
-                    Icon(
-                        Icons.Filled.ThumbDown,
-                        contentDescription = stringResource(R.string.action_dislike),
-                        tint = if (hasDisliked) YeexAccent else Color.White
-                    )
-                }
-                Spacer(Modifier.width(8.dp))
-                TextButton(onClick = onComment) { Text(stringResource(R.string.action_comment), color = Color.White) }
-                TextButton(onClick = onRepost) { Text(stringResource(R.string.action_repost), color = Color.White) }
+        // ---- Background layer: media fills the whole screen, cropped like TikTok ----
+        when (paragraph.type) {
+            ParagraphType.IMAGE.name, ParagraphType.VIDEO.name -> {
                 if (bitmap != null) {
-                    IconButton(onClick = {
+                    Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+            else -> {
+                // Text-only paragraphs get a subtle brand gradient instead of a blank void.
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(YeexAccent.copy(alpha = 0.55f), Color.Black)
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        paragraph.text,
+                        color = Color.White,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 28.dp)
+                    )
+                }
+            }
+        }
+
+        // ---- Bottom scrim for legibility over the media ----
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(260.dp)
+                .align(Alignment.BottomCenter)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f))
+                    )
+                )
+        )
+
+        // ---- Right-side vertical action rail (TikTok-style) ----
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 12.dp, bottom = 100.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            RailAction(
+                icon = if (hasLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                tint = if (hasLiked) YeexCrimson else Color.White,
+                count = paragraph.likeCount,
+                contentDescription = stringResource(R.string.action_like),
+                onClick = onLike
+            )
+            RailAction(
+                icon = Icons.Filled.ThumbDown,
+                tint = if (hasDisliked) YeexAccent else Color.White,
+                count = paragraph.dislikeCount,
+                contentDescription = stringResource(R.string.action_dislike),
+                onClick = onDislike
+            )
+            RailAction(
+                icon = Icons.Filled.ChatBubble,
+                tint = Color.White,
+                count = paragraph.commentCount,
+                contentDescription = stringResource(R.string.action_comment),
+                onClick = onComment
+            )
+            RailAction(
+                icon = Icons.Filled.Repeat,
+                tint = Color.White,
+                count = paragraph.repostCount,
+                contentDescription = stringResource(R.string.action_repost),
+                onClick = onRepost
+            )
+            if (bitmap != null) {
+                RailAction(
+                    icon = Icons.Filled.Download,
+                    tint = Color.White,
+                    count = null,
+                    contentDescription = stringResource(R.string.action_download),
+                    onClick = {
                         scope.launch {
                             val ok = withContext(Dispatchers.Default) {
                                 val watermarked = WatermarkUtil.applyWatermark(bitmap, watermarkLabel)
@@ -143,11 +178,89 @@ fun ParagraphCard(
                                 Toast.LENGTH_SHORT
                             ).show()
                         }
-                    }) {
-                        Icon(Icons.Filled.Download, contentDescription = stringResource(R.string.action_download), tint = Color.White)
                     }
+                )
+            }
+        }
+
+        // ---- Bottom-left author + caption overlay ----
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 14.dp, end = 84.dp, bottom = 24.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.25f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                 }
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "@${paragraph.authorIdentifier}",
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleSmall
+                )
+                if (paragraph.authorVerified) {
+                    Spacer(Modifier.width(4.dp))
+                    Icon(
+                        Icons.Filled.Verified,
+                        contentDescription = stringResource(R.string.verified_badge),
+                        tint = YeexCrimson,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+            if (paragraph.text.isNotBlank() && paragraph.type != ParagraphType.TEXT.name) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    paragraph.text,
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 3
+                )
             }
         }
     }
+}
+
+/** One icon+count entry in the right-side action rail, TikTok-style. */
+@Composable
+private fun RailAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    tint: Color,
+    count: Long?,
+    contentDescription: String,
+    onClick: () -> Unit
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier
+                .size(46.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.28f))
+        ) {
+            Icon(icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(26.dp))
+        }
+        if (count != null) {
+            Text(
+                formatCount(count),
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 12.sp
+            )
+        }
+    }
+}
+
+private fun formatCount(count: Long): String = when {
+    count >= 1_000_000 -> "%.1fM".format(count / 1_000_000.0)
+    count >= 1_000 -> "%.1fK".format(count / 1_000.0)
+    else -> count.toString()
 }
