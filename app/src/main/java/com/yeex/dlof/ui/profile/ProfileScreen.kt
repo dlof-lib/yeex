@@ -38,8 +38,10 @@ fun ProfileScreen(
     val isMe = myUid == targetUid
 
     LaunchedEffect(targetUid) {
-        user = userRepo.getUser(targetUid)
         if (myUid != null && !isMe) isFollowing = userRepo.isTeking(myUid, targetUid)
+        launch {
+            userRepo.observeUser(targetUid).collect { user = it }
+        }
         paragraphRepo.observeParagraphs(null).collect { all ->
             latest = all.filter { it.authorId == targetUid }
                 .sortedByDescending { it.createdAt }
