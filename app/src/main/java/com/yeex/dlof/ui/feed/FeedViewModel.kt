@@ -20,6 +20,11 @@ class FeedViewModel(
     private val _paragraphs = MutableStateFlow<List<Paragraph>>(emptyList())
     val paragraphs: StateFlow<List<Paragraph>> = _paragraphs
 
+    // True until the first Firebase snapshot arrives, so FeedScreen can show
+    // a skeleton placeholder instead of prematurely claiming the feed is empty.
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading
+
     // paragraphId -> current user's reaction, so ParagraphCard can highlight
     // the like/dislike button that's already active without a lookup per frame.
     private val _reactions = MutableStateFlow<Map<String, Reaction?>>(emptyMap())
@@ -29,6 +34,7 @@ class FeedViewModel(
         viewModelScope.launch {
             repo.observeParagraphs(roomId).collect { raw ->
                 _paragraphs.value = FeedRanking.rankForFeed(raw, System.currentTimeMillis())
+                _isLoading.value = false
                 loadReactionsFor(raw)
             }
         }
@@ -47,10 +53,43 @@ class FeedViewModel(
         }
     }
 
+    /**
+     * Applies a like/dislike count delta to the in-memory list immediately
+     * (optimistic UI) so the counter on screen reacts the instant the user
+     * taps, rather than waiting for the round-trip write + listener refire.
+     * The real Firebase listener in [repo].observeParagraphs still owns the
+     * source of truth and will reconcile this value right after.
+     */
+    private fun applyOptimisticDelta(paragraphId: String, likeDelta: Int, dislikeDelta: Int) {
+        _paragraphs.value = _paragraphs.value.map { p ->
+            if (p.id == paragraphId) {
+                p.copy(
+                    likeCount = (p.likeCount + likeDelta).coerceAtLeast(0),
+                    dislikeCount = (p.dislikeCount + dislikeDelta).coerceAtLeast(0)
+                )
+            } else p
+        }
+    }
+
     fun like(paragraphId: String) {
         val uid = authRepo.currentUid() ?: return
+        val current = _reactions.value[paragraphId]
+        val goingToLike = current != Reaction.LIKE
+
+        // Optimistic local update — mirrors exactly what ParagraphRepository.setReaction
+        // will persist, so the on-screen count is real and instant, not a fake bump.
+        when {
+            goingToLike && current == Reaction.DISLIKE -> applyOptimisticDelta(paragraphId, likeDelta = 1, dislikeDelta = -1)
+            goingToLike -> applyOptimisticDelta(paragraphId, likeDelta = 1, dislikeDelta = 0)
+            else -> applyOptimisticDelta(paragraphId, likeDelta = -1, dislikeDelta = 0)
+        }
+        _reactions.value = _reactions.value.toMutableMap().apply {
+            this[paragraphId] = if (goingToLike) Reaction.LIKE else null
+        }
+
         viewModelScope.launch {
             repo.toggleLike(paragraphId, uid)
+            // Reconcile with the authoritative server value in case of races.
             _reactions.value = _reactions.value.toMutableMap().apply {
                 this[paragraphId] = repo.getReaction(paragraphId, uid)
             }
@@ -59,6 +98,18 @@ class FeedViewModel(
 
     fun dislike(paragraphId: String) {
         val uid = authRepo.currentUid() ?: return
+        val current = _reactions.value[paragraphId]
+        val goingToDislike = current != Reaction.DISLIKE
+
+        when {
+            goingToDislike && current == Reaction.LIKE -> applyOptimisticDelta(paragraphId, likeDelta = -1, dislikeDelta = 1)
+            goingToDislike -> applyOptimisticDelta(paragraphId, likeDelta = 0, dislikeDelta = 1)
+            else -> applyOptimisticDelta(paragraphId, likeDelta = 0, dislikeDelta = -1)
+        }
+        _reactions.value = _reactions.value.toMutableMap().apply {
+            this[paragraphId] = if (goingToDislike) Reaction.DISLIKE else null
+        }
+
         viewModelScope.launch {
             repo.toggleDislike(paragraphId, uid)
             _reactions.value = _reactions.value.toMutableMap().apply {
