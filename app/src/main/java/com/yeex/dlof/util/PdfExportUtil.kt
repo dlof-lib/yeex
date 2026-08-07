@@ -1,0 +1,128 @@
+package com.yeex.dlof.util
+
+import android.content.ContentValues
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Typeface
+import android.graphics.pdf.PdfDocument
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+
+/**
+ * Exports a paragraph as a single-page, watermarked PDF — the "pdf" branch
+ * of the "علامة مائية لكل فقرة عند تنزيله ... او pdf" requirement, alongside
+ * the image/gallery download in [DownloadUtil] and the gallery-video export.
+ *
+ * Two entry points:
+ *  - [exportBitmap]: wraps an already-decoded (and already-watermarked, via
+ *    [WatermarkUtil]) square bitmap — used for IMAGE/VIDEO-thumbnail
+ *    paragraphs — into a one-page PDF.
+ *  - [renderTextCard]: TEXT paragraphs have no bitmap at all, so this first
+ *    draws the paragraph onto a square canvas matching the app's card look
+ *    (dark background, centered text, author line) before [exportBitmap]
+ *    can watermark + wrap it the same way.
+ */
+object PdfExportUtil {
+
+    /** Renders a TEXT paragraph into a square card bitmap, ready for [WatermarkUtil.applyWatermark]. */
+    fun renderTextCard(
+        text: String,
+        authorLine: String,
+        size: Int = 1080
+    ): Bitmap {
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        canvas.drawColor(Color.parseColor("#12185A")) // brand navy background
+
+        val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textSize = size * 0.055f
+            typeface = Typeface.DEFAULT
+        }
+        val authorPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.parseColor("#C81D3D")
+            textSize = size * 0.045f
+            typeface = Typeface.create(Typeface.DEFAULT_BOLD, Typeface.BOLD)
+        }
+
+        val margin = size * 0.1f
+        val maxWidth = size - margin * 2
+        val lines = wrapText(text, bodyPaint, maxWidth)
+        val lineHeight = bodyPaint.textSize * 1.4f
+        val blockHeight = lines.size * lineHeight
+        var y = (size - blockHeight) / 2f + bodyPaint.textSize
+
+        for (line in lines) {
+            val lineWidth = bodyPaint.measureText(line)
+            canvas.drawText(line, (size - lineWidth) / 2f, y, bodyPaint)
+            y += lineHeight
+        }
+
+        canvas.drawText(authorLine, margin, size - margin * 0.6f, authorPaint)
+        return bitmap
+    }
+
+    private fun wrapText(text: String, paint: Paint, maxWidth: Float): List<String> {
+        val words = text.split(Regex("\\s+"))
+        val lines = mutableListOf<String>()
+        var current = StringBuilder()
+        for (word in words) {
+            val candidate = if (current.isEmpty()) word else "${current} $word"
+            if (paint.measureText(candidate) > maxWidth && current.isNotEmpty()) {
+                lines.add(current.toString())
+                current = StringBuilder(word)
+            } else {
+                current = StringBuilder(candidate)
+            }
+        }
+        if (current.isNotEmpty()) lines.add(current.toString())
+        return lines
+    }
+
+    /** Wraps an already-watermarked square bitmap into a single-page PDF and saves it to Downloads. */
+    fun exportBitmap(context: Context, watermarked: Bitmap, displayName: String): Boolean {
+        return try {
+            val pdf = PdfDocument()
+            val pageInfo = PdfDocument.PageInfo.Builder(watermarked.width, watermarked.height, 1).create()
+            val page = pdf.startPage(pageInfo)
+            page.canvas.drawBitmap(watermarked, 0f, 0f, null)
+            pdf.finishPage(page)
+
+            val ok = savePdfToDownloads(context, pdf, "$displayName.pdf")
+            pdf.close()
+            ok
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun savePdfToDownloads(context: Context, pdf: PdfDocument, fileName: String): Boolean {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val resolver = context.contentResolver
+                val values = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                    put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/yeex")
+                }
+                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: return false
+                resolver.openOutputStream(uri)?.use { out -> pdf.writeTo(out) } ?: return false
+                true
+            } else {
+                @Suppress("DEPRECATION")
+                val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                if (!dir.exists()) dir.mkdirs()
+                val file = java.io.File(dir, fileName)
+                file.outputStream().use { out -> pdf.writeTo(out) }
+                true
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+}
