@@ -15,6 +15,12 @@
     <string name="feed_title">Párrafos</string>
     <string name="paragraph_expires">Se elimina tras 24 horas</string>
     <string name="create_paragraph">Nuevo párrafo</string>
+    <string name="attach_image">Foto</string>
+    <string name="attach_video">Video 5-10s</string>
+    <string name="nav_home">Inicio</string>
+    <string name="nav_search">Buscar</string>
+    <string name="nav_create">Nuevo</string>
+    <string name="nav_profile">Perfil</string>
     <string name="action_tek">Tek</string>
     <string name="action_teker">Teker</string>
     <string name="label_teking">Teking</string>
