@@ -4,8 +4,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.yeex.dlof.R
+import com.yeex.dlof.util.LocaleUtil
 import com.yeex.dlof.util.UsernameValidator
 import androidx.compose.ui.res.stringResource
 
@@ -15,6 +17,7 @@ fun RegisterScreen(
     onRegistered: () -> Unit,
     onGoToLogin: () -> Unit
 ) {
+    val context = LocalContext.current
     var identifier by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var displayName by remember { mutableStateOf("") }
@@ -65,7 +68,7 @@ fun RegisterScreen(
         Spacer(Modifier.height(24.dp))
 
         Button(
-            onClick = { viewModel.register(identifier, password, displayName, "ar") },
+            onClick = { viewModel.register(identifier, password, displayName, LocaleUtil.getSavedLanguage(context)) },
             enabled = validation.isValid && password.length >= 6 && state !is AuthUiState.Loading,
             modifier = Modifier.fillMaxWidth()
         ) {
