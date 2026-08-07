@@ -16,6 +16,7 @@ import com.yeex.dlof.data.repository.AuthRepository
 import com.yeex.dlof.ui.auth.LoginScreen
 import com.yeex.dlof.ui.auth.RegisterScreen
 import com.yeex.dlof.ui.comments.CommentsScreen
+import com.yeex.dlof.ui.common.SplashScreen
 import com.yeex.dlof.ui.components.BottomTab
 import com.yeex.dlof.ui.components.YeexBottomBar
 import com.yeex.dlof.ui.create.CreateParagraphScreen
@@ -28,6 +29,7 @@ import com.yeex.dlof.ui.search.SearchScreen
 import com.yeex.dlof.ui.verify.VerificationRequestScreen
 
 object Routes {
+    const val SPLASH = "splash"
     const val LOGIN = "login"
     const val REGISTER = "register"
     const val FEED = "feed"
@@ -56,7 +58,6 @@ object Routes {
 @Composable
 fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
     val navController: NavHostController = rememberNavController()
-    val startDestination = if (authRepo.currentUid() != null) Routes.FEED else Routes.LOGIN
     val myUid = authRepo.currentUid()
 
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -92,9 +93,20 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
     ) { outerPadding ->
         NavHost(
             navController = navController,
-            startDestination = startDestination,
+            startDestination = Routes.SPLASH,
             modifier = Modifier.padding(bottom = outerPadding.calculateBottomPadding())
         ) {
+            composable(Routes.SPLASH) {
+                SplashScreen(
+                    isLoggedIn = authRepo.currentUid() != null,
+                    onFinished = { loggedIn ->
+                        val destination = if (loggedIn) Routes.FEED else Routes.LOGIN
+                        navController.navigate(destination) {
+                            popUpTo(Routes.SPLASH) { inclusive = true }
+                        }
+                    }
+                )
+            }
             composable(Routes.LOGIN) {
                 LoginScreen(
                     onLoggedIn = { navController.navigate(Routes.FEED) { popUpTo(Routes.LOGIN) { inclusive = true } } },
