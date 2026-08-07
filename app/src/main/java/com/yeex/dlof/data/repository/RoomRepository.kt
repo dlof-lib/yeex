@@ -40,4 +40,23 @@ class RoomRepository(
         val roomIds = userRoomsRef.child(uid).get().await().children.mapNotNull { it.key }
         return roomIds.mapNotNull { getRoom(it) }
     }
+
+    /**
+     * Prefix search over room names for [com.yeex.dlof.ui.search.SearchScreen].
+     * Only returns public rooms — private rooms stay discoverable solely by
+     * direct invite/link, per the "غرف عامة وخاصة" requirement. Like
+     * [UserRepository.searchByIdentifierPrefix], this is a lexicographic
+     * prefix range query since Realtime Database has no full-text search.
+     */
+    suspend fun searchByName(prefix: String, limit: Int = 20): List<Room> {
+        val clean = prefix.trim()
+        if (clean.isEmpty()) return emptyList()
+        return roomsRef.orderByChild("name")
+            .startAt(clean)
+            .endAt(clean + "\uf8ff")
+            .limitToFirst(limit)
+            .get().await()
+            .children.mapNotNull { it.getValue(Room::class.java) }
+            .filter { it.isPublic }
+    }
 }
