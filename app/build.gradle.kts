@@ -69,6 +69,12 @@ dependencies {
 
     implementation("io.coil-kt:coil-compose:2.6.0")
 
+    // Video playback for VIDEO-type paragraphs (feed previously tried to
+    // decode raw MP4 bytes as a Bitmap, which returns null and crashes —
+    // see MediaBase64.decodeToBitmap / VideoPlayer.kt).
+    implementation("androidx.media3:media3-exoplayer:1.4.1")
+    implementation("androidx.media3:media3-ui:1.4.1")
+
     // Google Sign-In (Credential Manager, the current recommended API) + GitHub
     // Sign-In (handled entirely by firebase-auth's OAuthProvider, no extra SDK).
     implementation("androidx.credentials:credentials:1.3.0")
