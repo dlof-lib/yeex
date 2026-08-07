@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import com.yeex.dlof.R
 import com.yeex.dlof.data.model.Paragraph
 import com.yeex.dlof.data.model.ParagraphType
+import com.yeex.dlof.data.repository.UserRepository
 import com.yeex.dlof.ui.theme.YeexAccent
 import com.yeex.dlof.ui.theme.YeexCrimson
 import com.yeex.dlof.ui.theme.YeexDislike
@@ -78,7 +79,8 @@ fun ParagraphCard(
     onDislike: () -> Unit,
     onComment: () -> Unit,
     onRepost: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    userRepo: UserRepository = UserRepository()
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -207,8 +209,21 @@ fun ParagraphCard(
                     contentDescription = stringResource(R.string.action_download),
                     onClick = {
                         scope.launch {
+                            // Author name/avatar aren't denormalized onto the paragraph
+                            // (see the comment on authorIdentifier above) — fetched
+                            // here, once, only when a download is actually requested.
+                            val author = runCatching { userRepo.getUser(paragraph.authorId) }.getOrNull()
+                            val authorAvatar = author?.profileIconUrl
+                                ?.takeIf { it.isNotBlank() }
+                                ?.let { MediaBase64.decodeToBitmap(it) }
                             val ok = withContext(Dispatchers.Default) {
-                                val watermarked = WatermarkUtil.applyWatermark(bitmap, watermarkLabel)
+                                val watermarked = WatermarkUtil.applyWatermark(
+                                    source = bitmap,
+                                    appLabel = watermarkLabel,
+                                    authorIdentifier = paragraph.authorIdentifier,
+                                    authorDisplayName = author?.displayName ?: paragraph.authorIdentifier,
+                                    authorAvatar = authorAvatar
+                                )
                                 DownloadUtil.saveToGallery(context, watermarked, "yeex_${paragraph.id}")
                             }
                             Toast.makeText(
