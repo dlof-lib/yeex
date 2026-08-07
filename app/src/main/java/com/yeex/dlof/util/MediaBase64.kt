@@ -57,10 +57,16 @@ object MediaBase64 {
         return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
     }
 
-    fun decodeToBitmap(base64: String): Bitmap {
+    /**
+     * Returns null (instead of crashing) if [base64] can't be decoded as an
+     * image — e.g. it's actually VIDEO bytes (raw MP4), or the string is
+     * corrupt. Callers MUST treat null as "no image to show" rather than
+     * assuming decoding an image always succeeds.
+     */
+    fun decodeToBitmap(base64: String): Bitmap? = runCatching {
         val bytes = Base64.decode(base64, Base64.NO_WRAP)
-        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-    }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+    }.getOrNull()
 
     private fun downscale(src: Bitmap, maxDimension: Int): Bitmap {
         val ratio = maxDimension.toFloat() / maxOf(src.width, src.height)
