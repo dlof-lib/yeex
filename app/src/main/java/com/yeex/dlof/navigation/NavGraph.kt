@@ -109,11 +109,13 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
             }
             composable(Routes.FEED) {
                 FeedScreen(
-                    onCreateParagraph = { navController.navigate(Routes.CREATE_PARAGRAPH) },
                     onOpenComments = { paragraphId -> navController.navigate(Routes.comments(paragraphId)) },
                     onRepost = { paragraphId -> navController.navigate(Routes.repost(paragraphId)) }
                 )
             }
+            // Kept as a direct-link fallback (e.g. from a future push notification or
+            // deep link) even though FeedScreen/RoomScreen now publish via their own
+            // in-place ModalBottomSheet pop-up instead of navigating here.
             composable(Routes.CREATE_PARAGRAPH) {
                 CreateParagraphScreen(onPublished = { navController.popBackStack() })
             }
@@ -127,7 +129,6 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
                 val roomId = backStackEntry.arguments?.getString("roomId") ?: return@composable
                 RoomScreen(
                     roomId = roomId,
-                    onCreateParagraph = { navController.navigate(Routes.CREATE_PARAGRAPH) },
                     onOpenComments = { paragraphId -> navController.navigate(Routes.comments(paragraphId)) },
                     onRepost = { paragraphId -> navController.navigate(Routes.repost(paragraphId)) }
                 )
