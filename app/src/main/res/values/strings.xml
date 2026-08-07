@@ -45,6 +45,18 @@
     <string name="room_private">خاصة</string>
     <string name="create_room">إنشاء غرفة</string>
     <string name="room_bio">سيرة الغرفة</string>
+    <string name="browse_rooms">تصفح الغرف</string>
+    <string name="explore_rooms">استكشاف</string>
+    <string name="my_rooms">غرفي</string>
+    <string name="search_rooms_hint">ابحث عن غرفة أو اهتمام</string>
+    <string name="join_room">انضمام</string>
+    <string name="joined_room">منضم</string>
+    <string name="open_room">فتح</string>
+    <string name="no_rooms_found">لا توجد غرف بعد</string>
+    <string name="room_members_count">%1$s عضو</string>
+    <string name="room_interests_hint">الاهتمامات (افصل بينها بفاصلة)</string>
+    <string name="room_social_link_hint">رابط تواصل اجتماعي (اختياري)</string>
+    <string name="room_phone_hint">رقم هاتف (اختياري)</string>
 
     <!-- Container -->
     <string name="container_label">حاوية تخصيص</string>
