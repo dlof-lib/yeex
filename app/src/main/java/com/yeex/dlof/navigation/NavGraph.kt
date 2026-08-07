@@ -10,9 +10,11 @@ import androidx.navigation.NavType
 import com.yeex.dlof.data.repository.AuthRepository
 import com.yeex.dlof.ui.auth.LoginScreen
 import com.yeex.dlof.ui.auth.RegisterScreen
+import com.yeex.dlof.ui.comments.CommentsScreen
 import com.yeex.dlof.ui.create.CreateParagraphScreen
 import com.yeex.dlof.ui.feed.FeedScreen
 import com.yeex.dlof.ui.profile.ProfileScreen
+import com.yeex.dlof.ui.repost.RepostScreen
 import com.yeex.dlof.ui.room.CreateRoomScreen
 import com.yeex.dlof.ui.room.RoomScreen
 import com.yeex.dlof.ui.search.SearchScreen
@@ -28,9 +30,13 @@ object Routes {
     const val PROFILE = "profile/{uid}"
     const val SEARCH = "search"
     const val VERIFY = "verify"
+    const val COMMENTS = "comments/{paragraphId}"
+    const val REPOST = "repost/{paragraphId}"
 
     fun room(id: String) = "room/$id"
     fun profile(uid: String) = "profile/$uid"
+    fun comments(paragraphId: String) = "comments/$paragraphId"
+    fun repost(paragraphId: String) = "repost/$paragraphId"
 }
 
 @Composable
@@ -54,8 +60,8 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
         composable(Routes.FEED) {
             FeedScreen(
                 onCreateParagraph = { navController.navigate(Routes.CREATE_PARAGRAPH) },
-                onOpenComments = { /* TODO: comments bottom sheet */ },
-                onRepost = { /* TODO: repost-into-room picker dialog */ }
+                onOpenComments = { paragraphId -> navController.navigate(Routes.comments(paragraphId)) },
+                onRepost = { paragraphId -> navController.navigate(Routes.repost(paragraphId)) }
             )
         }
         composable(Routes.CREATE_PARAGRAPH) {
@@ -72,8 +78,8 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
             RoomScreen(
                 roomId = roomId,
                 onCreateParagraph = { navController.navigate(Routes.CREATE_PARAGRAPH) },
-                onOpenComments = { },
-                onRepost = { }
+                onOpenComments = { paragraphId -> navController.navigate(Routes.comments(paragraphId)) },
+                onRepost = { paragraphId -> navController.navigate(Routes.repost(paragraphId)) }
             )
         }
         composable(
@@ -91,6 +97,20 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
         }
         composable(Routes.VERIFY) {
             VerificationRequestScreen(onSubmitted = { navController.popBackStack() })
+        }
+        composable(
+            Routes.COMMENTS,
+            arguments = listOf(navArgument("paragraphId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val paragraphId = backStackEntry.arguments?.getString("paragraphId") ?: return@composable
+            CommentsScreen(paragraphId = paragraphId, onBack = { navController.popBackStack() })
+        }
+        composable(
+            Routes.REPOST,
+            arguments = listOf(navArgument("paragraphId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val paragraphId = backStackEntry.arguments?.getString("paragraphId") ?: return@composable
+            RepostScreen(paragraphId = paragraphId, onDone = { navController.popBackStack() })
         }
     }
 }
