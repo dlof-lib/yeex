@@ -16,7 +16,6 @@ import kotlinx.coroutines.launch
 fun RoomScreen(
     roomId: String,
     repo: RoomRepository = RoomRepository(),
-    onCreateParagraph: () -> Unit,
     onOpenComments: (String) -> Unit,
     onRepost: (String) -> Unit
 ) {
@@ -46,7 +45,6 @@ fun RoomScreen(
         // Reuses the same swipeable square-card feed, scoped to this room.
         FeedScreen(
             roomId = roomId,
-            onCreateParagraph = onCreateParagraph,
             onOpenComments = onOpenComments,
             onRepost = onRepost
         )
