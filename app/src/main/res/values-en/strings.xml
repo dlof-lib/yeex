@@ -53,11 +53,15 @@
     <string name="request_verification">Request Verification</string>
     <string name="language_label">Language</string>
     <string name="search_hint">Search</string>
+    <string name="search_users_section">Accounts</string>
+    <string name="search_rooms_section">Rooms</string>
+    <string name="search_no_results">No results</string>
     <string name="watermark_text">yeex</string>
     <string name="or_divider">or</string>
     <string name="btn_continue_google">Continue with Google</string>
     <string name="btn_continue_github">Continue with GitHub</string>
     <string name="action_download">Download</string>
+    <string name="action_download_pdf">Download PDF</string>
     <string name="download_saved">Saved with watermark</string>
     <string name="download_failed">Couldn\'t save</string>
 
@@ -88,6 +92,11 @@
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
     <string name="latest_paragraphs">Latest paragraphs</string>
+    <string name="logout">Log out</string>
+    <string name="logout_confirm_title">Log out?</string>
+    <string name="logout_confirm_body">You will be signed out of this account on this device.</string>
+    <string name="switch_account">Switch account</string>
+    <string name="no_paragraphs_yet">No paragraphs yet</string>
     <string name="publish_action">Publish</string>
     <string name="publishing_in_progress">Publishing…</string>
 </resources>
