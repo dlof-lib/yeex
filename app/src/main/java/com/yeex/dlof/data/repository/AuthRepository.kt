@@ -5,7 +5,10 @@ import android.content.Context
 import android.util.Log
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.GetCredentialProviderConfigurationException
+import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.FirebaseNetworkException
@@ -160,6 +163,27 @@ class AuthRepository(
             val authResult = auth.signInWithCredential(firebaseCredential).await()
             val fbUser = authResult.user ?: return AuthResult.Failure("unknown")
             ensureUserProfile(fbUser, context)
+        } catch (e: GetCredentialCancellationException) {
+            // The user genuinely dismissed the Google account picker — the only
+            // case that should show "تم إلغاء تسجيل الدخول عبر Google".
+            Log.i(TAG, "Google sign-in cancelled by user")
+            AuthResult.Failure("google_cancelled")
+        } catch (e: NoCredentialException) {
+            // No Google account is saved on the device / in Credential Manager,
+            // or the account exists but the app's OAuth client isn't registered
+            // for it — most commonly because no SHA-1 fingerprint has been added
+            // for this app in the Firebase console, so Google Play Services has
+            // nothing to match this app against and reports "no credential"
+            // instead of showing the picker.
+            Log.e(TAG, "Google sign-in: no credential available: ${e.message}", e)
+            AuthResult.Failure("google_no_account")
+        } catch (e: GetCredentialProviderConfigurationException) {
+            // Credential Manager / Google Play Services provider isn't set up
+            // correctly for this app (e.g. missing SHA-1 fingerprint or the
+            // default_web_client_id doesn't match a client registered against
+            // this app's package name + fingerprint in Firebase).
+            Log.e(TAG, "Google sign-in misconfigured: ${e.message}", e)
+            AuthResult.Failure("google_config_error")
         } catch (e: GetCredentialException) {
             Log.e(TAG, "Google sign-in failed: ${e.javaClass.simpleName}: ${e.message}", e)
             AuthResult.Failure("google_cancelled")
