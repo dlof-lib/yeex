@@ -40,6 +40,7 @@ import kotlinx.coroutines.withContext
 fun ParagraphCard(
     paragraph: Paragraph,
     hasLiked: Boolean,
+    hasDisliked: Boolean,
     onLike: () -> Unit,
     onDislike: () -> Unit,
     onComment: () -> Unit,
@@ -112,13 +113,17 @@ fun ParagraphCard(
                     Icon(
                         if (hasLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                         contentDescription = stringResource(R.string.action_like),
-                        tint = Color.White
+                        tint = if (hasLiked) Color(0xFFC81D3D) else Color.White
                     )
                 }
                 Text("${paragraph.likeCount}", color = Color.White)
                 Spacer(Modifier.width(8.dp))
                 IconButton(onClick = onDislike) {
-                    Icon(Icons.Filled.ThumbDown, contentDescription = stringResource(R.string.action_dislike), tint = Color.White)
+                    Icon(
+                        Icons.Filled.ThumbDown,
+                        contentDescription = stringResource(R.string.action_dislike),
+                        tint = if (hasDisliked) Color(0xFFC81D3D) else Color.White
+                    )
                 }
                 Spacer(Modifier.width(8.dp))
                 TextButton(onClick = onComment) { Text(stringResource(R.string.action_comment), color = Color.White) }
