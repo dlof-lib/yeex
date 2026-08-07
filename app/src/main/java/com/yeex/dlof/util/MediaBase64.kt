@@ -18,7 +18,9 @@ object MediaBase64 {
 
     private const val MAX_IMAGE_DIMENSION = 1080
     private const val JPEG_QUALITY = 80
-    const val MAX_VIDEO_BYTES = 8 * 1024 * 1024 // ~8MB safety ceiling for a 5-10s clip
+    // Must stay under database.rules.json's mediaBase64 char cap (8,500,000).
+    // Base64 inflates bytes by 4/3, so 6MB raw -> ~8,000,000 chars, safely under that cap.
+    const val MAX_VIDEO_BYTES = 6 * 1024 * 1024
 
     fun encodeImage(resolver: ContentResolver, uri: Uri): String {
         val input = resolver.openInputStream(uri) ?: error("cannot open image")
