@@ -1,13 +1,18 @@
 package com.yeex.dlof.ui.feed
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.yeex.dlof.R
@@ -16,11 +21,14 @@ import com.yeex.dlof.ui.components.ParagraphSkeleton
 import com.yeex.dlof.ui.create.CreateParagraphScreen
 
 /**
- * Publishing a new paragraph now happens in-place as a [ModalBottomSheet]
- * pop-up (see [CreateParagraphScreen]'s host below) instead of navigating to
- * a separate full screen, per the "قسم النشر شاشة منبثقة" requirement — the
- * feed stays mounted underneath and simply refreshes via its live listener
- * once the sheet closes after a successful publish.
+ * Full-screen, edge-to-edge, TikTok-style feed: each [ParagraphCard] fills
+ * the entire available screen (no Scaffold padding, no card margins), and
+ * swiping left/right (HorizontalPager) moves between paragraphs — same
+ * gesture as the product spec, just an immersive full-bleed presentation
+ * instead of a padded square card.
+ *
+ * Publishing still happens in-place as a [ModalBottomSheet] pop-up (see
+ * [CreateParagraphScreen] host below) so the feed stays mounted underneath.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,32 +45,22 @@ fun FeedScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     var showCreateSheet by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.feed_title)) }) },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showCreateSheet = true }) {
-                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.create_paragraph))
-            }
-        }
-    ) { padding ->
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
         when {
             // First Firebase snapshot hasn't arrived yet — skeleton, not the empty state.
             isLoading -> {
-                ParagraphSkeleton(
-                    modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)
-                )
+                ParagraphSkeleton(modifier = Modifier.fillMaxSize().padding(16.dp))
             }
             paragraphs.isEmpty() -> {
-                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = androidx.compose.ui.Alignment.Center) {
-                    Text(stringResource(R.string.paragraph_expires))
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(stringResource(R.string.paragraph_expires), color = Color.White)
                 }
             }
             else -> {
                 val pagerState = rememberPagerState(pageCount = { paragraphs.size })
-                // Swiping left/right (horizontal pager) moves between paragraphs, one square card at a time.
                 HorizontalPager(
                     state = pagerState,
-                    modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)
+                    modifier = Modifier.fillMaxSize()
                 ) { page ->
                     val item = paragraphs[page]
                     val myReaction = reactions[item.id]
@@ -77,6 +75,32 @@ fun FeedScreen(
                     )
                 }
             }
+        }
+
+        // Small transparent top-bar overlay (title only) instead of a Scaffold
+        // TopAppBar, so it floats over the media rather than pushing it down.
+        Text(
+            stringResource(R.string.feed_title),
+            color = Color.White,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(start = 16.dp, top = 8.dp)
+        )
+
+        // Floating create button, positioned like a compact TikTok-style
+        // action, above the bottom nav bar.
+        FloatingActionButton(
+            onClick = { showCreateSheet = true },
+            containerColor = Color.White,
+            contentColor = Color.Black,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 16.dp)
+                .clip(CircleShape)
+        ) {
+            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.create_paragraph))
         }
     }
 
