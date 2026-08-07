@@ -62,4 +62,20 @@
     <string name="auth_error_weak_password">كلمة السر ضعيفة جدًا، استخدم 6 أحرف على الأقل</string>
     <string name="auth_error_network">تعذّر الاتصال بالخادم، تحقق من الإنترنت</string>
     <string name="auth_error_unknown">حدث خطأ غير متوقع، حاول مرة أخرى</string>
+
+    <!-- No internet -->
+    <string name="no_internet_title">لا يوجد اتصال بالإنترنت</string>
+    <string name="no_internet_message">تحقق من اتصالك بالشبكة، سيعود التطبيق للعمل تلقائيًا فور توفر الإنترنت</string>
+    <string name="retry">إعادة المحاولة</string>
+
+    <!-- Account / edit profile -->
+    <string name="edit_profile">تعديل الحساب</string>
+    <string name="change_icon">تغيير الأيقونة</string>
+    <string name="display_name_label">الاسم الظاهر</string>
+    <string name="bio_label">السيرة الذاتية</string>
+    <string name="save">حفظ</string>
+    <string name="cancel">إلغاء</string>
+    <string name="latest_paragraphs">آخر الفقرات</string>
+    <string name="publish_action">نشر</string>
+    <string name="publishing_in_progress">جارٍ النشر…</string>
 </resources>
