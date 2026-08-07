@@ -1,9 +1,14 @@
 package com.yeex.dlof.navigation
 
+import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.NavType
@@ -11,6 +16,8 @@ import com.yeex.dlof.data.repository.AuthRepository
 import com.yeex.dlof.ui.auth.LoginScreen
 import com.yeex.dlof.ui.auth.RegisterScreen
 import com.yeex.dlof.ui.comments.CommentsScreen
+import com.yeex.dlof.ui.components.BottomTab
+import com.yeex.dlof.ui.components.YeexBottomBar
 import com.yeex.dlof.ui.create.CreateParagraphScreen
 import com.yeex.dlof.ui.feed.FeedScreen
 import com.yeex.dlof.ui.profile.ProfileScreen
@@ -39,78 +46,122 @@ object Routes {
     fun repost(paragraphId: String) = "repost/$paragraphId"
 }
 
+/**
+ * [YeexBottomBar] is shown only while on one of its four routes — see the
+ * activeTab computation in [YeexNavGraph] — so focused flows like login,
+ * room detail, comments, repost, or verification aren't cluttered with tabs
+ * that don't apply to them.
+ */
+
 @Composable
 fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
     val navController: NavHostController = rememberNavController()
     val startDestination = if (authRepo.currentUid() != null) Routes.FEED else Routes.LOGIN
+    val myUid = authRepo.currentUid()
 
-    NavHost(navController = navController, startDestination = startDestination) {
-        composable(Routes.LOGIN) {
-            LoginScreen(
-                onLoggedIn = { navController.navigate(Routes.FEED) { popUpTo(Routes.LOGIN) { inclusive = true } } },
-                onGoToRegister = { navController.navigate(Routes.REGISTER) }
-            )
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry?.destination?.route
+    val isOwnProfile = currentRoute == Routes.PROFILE &&
+        backStackEntry?.arguments?.getString("uid") == myUid
+    val activeTab: BottomTab? = when {
+        currentRoute == Routes.FEED -> BottomTab.HOME
+        currentRoute == Routes.SEARCH -> BottomTab.SEARCH
+        currentRoute == Routes.CREATE_PARAGRAPH -> BottomTab.CREATE
+        isOwnProfile -> BottomTab.PROFILE
+        else -> null
+    }
+
+    Scaffold(
+        bottomBar = {
+            if (activeTab != null && myUid != null) {
+                YeexBottomBar(currentTab = activeTab) { tab ->
+                    val destination = when (tab) {
+                        BottomTab.HOME -> Routes.FEED
+                        BottomTab.SEARCH -> Routes.SEARCH
+                        BottomTab.CREATE -> Routes.CREATE_PARAGRAPH
+                        BottomTab.PROFILE -> Routes.profile(myUid)
+                    }
+                    navController.navigate(destination) {
+                        popUpTo(Routes.FEED) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            }
         }
-        composable(Routes.REGISTER) {
-            RegisterScreen(
-                onRegistered = { navController.navigate(Routes.FEED) { popUpTo(Routes.LOGIN) { inclusive = true } } },
-                onGoToLogin = { navController.popBackStack() }
-            )
-        }
-        composable(Routes.FEED) {
-            FeedScreen(
-                onCreateParagraph = { navController.navigate(Routes.CREATE_PARAGRAPH) },
-                onOpenComments = { paragraphId -> navController.navigate(Routes.comments(paragraphId)) },
-                onRepost = { paragraphId -> navController.navigate(Routes.repost(paragraphId)) }
-            )
-        }
-        composable(Routes.CREATE_PARAGRAPH) {
-            CreateParagraphScreen(onPublished = { navController.popBackStack() })
-        }
-        composable(Routes.CREATE_ROOM) {
-            CreateRoomScreen(onCreated = { id -> navController.navigate(Routes.room(id)) })
-        }
-        composable(
-            Routes.ROOM,
-            arguments = listOf(navArgument("roomId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val roomId = backStackEntry.arguments?.getString("roomId") ?: return@composable
-            RoomScreen(
-                roomId = roomId,
-                onCreateParagraph = { navController.navigate(Routes.CREATE_PARAGRAPH) },
-                onOpenComments = { paragraphId -> navController.navigate(Routes.comments(paragraphId)) },
-                onRepost = { paragraphId -> navController.navigate(Routes.repost(paragraphId)) }
-            )
-        }
-        composable(
-            Routes.PROFILE,
-            arguments = listOf(navArgument("uid") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val uid = backStackEntry.arguments?.getString("uid") ?: return@composable
-            ProfileScreen(
-                targetUid = uid,
-                onRequestVerification = { navController.navigate(Routes.VERIFY) }
-            )
-        }
-        composable(Routes.SEARCH) {
-            SearchScreen(onOpenContainer = { })
-        }
-        composable(Routes.VERIFY) {
-            VerificationRequestScreen(onSubmitted = { navController.popBackStack() })
-        }
-        composable(
-            Routes.COMMENTS,
-            arguments = listOf(navArgument("paragraphId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val paragraphId = backStackEntry.arguments?.getString("paragraphId") ?: return@composable
-            CommentsScreen(paragraphId = paragraphId, onBack = { navController.popBackStack() })
-        }
-        composable(
-            Routes.REPOST,
-            arguments = listOf(navArgument("paragraphId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val paragraphId = backStackEntry.arguments?.getString("paragraphId") ?: return@composable
-            RepostScreen(paragraphId = paragraphId, onDone = { navController.popBackStack() })
+    ) { outerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = startDestination,
+            modifier = Modifier.padding(bottom = outerPadding.calculateBottomPadding())
+        ) {
+            composable(Routes.LOGIN) {
+                LoginScreen(
+                    onLoggedIn = { navController.navigate(Routes.FEED) { popUpTo(Routes.LOGIN) { inclusive = true } } },
+                    onGoToRegister = { navController.navigate(Routes.REGISTER) }
+                )
+            }
+            composable(Routes.REGISTER) {
+                RegisterScreen(
+                    onRegistered = { navController.navigate(Routes.FEED) { popUpTo(Routes.LOGIN) { inclusive = true } } },
+                    onGoToLogin = { navController.popBackStack() }
+                )
+            }
+            composable(Routes.FEED) {
+                FeedScreen(
+                    onCreateParagraph = { navController.navigate(Routes.CREATE_PARAGRAPH) },
+                    onOpenComments = { paragraphId -> navController.navigate(Routes.comments(paragraphId)) },
+                    onRepost = { paragraphId -> navController.navigate(Routes.repost(paragraphId)) }
+                )
+            }
+            composable(Routes.CREATE_PARAGRAPH) {
+                CreateParagraphScreen(onPublished = { navController.popBackStack() })
+            }
+            composable(Routes.CREATE_ROOM) {
+                CreateRoomScreen(onCreated = { id -> navController.navigate(Routes.room(id)) })
+            }
+            composable(
+                Routes.ROOM,
+                arguments = listOf(navArgument("roomId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val roomId = backStackEntry.arguments?.getString("roomId") ?: return@composable
+                RoomScreen(
+                    roomId = roomId,
+                    onCreateParagraph = { navController.navigate(Routes.CREATE_PARAGRAPH) },
+                    onOpenComments = { paragraphId -> navController.navigate(Routes.comments(paragraphId)) },
+                    onRepost = { paragraphId -> navController.navigate(Routes.repost(paragraphId)) }
+                )
+            }
+            composable(
+                Routes.PROFILE,
+                arguments = listOf(navArgument("uid") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val uid = backStackEntry.arguments?.getString("uid") ?: return@composable
+                ProfileScreen(
+                    targetUid = uid,
+                    onRequestVerification = { navController.navigate(Routes.VERIFY) }
+                )
+            }
+            composable(Routes.SEARCH) {
+                SearchScreen(onOpenContainer = { })
+            }
+            composable(Routes.VERIFY) {
+                VerificationRequestScreen(onSubmitted = { navController.popBackStack() })
+            }
+            composable(
+                Routes.COMMENTS,
+                arguments = listOf(navArgument("paragraphId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val paragraphId = backStackEntry.arguments?.getString("paragraphId") ?: return@composable
+                CommentsScreen(paragraphId = paragraphId, onBack = { navController.popBackStack() })
+            }
+            composable(
+                Routes.REPOST,
+                arguments = listOf(navArgument("paragraphId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val paragraphId = backStackEntry.arguments?.getString("paragraphId") ?: return@composable
+                RepostScreen(paragraphId = paragraphId, onDone = { navController.popBackStack() })
+            }
         }
     }
 }
