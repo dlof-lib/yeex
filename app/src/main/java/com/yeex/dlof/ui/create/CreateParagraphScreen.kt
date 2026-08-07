@@ -47,7 +47,10 @@ fun CreateParagraphScreen(
         videoUri = uri; imageUri = null
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    // fillMaxWidth (not fillMaxSize) so this renders as a compact pop-up sheet
+    // when hosted inside FeedScreen's ModalBottomSheet, rather than stretching
+    // to the full screen height.
+    Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
         Text(stringResource(R.string.create_paragraph), style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(16.dp))
 
@@ -141,7 +144,7 @@ fun CreateParagraphScreen(
             enabled = !isPublishing && (text.isNotBlank() || imageUri != null || videoUri != null),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(if (isPublishing) "..." else "نشر")
+            Text(if (isPublishing) stringResource(R.string.publishing_in_progress) else stringResource(R.string.publish_action))
         }
 
         Spacer(Modifier.height(8.dp))
