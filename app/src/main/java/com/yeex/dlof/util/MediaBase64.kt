@@ -18,6 +18,8 @@ object MediaBase64 {
 
     private const val MAX_IMAGE_DIMENSION = 1080
     private const val JPEG_QUALITY = 80
+    private const val AVATAR_DIMENSION = 320
+    private const val AVATAR_JPEG_QUALITY = 82
     // Must stay under database.rules.json's mediaBase64 char cap (8,500,000).
     // Base64 inflates bytes by 4/3, so 6MB raw -> ~8,000,000 chars, safely under that cap.
     const val MAX_VIDEO_BYTES = 6 * 1024 * 1024
@@ -38,6 +40,21 @@ object MediaBase64 {
         val bytes = input.use { it.readBytes() }
         if (bytes.size > MAX_VIDEO_BYTES) return null
         return Base64.encodeToString(bytes, Base64.NO_WRAP)
+    }
+
+    /**
+     * Encodes a picked account-icon image, downscaled small (profile icons
+     * never need to be full resolution) so it comfortably fits the
+     * `profileIconUrl` field cap in database.rules.json.
+     */
+    fun encodeAvatar(resolver: ContentResolver, uri: Uri): String {
+        val input = resolver.openInputStream(uri) ?: error("cannot open image")
+        val original = BitmapFactory.decodeStream(input)
+        input.close()
+        val scaled = downscale(original, AVATAR_DIMENSION)
+        val out = ByteArrayOutputStream()
+        scaled.compress(Bitmap.CompressFormat.JPEG, AVATAR_JPEG_QUALITY, out)
+        return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
     }
 
     fun decodeToBitmap(base64: String): Bitmap {
