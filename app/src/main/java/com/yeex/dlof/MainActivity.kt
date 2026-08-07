@@ -10,7 +10,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.splashscreen.installSplashScreen
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.yeex.dlof.navigation.YeexNavGraph
 import com.yeex.dlof.ui.common.NoInternetScreen
 import com.yeex.dlof.ui.theme.YeexTheme
