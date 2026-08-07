@@ -5,4 +5,19 @@
         <item name="android:windowBackground">@color/yeex_black</item>
         <item name="android:navigationBarColor">@color/yeex_navy_dark</item>
     </style>
+
+    <!--
+      System (OS-level) splash shown for the brief cold-start window before
+      Compose is up. Kept intentionally minimal — brand navy background +
+      the app's own launcher mark — since the *real* branded splash
+      experience (animated logo, tagline, auto-navigate) is the Compose
+      SplashScreen in ui/common/SplashScreen.kt, shown right after this as
+      the nav graph's start destination.
+    -->
+    <style name="Theme.Yeex.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/yeex_navy_dark</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/yeex_navy</item>
+        <item name="postSplashScreenTheme">@style/Theme.Yeex</item>
+    </style>
 </resources>
