@@ -4,13 +4,18 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.yeex.dlof.R
 import com.yeex.dlof.data.model.Container
@@ -19,6 +24,8 @@ import com.yeex.dlof.data.model.User
 import com.yeex.dlof.data.repository.ContainerRepository
 import com.yeex.dlof.data.repository.RoomRepository
 import com.yeex.dlof.data.repository.UserRepository
+import com.yeex.dlof.ui.components.UserAvatar
+import com.yeex.dlof.ui.theme.YeexCrimson
 import kotlinx.coroutines.launch
 
 /**
@@ -112,13 +119,7 @@ fun SearchScreen(
                         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                     )
                 }
-                items(userResults) { u ->
-                    ListItem(
-                        headlineContent = { Text(u.displayName.ifBlank { u.identifier }) },
-                        supportingContent = { Text("@${u.identifier}") },
-                        modifier = Modifier.clickable { onOpenUser(u) }
-                    )
-                }
+                items(userResults) { u -> UserResultCard(u, onClick = { onOpenUser(u) }) }
             }
 
             if (roomResults.isNotEmpty()) {
@@ -137,6 +138,69 @@ fun SearchScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * A single "browse other accounts" row: avatar, display name + verified
+ * badge, @identifier, and Teking/Teker counts, all inside a tappable card —
+ * replaces the plain two-line text [ListItem] so browsing search results
+ * reads more like a real account preview than a bare-text lookup.
+ */
+@Composable
+private fun UserResultCard(user: User, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            UserAvatar(iconBase64 = user.profileIconUrl, size = 44.dp)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        user.displayName.ifBlank { user.identifier },
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (user.verified) {
+                        Spacer(Modifier.width(4.dp))
+                        Icon(
+                            Icons.Filled.Verified,
+                            contentDescription = stringResource(R.string.verified_badge),
+                            tint = YeexCrimson,
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
+                }
+                Text(
+                    "@${user.identifier}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    stringResource(R.string.search_user_stats, user.tekingCount, user.tekerCount),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                Icons.Filled.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
