@@ -4,6 +4,9 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -57,9 +60,17 @@ fun CreateParagraphScreen(
         Spacer(Modifier.height(12.dp))
 
         Row {
-            OutlinedButton(onClick = { pickImage.launch("image/*") }) { Text("📷") }
+            OutlinedButton(onClick = { pickImage.launch("image/*") }) {
+                Icon(Icons.Filled.PhotoCamera, contentDescription = stringResource(R.string.attach_image))
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.attach_image))
+            }
             Spacer(Modifier.width(8.dp))
-            OutlinedButton(onClick = { pickVideo.launch("video/*") }) { Text("🎬 5–10s") }
+            OutlinedButton(onClick = { pickVideo.launch("video/*") }) {
+                Icon(Icons.Filled.Videocam, contentDescription = stringResource(R.string.attach_video))
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.attach_video))
+            }
         }
 
         if (imageUri != null) Text("تم اختيار صورة", modifier = Modifier.padding(top = 8.dp))
