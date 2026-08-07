@@ -16,11 +16,14 @@ import kotlinx.coroutines.tasks.await
 
 private const val TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000L
 
+enum class Reaction { LIKE, DISLIKE }
+
 class ParagraphRepository(
     private val db: FirebaseDatabase = FirebaseDatabase.getInstance()
 ) {
     private val paragraphsRef get() = db.getReference("paragraphs")
     private val commentsRef get() = db.getReference("comments")
+    private val likesRef get() = db.getReference("paragraphLikes")
 
     suspend fun publish(paragraph: Paragraph): String {
         val id = paragraphsRef.push().key ?: error("no id")
@@ -33,6 +36,9 @@ class ParagraphRepository(
         paragraphsRef.child(id).setValue(toSave).await()
         return id
     }
+
+    suspend fun getParagraph(id: String): Paragraph? =
+        paragraphsRef.child(id).get().await().getValue(Paragraph::class.java)
 
     /** Live feed: either the global public feed (roomId == "") or a specific room. */
     fun observeParagraphs(roomId: String? = null): Flow<List<Paragraph>> = callbackFlow {
@@ -59,9 +65,60 @@ class ParagraphRepository(
         awaitClose { query.removeEventListener(listener) }
     }
 
-    suspend fun like(paragraphId: String) = bump(paragraphId, "likeCount", 1)
-    suspend fun unlike(paragraphId: String) = bump(paragraphId, "likeCount", -1)
-    suspend fun dislike(paragraphId: String) = bump(paragraphId, "dislikeCount", 1)
+    /**
+     * Per-user reaction (LIKE/DISLIKE), mutually exclusive — matches the
+     * "إعجاب / لم يعجبني" spec. Stored at /paragraphLikes/{paragraphId}/{uid}
+     * as a single string value (see database.rules.json), so switching from
+     * like -> dislike (or clearing it) is one write, not two.
+     */
+    suspend fun getReaction(paragraphId: String, uid: String): Reaction? {
+        val raw = likesRef.child(paragraphId).child(uid).get().await().getValue(String::class.java)
+        return raw?.let { runCatching { Reaction.valueOf(it) }.getOrNull() }
+    }
+
+    fun observeReaction(paragraphId: String, uid: String): Flow<Reaction?> = callbackFlow {
+        val ref = likesRef.child(paragraphId).child(uid)
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val raw = snapshot.getValue(String::class.java)
+                trySend(raw?.let { runCatching { Reaction.valueOf(it) }.getOrNull() })
+            }
+            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+        }
+        ref.addValueEventListener(listener)
+        awaitClose { ref.removeEventListener(listener) }
+    }
+
+    /** Tapping the like button when already liked clears the reaction; same for dislike. */
+    suspend fun toggleLike(paragraphId: String, uid: String) =
+        setReaction(paragraphId, uid, if (getReaction(paragraphId, uid) == Reaction.LIKE) null else Reaction.LIKE)
+
+    suspend fun toggleDislike(paragraphId: String, uid: String) =
+        setReaction(paragraphId, uid, if (getReaction(paragraphId, uid) == Reaction.DISLIKE) null else Reaction.DISLIKE)
+
+    private suspend fun setReaction(paragraphId: String, uid: String, newReaction: Reaction?) {
+        val old = getReaction(paragraphId, uid)
+        if (old == newReaction) return
+        if (newReaction == null) likesRef.child(paragraphId).child(uid).removeValue().await()
+        else likesRef.child(paragraphId).child(uid).setValue(newReaction.name).await()
+
+        if (old == Reaction.LIKE) bump(paragraphId, "likeCount", -1)
+        if (old == Reaction.DISLIKE) bump(paragraphId, "dislikeCount", -1)
+        if (newReaction == Reaction.LIKE) bump(paragraphId, "likeCount", 1)
+        if (newReaction == Reaction.DISLIKE) bump(paragraphId, "dislikeCount", 1)
+    }
+
+    fun observeComments(paragraphId: String): Flow<List<Comment>> = callbackFlow {
+        val query = commentsRef.child(paragraphId).orderByChild("createdAt")
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                trySend(snapshot.children.mapNotNull { it.getValue(Comment::class.java) })
+            }
+            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+        }
+        query.addValueEventListener(listener)
+        awaitClose { query.removeEventListener(listener) }
+    }
 
     suspend fun addComment(comment: Comment) {
         val id = commentsRef.child(comment.paragraphId).push().key ?: error("no id")
