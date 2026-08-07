@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
@@ -27,6 +28,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Lets the feed (ParagraphCard) draw its media behind the status/nav
+        // bars for a true full-screen TikTok-style look; NoInternetScreen and
+        // other non-feed screens still get correct inset padding via Compose's
+        // own systemBars insets in each screen that needs it.
+        enableEdgeToEdge()
         setContent {
             YeexTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
