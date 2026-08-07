@@ -13,25 +13,34 @@ import androidx.compose.ui.unit.dp
 import com.yeex.dlof.R
 import com.yeex.dlof.ui.components.ParagraphCard
 import com.yeex.dlof.ui.components.ParagraphSkeleton
+import com.yeex.dlof.ui.create.CreateParagraphScreen
 
+/**
+ * Publishing a new paragraph now happens in-place as a [ModalBottomSheet]
+ * pop-up (see [CreateParagraphScreen]'s host below) instead of navigating to
+ * a separate full screen, per the "قسم النشر شاشة منبثقة" requirement — the
+ * feed stays mounted underneath and simply refreshes via its live listener
+ * once the sheet closes after a successful publish.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FeedScreen(
     roomId: String? = null,
     viewModel: FeedViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         factory = FeedViewModelFactory(roomId)
     ),
-    onCreateParagraph: () -> Unit,
     onOpenComments: (String) -> Unit,
     onRepost: (String) -> Unit
 ) {
     val paragraphs by viewModel.paragraphs.collectAsState()
     val reactions by viewModel.reactions.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    var showCreateSheet by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text(stringResource(R.string.feed_title)) }) },
         floatingActionButton = {
-            FloatingActionButton(onClick = onCreateParagraph) {
+            FloatingActionButton(onClick = { showCreateSheet = true }) {
                 Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.create_paragraph))
             }
         }
@@ -68,6 +77,16 @@ fun FeedScreen(
                     )
                 }
             }
+        }
+    }
+
+    if (showCreateSheet) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(onDismissRequest = { showCreateSheet = false }, sheetState = sheetState) {
+            CreateParagraphScreen(
+                roomId = roomId,
+                onPublished = { showCreateSheet = false }
+            )
         }
     }
 }
