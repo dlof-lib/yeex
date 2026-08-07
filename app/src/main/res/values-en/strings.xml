@@ -62,4 +62,20 @@
     <string name="auth_error_weak_password">Password is too weak, use at least 6 characters</string>
     <string name="auth_error_network">Couldn\'t reach the server, check your connection</string>
     <string name="auth_error_unknown">Something went wrong, please try again</string>
+
+    <!-- No internet -->
+    <string name="no_internet_title">No internet connection</string>
+    <string name="no_internet_message">Check your network connection — the app will resume automatically once you\'re back online</string>
+    <string name="retry">Retry</string>
+
+    <!-- Account / edit profile -->
+    <string name="edit_profile">Edit account</string>
+    <string name="change_icon">Change icon</string>
+    <string name="display_name_label">Display name</string>
+    <string name="bio_label">Bio</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="latest_paragraphs">Latest paragraphs</string>
+    <string name="publish_action">Publish</string>
+    <string name="publishing_in_progress">Publishing…</string>
 </resources>
