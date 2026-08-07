@@ -52,6 +52,24 @@ class UserRepository(
         usersRef.child(uid).child("language").setValue(languageCode).await()
     }
 
+    /**
+     * Updates the editable profile fields (display name + bio) from the
+     * "edit account" bottom sheet in [com.yeex.dlof.ui.profile.ProfileScreen].
+     */
+    suspend fun updateProfile(uid: String, displayName: String, bio: String) {
+        usersRef.child(uid).child("displayName").setValue(displayName).await()
+        usersRef.child(uid).child("bio").setValue(bio).await()
+    }
+
+    /**
+     * Stores the account icon as a downscaled Base64 JPEG directly on the user
+     * node (same "no Firebase Storage / free plan only" approach used for
+     * paragraph media — see [com.yeex.dlof.util.MediaBase64]).
+     */
+    suspend fun updateProfileIcon(uid: String, base64: String) {
+        usersRef.child(uid).child("profileIconUrl").setValue(base64).await()
+    }
+
     suspend fun isTeking(currentUid: String, targetUid: String): Boolean =
         tekedByRef.child(currentUid).child(targetUid).get().await().exists()
 
