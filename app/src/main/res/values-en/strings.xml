@@ -31,6 +31,7 @@
     <string name="container_search_hint">@container.name[].me</string>
     <string name="verified_badge">Verified</string>
     <string name="request_verification">Request Verification</string>
+    <string name="language_label">Language</string>
     <string name="search_hint">Search</string>
     <string name="watermark_text">yeex</string>
     <string name="or_divider">or</string>
