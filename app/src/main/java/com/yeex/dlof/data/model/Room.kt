@@ -16,5 +16,13 @@ data class Room(
     val phone: String = "",            // optional
     val iconUrl: String = "",
     val memberCount: Long = 0,
-    val createdAt: Long = 0L
+    val createdAt: Long = 0L,
+    // "GENERAL" | "TV_CHANNEL" — see com.yeex.dlof.util.RoomType. A
+    // TV-channel room is the room-level counterpart of a TV-channel
+    // business account (com.yeex.dlof.util.BusinessCategory.TV_CHANNEL).
+    val roomType: String = "GENERAL",
+    // Owner-only live-stream link, played inline via LiveStreamPlayer when
+    // non-blank. Direct .m3u8/.mpd/.mp4 URLs play natively; anything else
+    // (a YouTube/Twitch page link, etc.) is embedded via WebView.
+    val liveStreamUrl: String = ""
 )
