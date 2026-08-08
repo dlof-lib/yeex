@@ -96,6 +96,28 @@ class UserRepository(
     }
 
     /**
+     * Saves a picked-and-cropped banner image (see [com.yeex.dlof.util.MediaBase64.encodeBanner])
+     * as the profile banner. A banner is either an image or a video link,
+     * never both, so this clears any previously-set [bannerVideoUrl].
+     */
+    suspend fun updateBannerImage(uid: String, base64: String) {
+        usersRef.child(uid).updateChildren(
+            mapOf("bannerUrl" to base64, "bannerVideoUrl" to "")
+        ).await()
+    }
+
+    /**
+     * Saves a link to any video on the internet as the profile banner
+     * instead of an image. Clears any previously-set [bannerUrl] image so
+     * the two never both hold a value at once.
+     */
+    suspend fun updateBannerVideoUrl(uid: String, url: String) {
+        usersRef.child(uid).updateChildren(
+            mapOf("bannerVideoUrl" to url, "bannerUrl" to "")
+        ).await()
+    }
+
+    /**
      * Updates the "حساب أعمال" (business account) fields — category, contact
      * info, and links — from [com.yeex.dlof.ui.profile.EditAccountSheet]'s
      * business section. A partial [updateChildren] rather than a full
