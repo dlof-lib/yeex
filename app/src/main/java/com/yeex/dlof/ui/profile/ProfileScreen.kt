@@ -5,6 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Image as ImageIcon
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.MoreVert
@@ -30,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -49,6 +52,10 @@ import com.yeex.dlof.ui.components.UserAvatar
 import com.yeex.dlof.ui.theme.YeexAccent
 import com.yeex.dlof.ui.theme.YeexCrimson
 import com.yeex.dlof.ui.theme.YeexNavy
+import com.yeex.dlof.ui.theme.YeexNavyLight
+import com.yeex.dlof.ui.theme.YeexPink
+import com.yeex.dlof.ui.theme.YeexDarkCard
+import com.yeex.dlof.ui.theme.yeexBrandGradient
 import com.yeex.dlof.util.LocaleUtil
 import com.yeex.dlof.util.MediaBase64
 import kotlinx.coroutines.launch
@@ -83,6 +90,7 @@ fun ProfileScreen(
     var user by remember { mutableStateOf<User?>(null) }
     var isFollowing by remember { mutableStateOf(false) }
     var latest by remember { mutableStateOf<List<Paragraph>>(emptyList()) }
+    var todayCount by remember { mutableStateOf(0) }
     var showEditSheet by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     var showLogoutConfirm by remember { mutableStateOf(false) }
@@ -108,9 +116,9 @@ fun ProfileScreen(
         paragraphRepo.observeParagraphs(null)
             .catch { /* keep last-known list rather than crashing */ }
             .collect { all ->
-                latest = all.filter { it.authorId == targetUid }
-                    .sortedByDescending { it.createdAt }
-                    .take(5)
+                val mine = all.filter { it.authorId == targetUid }.sortedByDescending { it.createdAt }
+                latest = mine.take(10)
+                todayCount = mine.size // still-live (unexpired) paragraphs — the app's "today"
             }
     }
 
@@ -152,24 +160,52 @@ fun ProfileScreen(
         user?.let { u ->
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
 
-                // ---- Gradient banner + overlapping avatar ----
+                // ---- Gradient banner + overlapping avatar with a brand-gradient ring
+                // and a floating verified badge, matching the reference design ----
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(120.dp)
-                        .background(Brush.horizontalGradient(listOf(YeexNavy, YeexAccent)))
+                        .background(Brush.horizontalGradient(listOf(YeexNavyLight, YeexAccent, YeexPink)))
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).offset(y = (-44).dp),
                     verticalAlignment = Alignment.Bottom
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.background)
-                            .padding(4.dp)
-                    ) {
-                        UserAvatar(iconBase64 = u.profileIconUrl, size = 88.dp)
+                    Box {
+                        Box(
+                            modifier = Modifier
+                                .size(92.dp)
+                                .clip(CircleShape)
+                                .background(yeexBrandGradient())
+                                .padding(3.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.background)
+                                .padding(3.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            UserAvatar(iconBase64 = u.profileIconUrl, size = 80.dp)
+                        }
+                        if (u.verified) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .size(26.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.background)
+                                    .padding(2.dp)
+                                    .clip(CircleShape)
+                                    .background(YeexCrimson),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Filled.Check,
+                                    contentDescription = stringResource(R.string.verified_badge),
+                                    tint = Color.White,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -213,8 +249,9 @@ fun ProfileScreen(
 
                     Spacer(Modifier.height(16.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        StatPill(count = u.tekingCount, label = stringResource(R.string.label_teking))
-                        StatPill(count = u.tekerCount, label = stringResource(R.string.action_teker))
+                        StatPill(count = u.tekerCount, topLabel = "Teker", bottomLabel = stringResource(R.string.action_teker))
+                        StatPill(count = u.tekingCount, topLabel = "Teking", bottomLabel = stringResource(R.string.label_teking))
+                        StatPill(count = todayCount.toLong(), topLabel = stringResource(R.string.latest_paragraphs_short), bottomLabel = stringResource(R.string.today_label))
                     }
 
                     Spacer(Modifier.height(16.dp))
@@ -242,14 +279,27 @@ fun ProfileScreen(
                     }
 
                     Spacer(Modifier.height(20.dp))
-                    HorizontalDivider()
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                    Spacer(Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            stringResource(R.string.latest_paragraphs),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (latest.isNotEmpty()) {
+                            Text(
+                                stringResource(R.string.view_all),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                     Spacer(Modifier.height(12.dp))
-                    Text(
-                        stringResource(R.string.latest_paragraphs),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(Modifier.height(8.dp))
 
                     if (latest.isEmpty()) {
                         Text(
@@ -258,8 +308,14 @@ fun ProfileScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
+                    } else {
+                        androidx.compose.foundation.lazy.LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = PaddingValues(end = 20.dp)
+                        ) {
+                            items(latest, key = { it.id }) { p -> ParagraphThumbCard(p) }
+                        }
                     }
-                    latest.forEach { p -> LatestParagraphRow(p) }
                     Spacer(Modifier.height(24.dp))
                 }
             }
@@ -315,54 +371,148 @@ fun ProfileScreen(
 }
 
 @Composable
-private fun RowScope.StatPill(count: Long, label: String) {
+private fun RowScope.StatPill(count: Long, topLabel: String, bottomLabel: String) {
     Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        modifier = Modifier.weight(1f)
+        shape = RoundedCornerShape(16.dp),
+        color = YeexDarkCard,
+        modifier = Modifier.weight(1f).height(84.dp)
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier.fillMaxSize().padding(vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Text("$count", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(formatStatCount(count), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(2.dp))
+            Text(topLabel, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+            Text(bottomLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
+private fun formatStatCount(count: Long): String = when {
+    count >= 1_000_000 -> "%.1fM".format(count / 1_000_000.0)
+    count >= 1_000 -> "%.1fK".format(count / 1_000.0)
+    else -> count.toString()
+}
+
+/**
+ * A single "latest paragraph" preview card — rounded thumbnail, a "جديد"
+ * (new) ribbon while the paragraph is fresh, a small type/duration chip in
+ * the opposite corner, and a like/comment/age footer, matching the
+ * reference grid design.
+ */
 @Composable
-private fun LatestParagraphRow(p: Paragraph) {
-    val icon = when (p.type) {
-        ParagraphType.IMAGE.name -> Icons.Filled.ImageIcon
-        ParagraphType.VIDEO.name -> Icons.Filled.Videocam
-        else -> Icons.Filled.TextFields
+private fun ParagraphThumbCard(p: Paragraph) {
+    val bitmap = remember(p.id) {
+        if (p.mediaBase64.isNotEmpty() && p.type != ParagraphType.VIDEO.name) {
+            MediaBase64.decodeToBitmap(p.mediaBase64)
+        } else null
     }
+    val isNew = System.currentTimeMillis() - p.createdAt < 60 * 60 * 1000L // fresh within the last hour
+    val ageLabel = relativeAge(p.createdAt)
+
     Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+        shape = RoundedCornerShape(18.dp),
+        color = YeexDarkCard,
+        modifier = Modifier.width(150.dp).height(190.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(10.dp))
-            Text(
-                p.text.ifBlank { "[${p.type}]" },
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f)
+        Box(Modifier.fillMaxSize()) {
+            when {
+                bitmap != null -> androidx.compose.foundation.Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+                p.type == ParagraphType.VIDEO.name -> Box(
+                    modifier = Modifier.fillMaxSize().background(yeexBrandGradient()),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.Videocam, contentDescription = null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(30.dp))
+                }
+                else -> Box(
+                    modifier = Modifier.fillMaxSize().background(
+                        Brush.verticalGradient(listOf(YeexAccent.copy(alpha = 0.55f), YeexDarkCard))
+                    ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        p.text.ifBlank { "" },
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 4,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.padding(10.dp)
+                    )
+                }
+            }
+
+            // Bottom scrim for legible footer text over media thumbnails.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp)
+                    .align(Alignment.BottomCenter)
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f))))
             )
-            if (p.commentCount > 0) {
-                Spacer(Modifier.width(8.dp))
-                Icon(Icons.Filled.ChatBubble, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.width(2.dp))
-                Text("${p.commentCount}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            if (isNew) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = YeexCrimson,
+                    modifier = Modifier.align(Alignment.TopStart).padding(8.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.new_badge),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = Color.Black.copy(alpha = 0.45f),
+                modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
+            ) {
+                Icon(
+                    if (p.type == ParagraphType.VIDEO.name) Icons.Filled.Videocam else if (p.type == ParagraphType.IMAGE.name) Icons.Filled.ImageIcon else Icons.Filled.TextFields,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.padding(4.dp).size(14.dp)
+                )
+            }
+
+            Row(
+                modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.Favorite, contentDescription = null, tint = Color.White, modifier = Modifier.size(13.dp))
+                Spacer(Modifier.width(3.dp))
+                Text("${p.likeCount}", color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.width(10.dp))
+                Icon(Icons.Filled.ChatBubble, contentDescription = null, tint = Color.White, modifier = Modifier.size(13.dp))
+                Spacer(Modifier.width(3.dp))
+                Text("${p.commentCount}", color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.weight(1f))
+                Text(ageLabel, color = Color.White.copy(alpha = 0.85f), style = MaterialTheme.typography.labelSmall)
             }
         }
+    }
+}
+
+private fun relativeAge(createdAt: Long): String {
+    if (createdAt <= 0L) return ""
+    val diffMin = (System.currentTimeMillis() - createdAt) / 60000L
+    return when {
+        diffMin < 1 -> "الآن"
+        diffMin < 60 -> "منذ ${diffMin}د"
+        diffMin < 60 * 24 -> "منذ ${diffMin / 60}س"
+        else -> "منذ ${diffMin / (60 * 24)}ي"
     }
 }
 
