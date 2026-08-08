@@ -5,6 +5,7 @@ import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.yeex.dlof.data.model.User
+import com.yeex.dlof.util.RecommendationRanking
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -96,6 +97,43 @@ class UserRepository(
 
     suspend fun isTeking(currentUid: String, targetUid: String): Boolean =
         tekedByRef.child(currentUid).child(targetUid).get().await().exists()
+
+    /**
+     * Every uid this account currently teks (follows) — the raw follow-graph
+     * edge set that both [com.yeex.dlof.util.FeedRanking] (affinity boost)
+     * and [suggestedAccounts] (friend-of-a-friend walk) are built on.
+     */
+    suspend fun followingUids(uid: String): Set<String> =
+        tekedByRef.child(uid).get().await().children.mapNotNull { it.key }.toSet()
+
+    /**
+     * "قد تعرفهم" (people you may know): a friend-of-a-friend suggestion —
+     * accounts teked by the accounts *this* user already teks, excluding
+     * the user themself and anyone already followed, ranked by
+     * [RecommendationRanking] on mutual-tek count (how many of the user's
+     * own teks also tek that candidate).
+     *
+     * [expandLimit] caps how many of the viewer's own teks are walked out
+     * from, bounding the number of Realtime Database reads for accounts
+     * that follow thousands of people — plenty of signal for a suggestion
+     * list comes from the most relevant edge of the graph, not the whole
+     * thing.
+     */
+    suspend fun suggestedAccounts(currentUid: String, limit: Int = 10, expandLimit: Int = 20): List<User> {
+        val following = followingUids(currentUid)
+        if (following.isEmpty()) return emptyList()
+
+        val mutualCounts = mutableMapOf<String, Int>()
+        for (followedUid in following.take(expandLimit)) {
+            val theirFollowing = followingUids(followedUid)
+            for (candidateUid in theirFollowing) {
+                if (candidateUid == currentUid || candidateUid in following) continue
+                mutualCounts[candidateUid] = (mutualCounts[candidateUid] ?: 0) + 1
+            }
+        }
+
+        return RecommendationRanking.rank(mutualCounts, limit).mapNotNull { getUser(it) }
+    }
 
     /** Toggles follow state; returns the new "is following" boolean. */
     suspend fun toggleTek(currentUid: String, targetUid: String): Boolean {
