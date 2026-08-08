@@ -21,5 +21,11 @@ data class User(
     val tekerCount: Long = 0,       // accounts this user is a "Teker" of (following)
     val createdAt: Long = 0L,
     val language: String = "ar",    // ar | en | es
-    val isOfficial: Boolean = false // true only for the yeex.open account
+    val isOfficial: Boolean = false, // true only for the yeex.open account
+    // ---- Business account (see com.yeex.dlof.util.BusinessCategory) ----
+    val accountType: String = "PERSONAL",   // "PERSONAL" | "BUSINESS"
+    val businessCategory: String = "",      // one of BusinessCategory.ALL; meaningful only when accountType == "BUSINESS"
+    val businessPhone: String = "",
+    val businessEmail: String = "",
+    val businessLinks: Map<String, String> = emptyMap() // label -> url, e.g. "website" -> "https://..."
 )
