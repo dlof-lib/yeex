@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 fun RoomScreen(
     roomId: String,
     repo: RoomRepository = RoomRepository(),
-    onOpenComments: (String) -> Unit,
+    onOpenProfile: (String) -> Unit = {},
     onRepost: (String) -> Unit
 ) {
     var room by remember { mutableStateOf<Room?>(null) }
@@ -43,9 +43,11 @@ fun RoomScreen(
         }
 
         // Reuses the same swipeable square-card feed, scoped to this room.
+        // Comments open in-place inside FeedScreen's own ModalBottomSheet
+        // now, so only profile-browsing and repost still bubble up here.
         FeedScreen(
             roomId = roomId,
-            onOpenComments = onOpenComments,
+            onOpenProfile = onOpenProfile,
             onRepost = onRepost
         )
     }
