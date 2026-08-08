@@ -31,6 +31,7 @@ class ParagraphRepository(
     private val paragraphsRef get() = db.getReference("paragraphs")
     private val commentsRef get() = db.getReference("comments")
     private val likesRef get() = db.getReference("paragraphLikes")
+    private val commentLikesRef get() = db.getReference("commentLikes")
 
     suspend fun publish(paragraph: Paragraph): String {
         val id = paragraphsRef.push().key ?: error("no id")
@@ -212,6 +213,34 @@ class ParagraphRepository(
     }
 
     /**
+     * Simple (non-toggle-between-two-states, unlike paragraph like/dislike)
+     * heart on a single comment — returns the new liked state. Mirrors
+     * [toggleLike]'s presence-node pattern via `commentLikes/$paragraphId/$commentId/$uid`,
+     * with the comment's own `likeCount` bumped atomically alongside it.
+     */
+    suspend fun toggleCommentLike(paragraphId: String, commentId: String, uid: String): Boolean {
+        val ref = commentLikesRef.child(paragraphId).child(commentId).child(uid)
+        val alreadyLiked = ref.get().await().exists()
+        return if (alreadyLiked) {
+            ref.removeValue().await()
+            bumpComment(paragraphId, commentId, -1)
+            false
+        } else {
+            ref.setValue(true).await()
+            bumpComment(paragraphId, commentId, 1)
+            true
+        }
+    }
+
+    suspend fun getCommentLikedByMe(paragraphId: String, commentId: String, uid: String): Boolean =
+        commentLikesRef.child(paragraphId).child(commentId).child(uid).get().await().exists()
+
+    private suspend fun bumpComment(paragraphId: String, commentId: String, delta: Int) {
+        commentsRef.child(paragraphId).child(commentId).child("likeCount")
+            .setValue(ServerValue.increment(delta.toLong())).await()
+    }
+
+    /**
      * Reposts an existing paragraph into a room, with an optional added comment.
      * The repost is published as a new paragraph *owned by the reposting user*
      * ([reposterUid]/[reposterIdentifier]) — not the original author — since
@@ -241,6 +270,15 @@ class ParagraphRepository(
         val newId = publish(reposted)
         bump(original.id, "repostCount", 1)
         return newId
+    }
+
+    /**
+     * Bumps [Paragraph.viewCount] by one. Called once per viewer per app
+     * session from ParagraphCard (when the page becomes the pager's active
+     * page), not on every recomposition — see the LaunchedEffect there.
+     */
+    suspend fun incrementView(paragraphId: String) {
+        runCatching { bump(paragraphId, "viewCount", 1) }
     }
 
     /**
