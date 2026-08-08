@@ -94,6 +94,13 @@
     <!-- Account / edit profile -->
     <string name="edit_profile">Edit account</string>
     <string name="change_icon">Change icon</string>
+    <string name="avatar_size_hint">Mandatory profile picture size: %1$d×%2$d px</string>
+    <string name="banner_label">Banner</string>
+    <string name="change_banner">Change banner</string>
+    <string name="use_video_banner_toggle">Use a video link as banner</string>
+    <string name="banner_video_link_label">Video link</string>
+    <string name="banner_video_hint">https://…</string>
+    <string name="banner_size_hint">Mandatory banner size: %1$d×%2$d px</string>
     <string name="display_name_label">Display name</string>
     <string name="bio_label">Bio</string>
     <string name="save">Save</string>
@@ -106,6 +113,7 @@
     <string name="logout">Log out</string>
     <string name="logout_confirm_title">Log out?</string>
     <string name="logout_confirm_body">You will be signed out of this account on this device.</string>
+    <string name="profile_menu">Account menu</string>
     <string name="switch_account">Switch account</string>
     <string name="switch_account_hint">Pick an account to switch to, or add a new one</string>
     <string name="add_account">Add account</string>
