@@ -73,14 +73,16 @@
     <string name="search_rooms_section">الغرف</string>
     <string name="search_no_results">لا نتائج</string>
     <string name="search_user_stats">%1$d Teking · %2$d Teker</string>
+    <string name="search_tab_all">الكل</string>
+    <string name="search_tab_users">الحسابات</string>
+    <string name="search_tab_rooms">الغرف</string>
+    <string name="search_idle_title">ابحث عن حساب أو غرفة</string>
+    <string name="search_idle_hint">اكتب معرفًا أو اسم غرفة، أو @container.name[].me للبحث عن حاوية تخصيص</string>
+    <string name="clear_search">مسح البحث</string>
+    <string name="search_suggested_accounts">قد تعرفهم</string>
 
     <!-- Watermark -->
     <string name="watermark_text">yeex</string>
-
-    <!-- Social sign-in -->
-    <string name="or_divider">أو</string>
-    <string name="btn_continue_google">المتابعة عبر Google</string>
-    <string name="btn_continue_github">المتابعة عبر GitHub</string>
 
     <!-- Download / watermark action -->
     <string name="action_download">تنزيل</string>
@@ -97,9 +99,6 @@
     <string name="auth_error_dot_placement">لا يمكن أن يبدأ أو ينتهي المعرف بنقطة، ولا يحتوي نقطتين متتاليتين</string>
     <string name="auth_error_invalid_chars">المعرف يحتوي على رموز غير مسموحة</string>
     <string name="auth_error_profile_missing">تعذّر العثور على بيانات الحساب</string>
-    <string name="auth_error_google_cancelled">تم إلغاء تسجيل الدخول عبر Google</string>
-    <string name="auth_error_google_no_account">لا يوجد حساب Google متاح على الجهاز، أو أن التطبيق غير مُفعّل لتسجيل الدخول عبر Google بعد. أضف حساب Google من إعدادات الجهاز وحاول مجددًا</string>
-    <string name="auth_error_google_config_error">تسجيل الدخول عبر Google غير مُهيّأ بشكل صحيح لهذا التطبيق حاليًا. يرجى المحاولة لاحقًا</string>
     <string name="auth_error_weak_password">كلمة السر ضعيفة جدًا، استخدم 6 أحرف على الأقل</string>
     <string name="auth_error_network">تعذّر الاتصال بالخادم، تحقق من الإنترنت</string>
     <string name="auth_error_unknown">حدث خطأ غير متوقع، حاول مرة أخرى</string>
@@ -121,17 +120,10 @@
     <string name="logout_confirm_title">تسجيل الخروج؟</string>
     <string name="logout_confirm_body">سيتم تسجيل خروجك من هذا الحساب على هذا الجهاز.</string>
     <string name="switch_account">تبديل الحساب</string>
+    <string name="switch_account_hint">اختر حسابًا للتبديل إليه، أو أضف حسابًا جديدًا</string>
+    <string name="add_account">إضافة حساب</string>
+    <string name="forget_account">نسيان الحساب</string>
     <string name="no_paragraphs_yet">لا توجد فقرات بعد</string>
     <string name="publish_action">نشر</string>
     <string name="publishing_in_progress">جارٍ النشر…</string>
-
-    <!--
-      Web client (auto created by Google Service) OAuth Client ID, from
-      Firebase Console → Authentication → Sign-in method → Google →
-      Web SDK configuration. NOTE: app/google-services.json still ships
-      with an empty oauth_client list — re-download it from Firebase
-      Console → Project Settings → Your apps once Google Sign-In is
-      enabled, so the Google Play Services SDK also recognizes this client.
-    -->
-    <string name="default_web_client_id" translatable="false">280805036656-gpds7imuu8fllmderh2aomq6konrve7c.apps.googleusercontent.com</string>
 </resources>
