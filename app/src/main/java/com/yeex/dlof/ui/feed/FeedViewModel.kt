@@ -6,6 +6,7 @@ import com.yeex.dlof.data.model.Paragraph
 import com.yeex.dlof.data.repository.AuthRepository
 import com.yeex.dlof.data.repository.ParagraphRepository
 import com.yeex.dlof.data.repository.Reaction
+import com.yeex.dlof.data.repository.UserRepository
 import com.yeex.dlof.util.FeedRanking
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,6 +15,7 @@ import kotlinx.coroutines.launch
 class FeedViewModel(
     private val repo: ParagraphRepository = ParagraphRepository(),
     private val authRepo: AuthRepository = AuthRepository(),
+    private val userRepo: UserRepository = UserRepository(),
     private val roomId: String? = null // null = global feed
 ) : ViewModel() {
 
@@ -30,10 +32,20 @@ class FeedViewModel(
     private val _reactions = MutableStateFlow<Map<String, Reaction?>>(emptyMap())
     val reactions: StateFlow<Map<String, Reaction?>> = _reactions
 
+    // The viewer's tek (follow) graph, fetched once per ViewModel lifetime and
+    // fed into FeedRanking's affinity boost — see FeedRanking's doc comment.
+    // A one-shot fetch (not a live listener) is a deliberate trade-off: the
+    // follow graph rarely changes mid-session, and re-fetching it on every
+    // paragraph update would multiply reads for no real ranking benefit.
+    private var followingUids: Set<String> = emptySet()
+
     init {
         viewModelScope.launch {
+            authRepo.currentUid()?.let { uid ->
+                followingUids = runCatching { userRepo.followingUids(uid) }.getOrDefault(emptySet())
+            }
             repo.observeParagraphs(roomId).collect { raw ->
-                _paragraphs.value = FeedRanking.rankForFeed(raw, System.currentTimeMillis())
+                _paragraphs.value = FeedRanking.rankForFeed(raw, System.currentTimeMillis(), followingUids)
                 _isLoading.value = false
                 loadReactionsFor(raw)
             }
