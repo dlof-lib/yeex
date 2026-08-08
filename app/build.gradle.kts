@@ -75,11 +75,11 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.4.1")
     implementation("androidx.media3:media3-ui:1.4.1")
 
-    // Google Sign-In (Credential Manager, the current recommended API) + GitHub
-    // Sign-In (handled entirely by firebase-auth's OAuthProvider, no extra SDK).
-    implementation("androidx.credentials:credentials:1.3.0")
-    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
-    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+    // Local multi-account store (encrypted at rest via Android Keystore) used
+    // by AuthRepository/LocalAccountStore to remember every "معرف" that has
+    // signed in on this device and let ProfileScreen's account switcher swap
+    // between them instantly without retyping a password each time.
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
