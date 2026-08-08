@@ -71,6 +71,9 @@ import kotlinx.coroutines.withContext
  * like a short-video app) instead of sitting inside a padded square card;
  * actions live in a right-side vertical rail and author/caption sit above a
  * bottom scrim, both floating over the media.
+ *
+ * Tapping the author row (avatar + "@handle") calls [onOpenProfile] so the
+ * feed can navigate to that account's profile and browse their paragraphs.
  */
 @Composable
 fun ParagraphCard(
@@ -81,6 +84,7 @@ fun ParagraphCard(
     onDislike: () -> Unit,
     onComment: () -> Unit,
     onRepost: () -> Unit,
+    onOpenProfile: (String) -> Unit = {},
     modifier: Modifier = Modifier,
     userRepo: UserRepository = UserRepository()
 ) {
@@ -285,7 +289,14 @@ fun ParagraphCard(
                 .align(Alignment.BottomStart)
                 .padding(start = 14.dp, end = 84.dp, bottom = 24.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { if (paragraph.authorId.isNotBlank()) onOpenProfile(paragraph.authorId) }
+                )
+            ) {
                 Box(
                     modifier = Modifier
                         .size(34.dp)
