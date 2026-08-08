@@ -57,10 +57,14 @@
     <string name="search_rooms_section">Rooms</string>
     <string name="search_no_results">No results</string>
     <string name="search_user_stats">%1$d Teking · %2$d Teker</string>
+    <string name="search_tab_all">All</string>
+    <string name="search_tab_users">Accounts</string>
+    <string name="search_tab_rooms">Rooms</string>
+    <string name="search_idle_title">Search for an account or a room</string>
+    <string name="search_idle_hint">Type an identifier or room name, or @container.name[].me to search a custom container</string>
+    <string name="clear_search">Clear search</string>
+    <string name="search_suggested_accounts">People you may know</string>
     <string name="watermark_text">yeex</string>
-    <string name="or_divider">or</string>
-    <string name="btn_continue_google">Continue with Google</string>
-    <string name="btn_continue_github">Continue with GitHub</string>
     <string name="action_download">Download</string>
     <string name="action_download_pdf">Download PDF</string>
     <string name="download_saved">Saved with watermark</string>
@@ -75,9 +79,6 @@
     <string name="auth_error_dot_placement">Identifier can\'t start/end with a dot or contain two dots in a row</string>
     <string name="auth_error_invalid_chars">Identifier contains disallowed characters</string>
     <string name="auth_error_profile_missing">Couldn\'t find account data</string>
-    <string name="auth_error_google_cancelled">Google sign-in was cancelled</string>
-    <string name="auth_error_google_no_account">No Google account is available on this device, or the app isn't yet enabled for Google sign-in. Add a Google account in device settings and try again</string>
-    <string name="auth_error_google_config_error">Google sign-in isn't configured correctly for this app right now. Please try again later</string>
     <string name="auth_error_weak_password">Password is too weak, use at least 6 characters</string>
     <string name="auth_error_network">Couldn\'t reach the server, check your connection</string>
     <string name="auth_error_unknown">Something went wrong, please try again</string>
@@ -99,6 +100,9 @@
     <string name="logout_confirm_title">Log out?</string>
     <string name="logout_confirm_body">You will be signed out of this account on this device.</string>
     <string name="switch_account">Switch account</string>
+    <string name="switch_account_hint">Pick an account to switch to, or add a new one</string>
+    <string name="add_account">Add account</string>
+    <string name="forget_account">Forget account</string>
     <string name="no_paragraphs_yet">No paragraphs yet</string>
     <string name="publish_action">Publish</string>
     <string name="publishing_in_progress">Publishing…</string>
