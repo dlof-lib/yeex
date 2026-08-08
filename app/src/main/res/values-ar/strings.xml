@@ -56,6 +56,7 @@
     <string name="search_users_section">الحسابات</string>
     <string name="search_rooms_section">الغرف</string>
     <string name="search_no_results">لا نتائج</string>
+    <string name="search_failed">تعذر البحث، تحقق من اتصالك وحاول مرة أخرى</string>
     <string name="search_user_stats">%1$d Teking · %2$d Teker</string>
     <string name="search_tab_all">الكل</string>
     <string name="search_tab_users">الحسابات</string>
