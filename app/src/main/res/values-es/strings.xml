@@ -94,6 +94,13 @@
     <!-- Account / edit profile -->
     <string name="edit_profile">Editar cuenta</string>
     <string name="change_icon">Cambiar ícono</string>
+    <string name="avatar_size_hint">Tamaño obligatorio de la foto de perfil: %1$d×%2$d px</string>
+    <string name="banner_label">Banner</string>
+    <string name="change_banner">Cambiar banner</string>
+    <string name="use_video_banner_toggle">Usar un enlace de video como banner</string>
+    <string name="banner_video_link_label">Enlace de video</string>
+    <string name="banner_video_hint">https://…</string>
+    <string name="banner_size_hint">Tamaño obligatorio del banner: %1$d×%2$d px</string>
     <string name="display_name_label">Nombre visible</string>
     <string name="bio_label">Biografía</string>
     <string name="save">Guardar</string>
@@ -106,6 +113,7 @@
     <string name="logout">Cerrar sesión</string>
     <string name="logout_confirm_title">¿Cerrar sesión?</string>
     <string name="logout_confirm_body">Se cerrará la sesión de esta cuenta en este dispositivo.</string>
+    <string name="profile_menu">Menú de cuenta</string>
     <string name="switch_account">Cambiar de cuenta</string>
     <string name="switch_account_hint">Elige una cuenta para cambiarte a ella, o añade una nueva</string>
     <string name="add_account">Añadir cuenta</string>
