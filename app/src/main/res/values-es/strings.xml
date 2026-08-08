@@ -153,6 +153,10 @@
     <string name="media_length_hint">Video de 5-10 segundos</string>
     <string name="image_selected">Imagen seleccionada</string>
     <string name="remove_media">Quitar</string>
+    <string name="downloading_image_label">Descargando imagen…</string>
+    <string name="downloading_pdf_label">Descargando PDF…</string>
+    <string name="publishing_label">Publicando párrafo…</string>
+    <string name="publish_success">Publicado con éxito</string>
     <string name="video_selected">Video seleccionado (se recortará a los primeros 10s si es más largo)</string>
     <string name="error_login_required">Debes iniciar sesión</string>
     <string name="error_video_too_short">El video debe durar al menos 5 segundos</string>
