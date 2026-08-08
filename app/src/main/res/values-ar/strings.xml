@@ -150,4 +150,24 @@
     <string name="error_trim_failed">تعذر اقتطاع الفيديو</string>
     <string name="error_video_too_large">حجم الفيديو كبير جدًا</string>
     <string name="error_unknown">خطأ غير معروف</string>
+    <string name="repost_title">إعادة فقرة</string>
+    <string name="repost_comment_hint">أضف تعليقًا (اختياري)...</string>
+    <string name="repost_where">أين تريد النشر؟</string>
+    <string name="repost_room_only">غرفتي فقط</string>
+    <string name="repost_room_only_hint">تظهر فقط في غرفتك الخاصة</string>
+    <string name="repost_container">حاوية</string>
+    <string name="repost_container_hint">اختر حاوية</string>
+    <string name="repost_public">عام</string>
+    <string name="repost_public_hint">يمكن للجميع رؤيتها</string>
+    <string name="repost_publish">نشر إعادة الفقرة</string>
+    <string name="coming_soon">قريبًا</string>
+    <string name="more_options">خيارات إضافية</string>
+    <string name="action_report">إبلاغ</string>
+    <string name="view_count">%1$s مشاهدة</string>
+    <string name="expires_in_label">ساعة تنتهي بعد</string>
+    <string name="feed_tab_for_you">لك</string>
+    <string name="feed_tab_following">متابعين</string>
+    <string name="feed_tab_containers">حاويات</string>
+    <string name="replying_to">الرد على @%1$s</string>
+    <string name="action_reply">رد</string>
 </resources>
