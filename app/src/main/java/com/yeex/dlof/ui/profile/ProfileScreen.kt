@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -124,17 +125,35 @@ fun ProfileScreen(
 
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
-            title = { Text(stringResource(R.string.nav_profile)) },
+            title = {
+                Text(
+                    stringResource(R.string.nav_profile),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            },
             actions = {
+                // ---- Single tidy overflow menu instead of two separate icons:
+                // "Edit profile", "Switch account" and "Logout" all live under
+                // one MoreVert button so the bar stays clean regardless of how
+                // many own-profile actions exist. ----
                 if (isMe && user != null) {
-                    IconButton(onClick = { showEditSheet = true }) {
-                        Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.edit_profile))
-                    }
                     Box {
                         IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.switch_account))
+                            Icon(
+                                Icons.Filled.MoreVert,
+                                contentDescription = stringResource(R.string.profile_menu)
+                            )
                         }
                         DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.edit_profile)) },
+                                leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
+                                onClick = {
+                                    showMenu = false
+                                    showEditSheet = true
+                                }
+                            )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.switch_account)) },
                                 leadingIcon = { Icon(Icons.Filled.SwapHoriz, contentDescription = null) },
@@ -143,9 +162,10 @@ fun ProfileScreen(
                                     showSwitchSheet = true
                                 }
                             )
+                            HorizontalDivider()
                             DropdownMenuItem(
-                                text = { Text(stringResource(R.string.logout)) },
-                                leadingIcon = { Icon(Icons.Filled.Logout, contentDescription = null) },
+                                text = { Text(stringResource(R.string.logout), color = YeexCrimson) },
+                                leadingIcon = { Icon(Icons.Filled.Logout, contentDescription = null, tint = YeexCrimson) },
                                 onClick = {
                                     showMenu = false
                                     showLogoutConfirm = true
@@ -154,43 +174,43 @@ fun ProfileScreen(
                         }
                     }
                 }
-            }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.background
+            )
         )
 
         user?.let { u ->
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
 
-                // ---- Gradient banner + overlapping avatar with a brand-gradient ring
-                // and a floating verified badge, matching the reference design ----
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp)
-                        .background(Brush.horizontalGradient(listOf(YeexNavyLight, YeexAccent, YeexPink)))
-                )
+                // ---- Banner (fixed 3:1 crop — image, video-link indicator, or the
+                // brand-gradient fallback) followed by the avatar in its own row
+                // BELOW it, so nothing overlaps the banner or gets clipped by it ----
+                BannerHeader(user = u)
+
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).offset(y = (-44).dp),
-                    verticalAlignment = Alignment.Bottom
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box {
                         Box(
                             modifier = Modifier
-                                .size(92.dp)
+                                .size(68.dp)
                                 .clip(CircleShape)
                                 .background(yeexBrandGradient())
-                                .padding(3.dp)
+                                .padding(2.dp)
                                 .clip(CircleShape)
                                 .background(MaterialTheme.colorScheme.background)
-                                .padding(3.dp),
+                                .padding(2.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            UserAvatar(iconBase64 = u.profileIconUrl, size = 80.dp)
+                            UserAvatar(iconBase64 = u.profileIconUrl, size = 60.dp)
                         }
                         if (u.verified) {
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.BottomEnd)
-                                    .size(26.dp)
+                                    .size(20.dp)
                                     .clip(CircleShape)
                                     .background(MaterialTheme.colorScheme.background)
                                     .padding(2.dp)
@@ -202,59 +222,64 @@ fun ProfileScreen(
                                     Icons.Filled.Check,
                                     contentDescription = stringResource(R.string.verified_badge),
                                     tint = Color.White,
-                                    modifier = Modifier.size(15.dp)
+                                    modifier = Modifier.size(11.dp)
                                 )
                             }
                         }
                     }
-                }
-
-                Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).offset(y = (-32).dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                u.displayName.ifBlank { u.identifier },
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            if (u.verified) {
+                                Spacer(Modifier.width(6.dp))
+                                Icon(
+                                    Icons.Filled.Verified,
+                                    contentDescription = stringResource(R.string.verified_badge),
+                                    tint = YeexCrimson,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
                         Text(
-                            u.displayName.ifBlank { u.identifier },
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
+                            "@${u.identifier}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        if (u.verified) {
-                            Spacer(Modifier.width(6.dp))
-                            Icon(
-                                Icons.Filled.Verified,
-                                contentDescription = stringResource(R.string.verified_badge),
-                                tint = YeexCrimson,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
                     }
-                    Text(
-                        "@${u.identifier}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                }
+
+                Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 12.dp)) {
                     if (u.accountType == "BUSINESS" && u.businessCategory.isNotBlank()) {
-                        Spacer(Modifier.height(4.dp))
                         Text(
                             com.yeex.dlof.util.BusinessCategory.label(u.businessCategory),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary
                         )
+                        Spacer(Modifier.height(6.dp))
                     }
 
                     if (u.bio.isNotBlank()) {
-                        Spacer(Modifier.height(10.dp))
                         Text(u.bio, style = MaterialTheme.typography.bodyMedium)
+                        Spacer(Modifier.height(14.dp))
                     }
 
-                    Spacer(Modifier.height(16.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         StatPill(count = u.tekerCount, topLabel = "Teker", bottomLabel = stringResource(R.string.action_teker))
                         StatPill(count = u.tekingCount, topLabel = "Teking", bottomLabel = stringResource(R.string.label_teking))
                         StatPill(count = todayCount.toLong(), topLabel = stringResource(R.string.latest_paragraphs_short), bottomLabel = stringResource(R.string.today_label))
                     }
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(14.dp))
                     if (!isMe && myUid != null) {
                         TekButton(isFollowing = isFollowing) {
                             scope.launch { isFollowing = userRepo.toggleTek(myUid, targetUid) }
@@ -264,23 +289,23 @@ fun ProfileScreen(
                         Spacer(Modifier.height(8.dp))
                         OutlinedButton(
                             onClick = onRequestVerification,
-                            modifier = Modifier.fillMaxWidth().height(46.dp),
+                            modifier = Modifier.fillMaxWidth().height(44.dp),
                             shape = RoundedCornerShape(50)
                         ) {
-                            Icon(Icons.Filled.Verified, contentDescription = null, tint = YeexCrimson, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Filled.Verified, contentDescription = null, tint = YeexCrimson, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
                             Text(stringResource(R.string.request_verification))
                         }
                     }
 
                     if (isMe) {
-                        Spacer(Modifier.height(20.dp))
+                        Spacer(Modifier.height(16.dp))
                         LanguageSwitcher(userRepo = userRepo, myUid = myUid, scope = scope)
                     }
 
-                    Spacer(Modifier.height(20.dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
                     Spacer(Modifier.height(16.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                    Spacer(Modifier.height(14.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -373,19 +398,77 @@ fun ProfileScreen(
 @Composable
 private fun RowScope.StatPill(count: Long, topLabel: String, bottomLabel: String) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         color = YeexDarkCard,
-        modifier = Modifier.weight(1f).height(84.dp)
+        modifier = Modifier.weight(1f).height(68.dp)
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(vertical = 12.dp),
+            modifier = Modifier.fillMaxSize().padding(vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(formatStatCount(count), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(2.dp))
-            Text(topLabel, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+            Text(formatStatCount(count), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(1.dp))
+            Text(topLabel, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
             Text(bottomLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/**
+ * Fixed 3:1 banner strip shown above the avatar row — never overlapped by
+ * it. Renders, in priority order: the mandatory-size cropped banner image
+ * ([User.bannerUrl]), or — if the owner chose a video link instead — a
+ * tappable "play" indicator that opens [User.bannerVideoUrl] in the
+ * browser, or (neither set) the original brand-gradient fallback.
+ */
+@Composable
+private fun BannerHeader(user: User) {
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+    val bitmap = remember(user.bannerUrl) {
+        if (user.bannerUrl.isNotBlank()) MediaBase64.decodeToBitmap(user.bannerUrl) else null
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(MediaBase64.BANNER_WIDTH.toFloat() / MediaBase64.BANNER_HEIGHT.toFloat())
+            .let {
+                if (bitmap == null) it.background(Brush.horizontalGradient(listOf(YeexNavyLight, YeexAccent, YeexPink)))
+                else it
+            }
+    ) {
+        when {
+            bitmap != null -> androidx.compose.foundation.Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            user.bannerVideoUrl.isNotBlank() -> Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(YeexNavy)
+                    .clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null
+                    ) { runCatching { uriHandler.openUri(user.bannerVideoUrl) } },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.18f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Filled.Videocam,
+                        contentDescription = stringResource(R.string.banner_video_link_label),
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -538,6 +621,11 @@ private fun EditAccountSheet(
     var pendingIconBase64 by remember { mutableStateOf<String?>(null) }
     var isSaving by remember { mutableStateOf(false) }
 
+    // ---- Banner: a picked-and-cropped image OR a video link, never both ----
+    var pendingBannerBase64 by remember { mutableStateOf<String?>(null) }
+    var useVideoBanner by remember { mutableStateOf(user?.bannerVideoUrl?.isNotBlank() == true) }
+    var bannerVideoUrl by remember { mutableStateOf(user?.bannerVideoUrl ?: "") }
+
     // ---- Business account ----
     var isBusiness by remember { mutableStateOf(user?.accountType == "BUSINESS") }
     var businessCategory by remember { mutableStateOf(user?.businessCategory?.ifBlank { com.yeex.dlof.util.BusinessCategory.COMPANY } ?: com.yeex.dlof.util.BusinessCategory.COMPANY) }
@@ -548,6 +636,11 @@ private fun EditAccountSheet(
     val pickIcon = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
             pendingIconBase64 = runCatching { MediaBase64.encodeAvatar(context.contentResolver, uri) }.getOrNull()
+        }
+    }
+    val pickBanner = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri != null) {
+            pendingBannerBase64 = runCatching { MediaBase64.encodeBanner(context.contentResolver, uri) }.getOrNull()
         }
     }
 
@@ -575,6 +668,86 @@ private fun EditAccountSheet(
             }
             TextButton(onClick = { pickIcon.launch("image/*") }) {
                 Text(stringResource(R.string.change_icon))
+            }
+            Text(
+                stringResource(R.string.avatar_size_hint, MediaBase64.AVATAR_DIMENSION, MediaBase64.AVATAR_DIMENSION),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(12.dp))
+
+            // ---- Banner: fixed-size image by default, or a switch to use a video link instead ----
+            Text(stringResource(R.string.banner_label), style = MaterialTheme.typography.labelLarge)
+            Spacer(Modifier.height(8.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.use_video_banner_toggle), modifier = Modifier.weight(1f))
+                Switch(checked = useVideoBanner, onCheckedChange = { useVideoBanner = it })
+            }
+            Spacer(Modifier.height(10.dp))
+
+            if (useVideoBanner) {
+                OutlinedTextField(
+                    value = bannerVideoUrl,
+                    onValueChange = { bannerVideoUrl = it },
+                    label = { Text(stringResource(R.string.banner_video_link_label)) },
+                    placeholder = { Text(stringResource(R.string.banner_video_hint)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                val bannerBitmap = remember(pendingBannerBase64, user?.bannerUrl) {
+                    val b64 = pendingBannerBase64 ?: user?.bannerUrl
+                    if (!b64.isNullOrBlank()) MediaBase64.decodeToBitmap(b64) else null
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(MediaBase64.BANNER_WIDTH.toFloat() / MediaBase64.BANNER_HEIGHT.toFloat())
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(
+                            if (bannerBitmap == null) Brush.horizontalGradient(listOf(YeexNavyLight, YeexAccent, YeexPink))
+                            else Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent))
+                        )
+                        .clickable { pickBanner.launch("image/*") },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (bannerBitmap != null) {
+                        androidx.compose.foundation.Image(
+                            bitmap = bannerBitmap.asImageBitmap(),
+                            contentDescription = null,
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp)
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Filled.PhotoCamera,
+                            contentDescription = stringResource(R.string.change_banner),
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    stringResource(R.string.banner_size_hint, MediaBase64.BANNER_WIDTH, MediaBase64.BANNER_HEIGHT),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             Spacer(Modifier.height(12.dp))
@@ -659,6 +832,13 @@ private fun EditAccountSheet(
                             runCatching {
                                 userRepo.updateProfile(uid, displayName.trim(), bio.trim())
                                 pendingIconBase64?.let { userRepo.updateProfileIcon(uid, it) }
+                                if (useVideoBanner) {
+                                    if (bannerVideoUrl.trim() != (user?.bannerVideoUrl ?: "")) {
+                                        userRepo.updateBannerVideoUrl(uid, bannerVideoUrl.trim())
+                                    }
+                                } else {
+                                    pendingBannerBase64?.let { userRepo.updateBannerImage(uid, it) }
+                                }
                                 val links = businessLinksText.split(",")
                                     .map { it.trim() }
                                     .filter { it.isNotEmpty() }
