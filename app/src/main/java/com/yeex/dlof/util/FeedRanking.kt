@@ -53,6 +53,23 @@ object FeedRanking {
         return diversifyByAuthor(sorted, AUTHOR_COOLDOWN)
     }
 
+    /**
+     * Global "trending now" top-N, used by [com.yeex.dlof.ui.search.SearchScreen]'s
+     * idle-state "الرائج الآن" section. Same hot-score math as [rankForFeed]
+     * but with no per-viewer affinity boost (trending is impersonal, not
+     * personalized), still passed through [diversifyByAuthor] so one prolific
+     * poster can't take every slot in a list this short.
+     */
+    fun topTrending(items: List<Paragraph>, nowMillis: Long, limit: Int = 5): List<Paragraph> {
+        val sorted = items
+            .asSequence()
+            .filter { it.expiresAt > nowMillis }
+            .map { it.copy(engagementScore = score(it, nowMillis, emptySet())) }
+            .sortedByDescending { it.engagementScore }
+            .toList()
+        return diversifyByAuthor(sorted, AUTHOR_COOLDOWN).take(limit)
+    }
+
     private fun score(p: Paragraph, nowMillis: Long, followingUids: Set<String>): Double {
         val engagement = (p.likeCount * 1.0) + (p.commentCount * 2.0) +
             (p.repostCount * 3.0) - (p.dislikeCount * 1.5)
