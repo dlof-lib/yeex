@@ -183,6 +183,7 @@
     <string name="type_video">فيديو</string>
     <string name="media_length_hint">فيديو 5-10 ثوانٍ</string>
     <string name="image_selected">تم اختيار صورة</string>
+    <string name="remove_media">إزالة</string>
     <string name="video_selected">تم اختيار فيديو (سيتم اقتطاعه لأول 10 ثوانٍ إذا كان أطول)</string>
     <string name="error_login_required">يجب تسجيل الدخول</string>
     <string name="error_video_too_short">يجب أن تكون مدة الفيديو 5 ثوانٍ على الأقل</string>
