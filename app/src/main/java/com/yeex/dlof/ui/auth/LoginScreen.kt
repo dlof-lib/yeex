@@ -1,10 +1,8 @@
 package com.yeex.dlof.ui.auth
 
-import android.app.Activity
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -22,21 +20,25 @@ internal fun authErrorStringRes(key: String): Int = when (key) {
     "dot_placement" -> R.string.auth_error_dot_placement
     "invalid_chars" -> R.string.auth_error_invalid_chars
     "profile_missing" -> R.string.auth_error_profile_missing
-    "google_cancelled" -> R.string.auth_error_google_cancelled
-    "google_no_account" -> R.string.auth_error_google_no_account
-    "google_config_error" -> R.string.auth_error_google_config_error
     "weak_password" -> R.string.auth_error_weak_password
     "network_error" -> R.string.auth_error_network
     else -> R.string.auth_error_unknown
 }
 
+/**
+ * Identifier + password sign-in — this is the only sign-in method in the
+ * app (no Google/GitHub buttons). When opened from the profile screen's
+ * "إضافة حساب" (add account) action, [prefillIdentifier] pre-fills the
+ * "معرف" field so adding a second known account only requires the password.
+ */
 @Composable
 fun LoginScreen(
     viewModel: AuthViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
+    prefillIdentifier: String = "",
     onLoggedIn: () -> Unit,
     onGoToRegister: () -> Unit
 ) {
-    var identifier by remember { mutableStateOf("") }
+    var identifier by remember { mutableStateOf(prefillIdentifier) }
     var password by remember { mutableStateOf("") }
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
@@ -72,11 +74,15 @@ fun LoginScreen(
         Spacer(Modifier.height(24.dp))
 
         Button(
-            onClick = { viewModel.login(identifier, password) },
+            onClick = { viewModel.login(context, identifier, password) },
             enabled = identifier.isNotBlank() && password.isNotBlank() && state !is AuthUiState.Loading,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(stringResource(R.string.btn_login))
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            } else {
+                Text(stringResource(R.string.btn_login))
+            }
         }
 
         if (state is AuthUiState.Error) {
@@ -85,34 +91,6 @@ fun LoginScreen(
                 stringResource(authErrorStringRes((state as AuthUiState.Error).key)),
                 color = MaterialTheme.colorScheme.error
             )
-        }
-
-        Spacer(Modifier.height(20.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            HorizontalDivider(modifier = Modifier.weight(1f))
-            Text(
-                stringResource(R.string.or_divider),
-                modifier = Modifier.padding(horizontal = 8.dp),
-                style = MaterialTheme.typography.labelMedium
-            )
-            HorizontalDivider(modifier = Modifier.weight(1f))
-        }
-        Spacer(Modifier.height(16.dp))
-
-        OutlinedButton(
-            onClick = { viewModel.signInWithGoogle(context) },
-            enabled = !isLoading,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(stringResource(R.string.btn_continue_google))
-        }
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(
-            onClick = { (context as? Activity)?.let { viewModel.signInWithGithub(it) } },
-            enabled = !isLoading,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(stringResource(R.string.btn_continue_github))
         }
 
         Spacer(Modifier.height(16.dp))
