@@ -65,6 +65,8 @@
     <string name="search_idle_hint">Type an identifier or room name, or @container.name[].me to search a custom container</string>
     <string name="clear_search">Clear search</string>
     <string name="search_suggested_accounts">People you may know</string>
+    <string name="search_trending_rooms">Trending now</string>
+    <string name="search_trending_posts">Trending posts</string>
     <string name="watermark_text">yeex</string>
     <string name="action_download">Download</string>
     <string name="action_download_pdf">Download PDF</string>
@@ -107,4 +109,28 @@
     <string name="no_paragraphs_yet">No paragraphs yet</string>
     <string name="publish_action">Publish</string>
     <string name="publishing_in_progress">Publishing…</string>
+
+    <!-- Business account -->
+    <string name="business_account_toggle">Business account</string>
+    <string name="business_category_label">Category</string>
+    <string name="business_category_public_figure">Public figure</string>
+    <string name="business_category_company">Company</string>
+    <string name="business_category_store">Store</string>
+    <string name="business_category_tv_channel">TV channel</string>
+    <string name="business_category_media">Media</string>
+    <string name="business_category_other">Other</string>
+    <string name="business_phone_label">Business phone</string>
+    <string name="business_email_label">Business email</string>
+    <string name="business_links_label">Links (comma-separated)</string>
+
+    <!-- Room type / live stream -->
+    <string name="room_type_label">Room type</string>
+    <string name="room_type_general">General</string>
+    <string name="room_type_tv_channel">TV channel</string>
+    <string name="tv_channel_badge">TV channel</string>
+    <string name="live_stream_url_label">Live stream link</string>
+    <string name="live_stream_url_hint">Stream link (m3u8 / mp4 or a page link)</string>
+    <string name="edit_live_stream">Edit stream link</string>
+    <string name="live_stream_save">Save</string>
+    <string name="live_stream_remove">Remove stream</string>
 </resources>
