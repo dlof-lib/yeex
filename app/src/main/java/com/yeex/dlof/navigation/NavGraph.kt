@@ -136,7 +136,9 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
             composable(Routes.FEED) {
                 FeedScreen(
                     onOpenProfile = { uid -> navController.navigate(Routes.profile(uid)) },
-                    onRepost = { paragraphId -> navController.navigate(Routes.repost(paragraphId)) }
+                    onRepost = { paragraphId -> navController.navigate(Routes.repost(paragraphId)) },
+                    onOpenSearch = { navController.navigate(Routes.SEARCH) },
+                    onOpenRooms = { navController.navigate(Routes.ROOMS) }
                 )
             }
             // Kept as a direct-link fallback (e.g. from a future push notification or
