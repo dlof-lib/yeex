@@ -22,6 +22,7 @@ import com.yeex.dlof.R
 import com.yeex.dlof.ui.comments.CommentsSheet
 import com.yeex.dlof.ui.components.ParagraphCard
 import com.yeex.dlof.ui.components.ParagraphSkeleton
+import com.yeex.dlof.ui.components.YeexTopBar
 import com.yeex.dlof.ui.create.CreateParagraphScreen
 import com.yeex.dlof.ui.theme.YeexAccent
 
@@ -47,7 +48,9 @@ fun FeedScreen(
         factory = FeedViewModelFactory(roomId)
     ),
     onOpenProfile: (String) -> Unit = {},
-    onRepost: (String) -> Unit
+    onRepost: (String) -> Unit,
+    onOpenSearch: (() -> Unit)? = null,
+    onOpenRooms: (() -> Unit)? = null
 ) {
     val paragraphs by viewModel.paragraphs.collectAsState()
     val reactions by viewModel.reactions.collectAsState()
@@ -97,31 +100,31 @@ fun FeedScreen(
             }
         }
 
-        // Small transparent top-bar overlay instead of a Scaffold TopAppBar,
-        // so it floats over the media rather than pushing it down. The
-        // three-way segmented control (لك / متابعين / حاويات) only makes
-        // sense on the global feed — a specific room's own feed (roomId !=
-        // null) keeps the plain title instead, since it's already scoped.
-        if (roomId == null) {
-            FeedTabRow(
-                selected = selectedTab,
-                onSelect = { viewModel.selectTab(it) },
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .statusBarsPadding()
-                    .padding(top = 10.dp)
-            )
-        } else {
-            Text(
-                stringResource(R.string.feed_title),
-                color = Color.White,
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .statusBarsPadding()
-                    .padding(start = 16.dp, top = 8.dp)
-            )
-        }
+        // Floating top bar instead of a Scaffold TopAppBar, so it sits over
+        // the media rather than pushing it down. The three-way segmented
+        // control (لك / متابعين / حاويات), the "yeex" wordmark, and the
+        // rooms/search shortcuts only make sense on the global feed — a
+        // specific room's own feed (roomId != null) is already scoped, and
+        // shown beneath that room's own header, so it keeps just the plain
+        // title.
+        YeexTopBar(
+            modifier = Modifier.align(Alignment.TopCenter),
+            showWordmark = roomId == null,
+            onOpenRooms = if (roomId == null) onOpenRooms else null,
+            onOpenSearch = if (roomId == null) onOpenSearch else null,
+            center = {
+                if (roomId == null) {
+                    FeedTabRow(selected = selectedTab, onSelect = { viewModel.selectTab(it) })
+                } else {
+                    Text(
+                        stringResource(R.string.feed_title),
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        )
 
         // Floating create button, positioned like a compact TikTok-style
         // action, above the bottom nav bar.
