@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,7 +40,14 @@ fun VideoPlayer(
     mediaBase64: String,
     modifier: Modifier = Modifier,
     loop: Boolean = true,
-    muted: Boolean = false
+    muted: Boolean = false,
+    // Whether this is the page the user has actually settled on. FeedScreen's
+    // HorizontalPager composes the current page *and* the page it's mid-swipe
+    // towards at the same time, so without this every VideoPlayer used to
+    // start itself with playWhenReady = true unconditionally — two videos'
+    // audio would overlap for the length of the swipe gesture, and a video
+    // kept playing (and using CPU/battery) even after being swiped away.
+    isActive: Boolean = true
 ) {
     val context = LocalContext.current
 
@@ -58,9 +66,33 @@ fun VideoPlayer(
             setMediaItem(MediaItem.fromUri(file.toUri()))
             repeatMode = if (loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
             volume = if (muted) 0f else 1f
-            playWhenReady = true
+            // Only autoplay if this page is already the active/settled one —
+            // see isActive doc above.
+            playWhenReady = isActive
             prepare()
         }
+    }
+
+    // Pause/resume as the pager settles on or away from this page, instead
+    // of leaving every composed page's player running simultaneously.
+    LaunchedEffect(isActive) {
+        exoPlayer.playWhenReady = isActive
+        if (!isActive) exoPlayer.seekTo(0)
+    }
+
+    // Also stop playback while the app itself is backgrounded, so audio
+    // doesn't keep running behind other apps or the lock screen.
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, isActive) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            when (event) {
+                androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> exoPlayer.playWhenReady = false
+                androidx.lifecycle.Lifecycle.Event.ON_RESUME -> exoPlayer.playWhenReady = isActive
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     DisposableEffect(paragraphId) {
