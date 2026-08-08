@@ -94,6 +94,13 @@
     <!-- Account / edit profile -->
     <string name="edit_profile">تعديل الحساب</string>
     <string name="change_icon">تغيير الأيقونة</string>
+    <string name="avatar_size_hint">المقاس الإجباري للصورة الشخصية: %1$d×%2$d بكسل</string>
+    <string name="banner_label">البانر</string>
+    <string name="change_banner">تغيير البانر</string>
+    <string name="use_video_banner_toggle">استخدام رابط فيديو كبانر</string>
+    <string name="banner_video_link_label">رابط الفيديو</string>
+    <string name="banner_video_hint">https://…</string>
+    <string name="banner_size_hint">المقاس الإجباري للبانر: %1$d×%2$d بكسل</string>
     <string name="display_name_label">الاسم الظاهر</string>
     <string name="bio_label">السيرة الذاتية</string>
     <string name="save">حفظ</string>
@@ -106,6 +113,7 @@
     <string name="logout">تسجيل الخروج</string>
     <string name="logout_confirm_title">تسجيل الخروج؟</string>
     <string name="logout_confirm_body">سيتم تسجيل خروجك من هذا الحساب على هذا الجهاز.</string>
+    <string name="profile_menu">قائمة الحساب</string>
     <string name="switch_account">تبديل الحساب</string>
     <string name="switch_account_hint">اختر حسابًا للتبديل إليه، أو أضف حسابًا جديدًا</string>
     <string name="add_account">إضافة حساب</string>
