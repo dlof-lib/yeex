@@ -99,6 +99,10 @@
         "repostCount": {
           ".write": "auth != null",
           ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "viewCount": {
+          ".write": "auth != null",
+          ".validate": "newData.isNumber() && newData.val() >= 0"
         }
       }
     },
@@ -119,12 +123,29 @@
         ".indexOn": ["createdAt"],
         "$commentId": {
           ".write": "auth != null && (!data.exists() ? newData.child('authorId').val() === auth.uid : data.child('authorId').val() === auth.uid || root.child('admins').child(auth.uid).exists())",
-          ".validate": "newData.hasChildren(['authorId','text']) && newData.child('authorId').val() === auth.uid",
+          ".validate": "newData.hasChildren(['authorId','text'])",
           "authorId": { ".validate": "newData.isString() && newData.val() === auth.uid" },
           "authorIdentifier": { ".validate": "newData.isString()" },
           "paragraphId": { ".validate": "newData.isString() && newData.val() === $paragraphId" },
           "text": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 1000" },
-          "createdAt": { ".validate": "newData.isNumber() && newData.val() <= now + 300000" }
+          "createdAt": { ".validate": "newData.isNumber() && newData.val() <= now + 300000" },
+          "parentId": { ".validate": "newData.isString()" },
+          "likeCount": {
+            ".write": "auth != null",
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          }
+        }
+      }
+    },
+
+    "commentLikes": {
+      "$paragraphId": {
+        "$commentId": {
+          ".read": true,
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "newData.isBoolean() && newData.val() === true"
+          }
         }
       }
     },
@@ -223,7 +244,29 @@
         "status": { ".validate": "newData.isString() && (newData.val() === 'pending' || newData.val() === 'approved' || newData.val() === 'rejected')" },
         "autoEligible": { ".validate": "newData.isBoolean()" },
         "submittedAt": { ".validate": "newData.isNumber() && newData.val() <= now + 300000" },
-        "externalFollowerCounts": { ".validate": "true" }
+        "externalFollowerCounts": { ".validate": "true" },
+        "reviewedAt": { ".validate": "newData.isNumber()" },
+        "reviewedBy": { ".validate": "newData.isString()" }
+      }
+    },
+
+    "reports": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).exists()",
+      ".indexOn": ["status", "createdAt"],
+      "$reportId": {
+        ".write": "auth != null && (!data.exists() ? newData.child('reporterId').val() === auth.uid : root.child('admins').child(auth.uid).exists())",
+        ".validate": "newData.hasChildren(['reporterId','targetType','targetId','reason','status','createdAt'])",
+
+        "reporterId": { ".validate": "newData.isString() && newData.val() === auth.uid" },
+        "reporterIdentifier": { ".validate": "newData.isString()" },
+        "targetType": { ".validate": "newData.isString() && (newData.val() === 'user' || newData.val() === 'paragraph' || newData.val() === 'room')" },
+        "targetId": { ".validate": "newData.isString() && newData.val().length > 0" },
+        "reason": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100" },
+        "note": { ".validate": "newData.isString() && newData.val().length <= 500" },
+        "status": { ".validate": "newData.isString() && (newData.val() === 'pending' || newData.val() === 'reviewed' || newData.val() === 'dismissed')" },
+        "createdAt": { ".validate": "newData.isNumber() && newData.val() <= now + 300000" },
+        "reviewedAt": { ".validate": "newData.isNumber()" },
+        "reviewedBy": { ".validate": "newData.isString()" }
       }
     }
   }
