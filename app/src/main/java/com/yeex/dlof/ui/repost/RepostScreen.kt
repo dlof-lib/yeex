@@ -41,7 +41,10 @@ fun RepostScreen(
     val uid = authRepo.currentUid()
 
     LaunchedEffect(uid) {
-        if (uid != null) myRooms = roomRepo.listMyRooms(uid)
+        // Wrapped so a transient Firebase failure doesn't crash the whole
+        // app — it just leaves the room list empty (shown as
+        // repost_no_rooms below).
+        if (uid != null) myRooms = runCatching { roomRepo.listMyRooms(uid) }.getOrDefault(emptyList())
     }
 
     Scaffold(
