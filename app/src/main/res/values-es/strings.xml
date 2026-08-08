@@ -152,6 +152,7 @@
     <string name="type_video">Video</string>
     <string name="media_length_hint">Video de 5-10 segundos</string>
     <string name="image_selected">Imagen seleccionada</string>
+    <string name="remove_media">Quitar</string>
     <string name="video_selected">Video seleccionado (se recortará a los primeros 10s si es más largo)</string>
     <string name="error_login_required">Debes iniciar sesión</string>
     <string name="error_video_too_short">El video debe durar al menos 5 segundos</string>
