@@ -147,7 +147,7 @@
     <string name="video_selected">Video selected (trimmed to the first 10s if longer)</string>
     <string name="error_login_required">You must be logged in</string>
     <string name="error_video_too_short">The video must be at least 5 seconds long</string>
-    <string name="error_trim_failed">Couldn't trim the video</string>
+    <string name="error_trim_failed">Couldn\'t trim the video</string>
     <string name="error_video_too_large">Video file is too large</string>
     <string name="error_unknown">Unknown error</string>
     <string name="repost_title">Repost paragraph</string>
