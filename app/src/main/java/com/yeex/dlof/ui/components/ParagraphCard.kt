@@ -67,9 +67,9 @@ import kotlinx.coroutines.withContext
 /**
  * Renders a single paragraph as an immersive, edge-to-edge FULL-SCREEN page —
  * TikTok-style — the unit [com.yeex.dlof.ui.feed.FeedScreen]'s HorizontalPager
- * swipes between left/right. Media fills the entire device screen (cropped,
- * like a short-video app) instead of sitting inside a padded square card;
- * actions live in a right-side vertical rail and author/caption sit above a
+ * swipes between left/right. Video fills the entire device screen (zoomed to
+ * fill, like a short-video app); images are shown at their real proportions
+ * (letterboxed on black rather than cropped) so nothing is cut off. Actions live in a right-side vertical rail and author/caption sit above a
  * bottom scrim, both floating over the media.
  *
  * Tapping the author row (avatar + "@handle") calls [onOpenProfile] so the
@@ -86,7 +86,11 @@ fun ParagraphCard(
     onRepost: () -> Unit,
     onOpenProfile: (String) -> Unit = {},
     modifier: Modifier = Modifier,
-    userRepo: UserRepository = UserRepository()
+    userRepo: UserRepository = UserRepository(),
+    // Whether this card is the page the pager has actually settled on — see
+    // VideoPlayer's isActive doc. Only forwarded to VideoPlayer; irrelevant
+    // for image/text paragraphs.
+    isActive: Boolean = true
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -107,23 +111,28 @@ fun ParagraphCard(
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        // ---- Background layer: media fills the whole screen, cropped like TikTok ----
+        // ---- Background layer: media fills the whole screen ----
         when (paragraph.type) {
             ParagraphType.VIDEO.name -> {
                 if (hasMedia) {
                     VideoPlayer(
                         paragraphId = paragraph.id,
                         mediaBase64 = paragraph.mediaBase64,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
+                        isActive = isActive
                     )
                 }
             }
             ParagraphType.IMAGE.name -> {
                 if (bitmap != null) {
+                    // Fit (not Crop) so the image is shown at its real
+                    // proportions instead of being cropped to fill the
+                    // screen — any letterboxing just shows the black
+                    // background behind it.
                     Image(
                         bitmap = bitmap.asImageBitmap(),
                         contentDescription = null,
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
