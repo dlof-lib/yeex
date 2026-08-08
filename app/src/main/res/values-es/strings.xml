@@ -150,4 +150,24 @@
     <string name="error_trim_failed">No se pudo recortar el video</string>
     <string name="error_video_too_large">El archivo de video es demasiado grande</string>
     <string name="error_unknown">Error desconocido</string>
+    <string name="repost_title">Volver a publicar</string>
+    <string name="repost_comment_hint">Añade un comentario (opcional)...</string>
+    <string name="repost_where">¿Dónde quieres publicar?</string>
+    <string name="repost_room_only">Solo mi sala</string>
+    <string name="repost_room_only_hint">Visible solo en tu sala privada</string>
+    <string name="repost_container">Contenedor</string>
+    <string name="repost_container_hint">Elige un contenedor</string>
+    <string name="repost_public">Público</string>
+    <string name="repost_public_hint">Visible para todos</string>
+    <string name="repost_publish">Publicar reenvío</string>
+    <string name="coming_soon">Próximamente</string>
+    <string name="more_options">Más opciones</string>
+    <string name="action_report">Reportar</string>
+    <string name="view_count">%1$s vistas</string>
+    <string name="expires_in_label">Expira en</string>
+    <string name="feed_tab_for_you">Para ti</string>
+    <string name="feed_tab_following">Siguiendo</string>
+    <string name="feed_tab_containers">Contenedores</string>
+    <string name="replying_to">Respondiendo a @%1$s</string>
+    <string name="action_reply">Responder</string>
 </resources>
