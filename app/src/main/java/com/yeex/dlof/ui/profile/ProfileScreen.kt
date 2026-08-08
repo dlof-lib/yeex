@@ -197,6 +197,14 @@ fun ProfileScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    if (u.accountType == "BUSINESS" && u.businessCategory.isNotBlank()) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            com.yeex.dlof.util.BusinessCategory.label(u.businessCategory),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
 
                     if (u.bio.isNotBlank()) {
                         Spacer(Modifier.height(10.dp))
@@ -363,7 +371,7 @@ private fun LatestParagraphRow(p: Paragraph) {
  * account icon, display name, and bio without leaving the profile screen,
  * per the "الحساب أيضًا شاشة منبثقة" + "خيار تغيير أيقونة الحساب" requirements.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun EditAccountSheet(
     user: User?,
@@ -379,6 +387,13 @@ private fun EditAccountSheet(
     var bio by remember { mutableStateOf(user?.bio ?: "") }
     var pendingIconBase64 by remember { mutableStateOf<String?>(null) }
     var isSaving by remember { mutableStateOf(false) }
+
+    // ---- Business account ----
+    var isBusiness by remember { mutableStateOf(user?.accountType == "BUSINESS") }
+    var businessCategory by remember { mutableStateOf(user?.businessCategory?.ifBlank { com.yeex.dlof.util.BusinessCategory.COMPANY } ?: com.yeex.dlof.util.BusinessCategory.COMPANY) }
+    var businessPhone by remember { mutableStateOf(user?.businessPhone ?: "") }
+    var businessEmail by remember { mutableStateOf(user?.businessEmail ?: "") }
+    var businessLinksText by remember { mutableStateOf(user?.businessLinks?.values?.joinToString(", ") ?: "") }
 
     val pickIcon = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
@@ -428,6 +443,59 @@ private fun EditAccountSheet(
                 modifier = Modifier.fillMaxWidth().height(100.dp)
             )
 
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(12.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.business_account_toggle), modifier = Modifier.weight(1f))
+                Switch(checked = isBusiness, onCheckedChange = { isBusiness = it })
+            }
+
+            if (isBusiness) {
+                Spacer(Modifier.height(12.dp))
+                Text(stringResource(R.string.business_category_label), style = MaterialTheme.typography.labelLarge)
+                Spacer(Modifier.height(6.dp))
+                androidx.compose.foundation.layout.FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    com.yeex.dlof.util.BusinessCategory.ALL.forEach { category ->
+                        FilterChip(
+                            selected = businessCategory == category,
+                            onClick = { businessCategory = category },
+                            label = { Text(com.yeex.dlof.util.BusinessCategory.label(category)) }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = businessPhone,
+                    onValueChange = { businessPhone = it },
+                    label = { Text(stringResource(R.string.business_phone_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = businessEmail,
+                    onValueChange = { businessEmail = it },
+                    label = { Text(stringResource(R.string.business_email_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = businessLinksText,
+                    onValueChange = { businessLinksText = it },
+                    label = { Text(stringResource(R.string.business_links_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
             Spacer(Modifier.height(20.dp))
             Row(Modifier.fillMaxWidth()) {
                 OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
@@ -441,6 +509,19 @@ private fun EditAccountSheet(
                             runCatching {
                                 userRepo.updateProfile(uid, displayName.trim(), bio.trim())
                                 pendingIconBase64?.let { userRepo.updateProfileIcon(uid, it) }
+                                val links = businessLinksText.split(",")
+                                    .map { it.trim() }
+                                    .filter { it.isNotEmpty() }
+                                    .mapIndexed { i, url -> "link${i + 1}" to url }
+                                    .toMap()
+                                userRepo.updateBusinessAccount(
+                                    uid = uid,
+                                    accountType = if (isBusiness) "BUSINESS" else "PERSONAL",
+                                    businessCategory = if (isBusiness) businessCategory else "",
+                                    businessPhone = if (isBusiness) businessPhone.trim() else "",
+                                    businessEmail = if (isBusiness) businessEmail.trim() else "",
+                                    businessLinks = if (isBusiness) links else emptyMap()
+                                )
                             }
                             isSaving = false
                             onDismiss()
