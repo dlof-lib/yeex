@@ -32,9 +32,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.yeex.dlof.R
 import com.yeex.dlof.data.model.Container
+import com.yeex.dlof.data.model.Paragraph
 import com.yeex.dlof.data.model.Room
 import com.yeex.dlof.data.model.User
 import com.yeex.dlof.data.repository.ContainerRepository
+import com.yeex.dlof.data.repository.ParagraphRepository
 import com.yeex.dlof.data.repository.RoomRepository
 import com.yeex.dlof.data.repository.AuthRepository
 import com.yeex.dlof.data.repository.UserRepository
@@ -42,6 +44,9 @@ import com.yeex.dlof.ui.components.UserAvatar
 import com.yeex.dlof.ui.theme.YeexAccent
 import com.yeex.dlof.ui.theme.YeexCrimson
 import com.yeex.dlof.ui.theme.YeexNavy
+import com.yeex.dlof.util.FeedRanking
+import com.yeex.dlof.util.RoomRanking
+import com.yeex.dlof.util.RoomType
 import com.yeex.dlof.util.SearchRanking
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -74,6 +79,7 @@ fun SearchScreen(
     containerRepo: ContainerRepository = ContainerRepository(),
     userRepo: UserRepository = UserRepository(),
     roomRepo: RoomRepository = RoomRepository(),
+    paragraphRepo: ParagraphRepository = ParagraphRepository(),
     authRepo: AuthRepository = AuthRepository(),
     onOpenContainer: (Container) -> Unit,
     onOpenUser: (User) -> Unit = {},
@@ -89,14 +95,25 @@ fun SearchScreen(
     var hasSearched by remember { mutableStateOf(false) }
     var filter by remember { mutableStateOf(SearchFilter.ALL) }
     var suggestedAccounts by remember { mutableStateOf<List<User>>(emptyList()) }
+    var trendingRooms by remember { mutableStateOf<List<Room>>(emptyList()) }
+    var trendingParagraphs by remember { mutableStateOf<List<Paragraph>>(emptyList()) }
     var searchError by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    // "قد تعرفهم" only makes sense signed-in and only needs fetching once —
-    // it's shown solely in the idle (query-blank) state below.
+    // "قد تعرفهم" + "الرائج الآن" only need fetching once — both are shown
+    // solely in the idle (query-blank) state below, as one-shot snapshots
+    // rather than live subscriptions (no need to keep a listener open just
+    // for a top-5 list that's cheap to refresh next time the tab opens).
     LaunchedEffect(Unit) {
-        val uid = authRepo.currentUid() ?: return@LaunchedEffect
-        suggestedAccounts = runCatching { userRepo.suggestedAccounts(uid) }.getOrDefault(emptyList())
+        val uid = authRepo.currentUid()
+        if (uid != null) {
+            suggestedAccounts = runCatching { userRepo.suggestedAccounts(uid) }.getOrDefault(emptyList())
+        }
+        val now = System.currentTimeMillis()
+        trendingRooms = runCatching { RoomRanking.rankTrending(roomRepo.listPublicRooms(), now).take(8) }
+            .getOrDefault(emptyList())
+        trendingParagraphs = runCatching { FeedRanking.topTrending(paragraphRepo.getActiveParagraphs(), now, limit = 6) }
+            .getOrDefault(emptyList())
     }
 
     // Debounced, real-time search: waits for a short pause in typing instead
@@ -222,7 +239,10 @@ fun SearchScreen(
             when {
                 query.isBlank() -> SearchIdleState(
                     suggestedAccounts = suggestedAccounts,
-                    onOpenUser = onOpenUser
+                    trendingRooms = trendingRooms,
+                    trendingParagraphs = trendingParagraphs,
+                    onOpenUser = onOpenUser,
+                    onOpenRoom = onOpenRoom
                 )
                 isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
@@ -316,9 +336,12 @@ private fun SectionHeader(title: String) {
 @Composable
 private fun SearchIdleState(
     suggestedAccounts: List<User>,
-    onOpenUser: (User) -> Unit
+    trendingRooms: List<Room>,
+    trendingParagraphs: List<Paragraph>,
+    onOpenUser: (User) -> Unit,
+    onOpenRoom: (Room) -> Unit
 ) {
-    if (suggestedAccounts.isEmpty()) {
+    if (suggestedAccounts.isEmpty() && trendingRooms.isEmpty() && trendingParagraphs.isEmpty()) {
         Column(
             modifier = Modifier.fillMaxSize().padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -347,25 +370,148 @@ private fun SearchIdleState(
         return
     }
 
-    // A friend-of-a-friend suggestion list (see RecommendationRanking) fills
-    // what would otherwise be a blank idle state with something immediately
-    // useful, the same way most production search tabs surface suggestions
-    // before the person types anything.
+    // "الرائج الآن" (trending rooms + trending paragraphs, both ranked by
+    // FeedRanking/RoomRanking's hot-score math — see their doc comments) and
+    // a friend-of-a-friend suggestion list (see suggestedAccounts) fill what
+    // would otherwise be a blank idle state with something immediately
+    // useful, the same way most production search tabs surface discovery
+    // content before the person types anything.
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp)
     ) {
-        item {
-            Text(
-                stringResource(R.string.search_suggested_accounts),
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 6.dp)
-            )
+        if (trendingRooms.isNotEmpty()) {
+            item {
+                Text(
+                    stringResource(R.string.search_trending_rooms),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+            }
+            item {
+                androidx.compose.foundation.lazy.LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(bottom = 4.dp)
+                ) {
+                    items(trendingRooms, key = { it.id }) { r ->
+                        TrendingRoomChip(r, onClick = { onOpenRoom(r) })
+                    }
+                }
+                Spacer(Modifier.height(18.dp))
+            }
         }
-        items(suggestedAccounts, key = { it.uid }) { u ->
-            UserResultCard(u, onClick = { onOpenUser(u) })
+
+        if (trendingParagraphs.isNotEmpty()) {
+            item {
+                Text(
+                    stringResource(R.string.search_trending_posts),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+            }
+            items(trendingParagraphs, key = { it.id }) { p ->
+                TrendingParagraphRow(
+                    p,
+                    onClick = { onOpenUser(User(uid = p.authorId, identifier = p.authorIdentifier, verified = p.authorVerified)) }
+                )
+            }
+            item { Spacer(Modifier.height(18.dp)) }
+        }
+
+        if (suggestedAccounts.isNotEmpty()) {
+            item {
+                Text(
+                    stringResource(R.string.search_suggested_accounts),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+            }
+            items(suggestedAccounts, key = { it.uid }) { u ->
+                UserResultCard(u, onClick = { onOpenUser(u) })
+            }
+        }
+    }
+}
+
+/** One card in the "الرائج الآن" horizontal room row — see [SearchIdleState]. */
+@Composable
+private fun TrendingRoomChip(room: Room, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.width(160.dp)
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Icon(Icons.Filled.Groups, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                room.name,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                "${room.memberCount}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (room.roomType == RoomType.TV_CHANNEL) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    stringResource(R.string.tv_channel_badge),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = YeexCrimson
+                )
+            }
+        }
+    }
+}
+
+/** One row in the "منشورات رائجة" trending-paragraphs list — see [SearchIdleState]. */
+@Composable
+private fun TrendingParagraphRow(p: Paragraph, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("@${p.authorIdentifier}", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                    if (p.authorVerified) {
+                        Spacer(Modifier.width(4.dp))
+                        Icon(Icons.Filled.Verified, contentDescription = null, tint = YeexCrimson, modifier = Modifier.size(13.dp))
+                    }
+                }
+                if (p.text.isNotBlank()) {
+                    Text(
+                        p.text,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "❤ ${p.likeCount}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
