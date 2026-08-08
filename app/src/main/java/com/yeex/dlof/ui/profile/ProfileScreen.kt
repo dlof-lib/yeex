@@ -10,12 +10,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image as ImageIcon
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Videocam
@@ -32,12 +36,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.yeex.dlof.R
+import com.yeex.dlof.data.local.SavedAccount
 import com.yeex.dlof.data.model.Paragraph
 import com.yeex.dlof.data.model.ParagraphType
 import com.yeex.dlof.data.model.User
 import com.yeex.dlof.data.repository.AuthRepository
 import com.yeex.dlof.data.repository.ParagraphRepository
 import com.yeex.dlof.data.repository.UserRepository
+import com.yeex.dlof.ui.auth.authErrorStringRes
 import com.yeex.dlof.ui.components.TekButton
 import com.yeex.dlof.ui.components.UserAvatar
 import com.yeex.dlof.ui.theme.YeexAccent
@@ -50,10 +56,13 @@ import kotlinx.coroutines.launch
 /**
  * Professional profile screen: gradient banner header with an overlapping
  * avatar, verified badge, stat pills for Teking/Teker, a prominent Tek
- * button for other people's profiles, and — on the signed-in user's own
- * profile — quick access to editing, language, verification, and
- * signing out (see [onLogout]) so switching to a different "معرف" is a tap
- * away without leaving this screen.
+ * button for other people's profiles — so browsing someone else's account
+ * and paragraphs (opened via [com.yeex.dlof.ui.components.ParagraphCard]'s
+ * author row or a search result) works the same way as your own — and, on
+ * the signed-in user's own profile, quick access to editing, language,
+ * verification, signing out (see [onLogout]), and switching between every
+ * "معرف" saved on this device (see [SwitchAccountSheet]) so hopping to a
+ * different account is a tap away without leaving this screen.
  */
 @Composable
 fun ProfileScreen(
@@ -62,7 +71,13 @@ fun ProfileScreen(
     userRepo: UserRepository = UserRepository(),
     paragraphRepo: ParagraphRepository = ParagraphRepository(),
     onRequestVerification: () -> Unit,
-    onLogout: () -> Unit = {}
+    onLogout: () -> Unit = {},
+    /** Navigate to the login screen (empty prefill) to sign in a brand-new account. */
+    onAddAccount: () -> Unit = {},
+    /** A saved account was switched to successfully — navigate to the feed. */
+    onAccountSwitched: () -> Unit = {},
+    /** The chosen saved account had no remembered password — navigate to login, prefilled. */
+    onNeedAccountPassword: (identifier: String) -> Unit = {}
 ) {
     var user by remember { mutableStateOf<User?>(null) }
     var isFollowing by remember { mutableStateOf(false) }
@@ -70,6 +85,7 @@ fun ProfileScreen(
     var showEditSheet by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     var showLogoutConfirm by remember { mutableStateOf(false) }
+    var showSwitchSheet by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val myUid = authRepo.currentUid()
     val isMe = myUid == targetUid
@@ -99,6 +115,14 @@ fun ProfileScreen(
                             Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.switch_account))
                         }
                         DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.switch_account)) },
+                                leadingIcon = { Icon(Icons.Filled.SwapHoriz, contentDescription = null) },
+                                onClick = {
+                                    showMenu = false
+                                    showSwitchSheet = true
+                                }
+                            )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.logout)) },
                                 leadingIcon = { Icon(Icons.Filled.Logout, contentDescription = null) },
@@ -228,6 +252,26 @@ fun ProfileScreen(
             userRepo = userRepo,
             uid = myUid,
             onDismiss = { showEditSheet = false }
+        )
+    }
+
+    if (showSwitchSheet && myUid != null) {
+        SwitchAccountSheet(
+            authRepo = authRepo,
+            currentUid = myUid,
+            onDismiss = { showSwitchSheet = false },
+            onAddAccount = {
+                showSwitchSheet = false
+                onAddAccount()
+            },
+            onSwitched = {
+                showSwitchSheet = false
+                onAccountSwitched()
+            },
+            onNeedPassword = { identifier ->
+                showSwitchSheet = false
+                onNeedAccountPassword(identifier)
+            }
         )
     }
 
@@ -397,6 +441,181 @@ private fun EditAccountSheet(
                 }
             }
             Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+/**
+ * "تبديل الحساب" pop-up: lists every account that has ever signed in on this
+ * device (see [com.yeex.dlof.data.local.LocalAccountStore]) so the person can
+ * hop between them without signing out first, plus an "إضافة حساب" row that
+ * opens a fresh login screen.
+ *
+ * Tapping a saved account other than the current one calls
+ * [AuthRepository.switchAccount]:
+ *  - if that account's password was remembered on this device, it signs in
+ *    instantly and [onSwitched] fires (the caller navigates to the feed);
+ *  - otherwise [onNeedPassword] fires with the account's "معرف" so the
+ *    caller can navigate to the login screen pre-filled, needing only the
+ *    password once more.
+ *
+ * A trailing "×" on each non-active row calls [AuthRepository.forgetAccount]
+ * to remove it from this device's switcher entirely (not delete the account
+ * itself).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwitchAccountSheet(
+    authRepo: AuthRepository,
+    currentUid: String,
+    onDismiss: () -> Unit,
+    onAddAccount: () -> Unit,
+    onSwitched: () -> Unit,
+    onNeedPassword: (identifier: String) -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    var accounts by remember { mutableStateOf(authRepo.savedAccounts(context)) }
+    var switchingUid by remember { mutableStateOf<String?>(null) }
+    var errorKey by remember { mutableStateOf<String?>(null) }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
+            Text(
+                stringResource(R.string.switch_account),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                stringResource(R.string.switch_account_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(16.dp))
+
+            if (errorKey != null) {
+                Text(
+                    stringResource(authErrorStringRes(errorKey!!)),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+
+            accounts.forEach { account ->
+                SavedAccountRow(
+                    account = account,
+                    isActive = account.uid == currentUid,
+                    isSwitching = switchingUid == account.uid,
+                    onClick = {
+                        if (account.uid == currentUid || switchingUid != null) return@SavedAccountRow
+                        errorKey = null
+                        switchingUid = account.uid
+                        scope.launch {
+                            when (val result = authRepo.switchAccount(context, account.uid)) {
+                                is AuthRepository.AuthResult.Success -> onSwitched()
+                                is AuthRepository.AuthResult.Failure -> {
+                                    switchingUid = null
+                                    if (result.messageKey == "profile_missing" || result.messageKey == "unknown") {
+                                        onNeedPassword(account.identifier)
+                                    } else {
+                                        errorKey = result.messageKey
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    onForget = {
+                        authRepo.forgetAccount(context, account.uid)
+                        accounts = authRepo.savedAccounts(context)
+                    }
+                )
+            }
+
+            Spacer(Modifier.height(4.dp))
+            Surface(
+                onClick = onAddAccount,
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(YeexAccent.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = null, tint = YeexAccent)
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        stringResource(R.string.add_account),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+    }
+}
+
+@Composable
+private fun SavedAccountRow(
+    account: SavedAccount,
+    isActive: Boolean,
+    isSwitching: Boolean,
+    onClick: () -> Unit,
+    onForget: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = if (isActive) YeexAccent.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            UserAvatar(iconBase64 = account.profileIconUrl, size = 44.dp)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    account.displayName.ifBlank { account.identifier },
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    "@${account.identifier}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            when {
+                isSwitching -> CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                isActive -> Icon(Icons.Filled.Check, contentDescription = null, tint = YeexAccent)
+                else -> IconButton(onClick = onForget, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.Filled.Close,
+                        contentDescription = stringResource(R.string.forget_account),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
         }
     }
 }
