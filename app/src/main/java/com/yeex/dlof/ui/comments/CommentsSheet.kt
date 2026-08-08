@@ -28,6 +28,7 @@ import com.yeex.dlof.ui.components.UserAvatar
 import com.yeex.dlof.ui.theme.YeexAccent
 import com.yeex.dlof.ui.theme.YeexNavy
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.catch
 
 /**
  * The comment thread for a paragraph, designed to be hosted inside a
@@ -53,7 +54,10 @@ fun CommentsSheet(
     var avatars by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
 
     LaunchedEffect(paragraphId) {
-        repo.observeComments(paragraphId).collect {
+        // .catch prevents a Firebase listener error (offline/cancelled) from
+        // propagating as an uncaught exception out of this coroutine, which
+        // would otherwise crash the app instead of just stalling the list.
+        repo.observeComments(paragraphId).catch { isLoading = false }.collect {
             comments = it.sortedByDescending { c -> c.createdAt }
             isLoading = false
             // Best-effort avatar fetch for authors we haven't resolved yet —
