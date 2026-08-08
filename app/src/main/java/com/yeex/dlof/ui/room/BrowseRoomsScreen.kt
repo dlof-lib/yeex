@@ -54,13 +54,19 @@ fun BrowseRoomsScreen(
 
     suspend fun reload() {
         isLoading = true
-        // Explore is ranked by RoomRanking's trending score (size + a
-        // freshness boost for brand-new rooms) instead of raw Firebase
-        // return order — see RoomRanking's doc comment.
-        allPublicRooms = RoomRanking.rankTrending(repo.listPublicRooms())
-        if (uid != null) {
-            myRooms = repo.listMyRooms(uid)
-            myRoomIds = myRooms.map { it.id }.toSet()
+        // Wrapped so a transient Firebase failure (offline, timeout) leaves
+        // the previous results in place instead of crashing the whole app —
+        // an uncaught exception here would otherwise propagate out of the
+        // LaunchedEffect coroutine below.
+        runCatching {
+            // Explore is ranked by RoomRanking's trending score (size + a
+            // freshness boost for brand-new rooms) instead of raw Firebase
+            // return order — see RoomRanking's doc comment.
+            allPublicRooms = RoomRanking.rankTrending(repo.listPublicRooms())
+            if (uid != null) {
+                myRooms = repo.listMyRooms(uid)
+                myRoomIds = myRooms.map { it.id }.toSet()
+            }
         }
         isLoading = false
     }
