@@ -14,6 +14,11 @@ data class User(
     val displayName: String = "",
     val bio: String = "",
     val profileIconUrl: String = "",
+    // ---- Profile banner: either a fixed-size cropped image OR a link to an
+    // external video (never both — see UserRepository.updateBannerImage /
+    // updateBannerVideoUrl, which clear the other field on save) ----
+    val bannerUrl: String = "",
+    val bannerVideoUrl: String = "",
     val verified: Boolean = false,
     val verifiedReason: String = "", // "manual" | "cross_platform" | "official"
     val externalFollowerCounts: Map<String, Long> = emptyMap(), // self-reported, reviewed by admins
