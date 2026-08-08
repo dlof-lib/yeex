@@ -1,9 +1,12 @@
 package com.yeex.dlof.navigation
 
 import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -17,6 +20,7 @@ import com.yeex.dlof.ui.auth.LoginScreen
 import com.yeex.dlof.ui.auth.RegisterScreen
 import com.yeex.dlof.ui.common.SplashScreen
 import com.yeex.dlof.ui.components.BottomTab
+import com.yeex.dlof.ui.components.GlobalTaskProgressBar
 import com.yeex.dlof.ui.components.YeexBottomBar
 import com.yeex.dlof.ui.create.CreateParagraphScreen
 import com.yeex.dlof.ui.feed.FeedScreen
@@ -100,11 +104,12 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
             }
         }
     ) { outerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = Routes.SPLASH,
-            modifier = Modifier.padding(bottom = outerPadding.calculateBottomPadding())
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            NavHost(
+                navController = navController,
+                startDestination = Routes.SPLASH,
+                modifier = Modifier.padding(bottom = outerPadding.calculateBottomPadding())
+            ) {
             composable(Routes.SPLASH) {
                 SplashScreen(
                     isLoggedIn = authRepo.currentUid() != null,
@@ -136,9 +141,7 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
             composable(Routes.FEED) {
                 FeedScreen(
                     onOpenProfile = { uid -> navController.navigate(Routes.profile(uid)) },
-                    onRepost = { paragraphId -> navController.navigate(Routes.repost(paragraphId)) },
-                    onOpenSearch = { navController.navigate(Routes.SEARCH) },
-                    onOpenRooms = { navController.navigate(Routes.ROOMS) }
+                    onRepost = { paragraphId -> navController.navigate(Routes.repost(paragraphId)) }
                 )
             }
             // Kept as a direct-link fallback (e.g. from a future push notification or
@@ -213,6 +216,15 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
                 val paragraphId = backStackEntry.arguments?.getString("paragraphId") ?: return@composable
                 RepostScreen(paragraphId = paragraphId, onDone = { navController.popBackStack() })
             }
+            }
+
+            // Mounted once at the app root, above the NavHost, so download/publish
+            // progress stays visible (and keeps running) no matter which screen the
+            // person navigates to next — see TaskProgressManager's doc for why this
+            // isn't tied to any single screen's own coroutine scope.
+            GlobalTaskProgressBar(
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
 }
