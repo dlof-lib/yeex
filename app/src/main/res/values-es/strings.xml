@@ -65,6 +65,8 @@
     <string name="search_idle_hint">Escribe un identificador o el nombre de una sala, o @container.name[].me para buscar un contenedor personalizado</string>
     <string name="clear_search">Borrar búsqueda</string>
     <string name="search_suggested_accounts">Quizá conozcas a</string>
+    <string name="search_trending_rooms">Tendencias ahora</string>
+    <string name="search_trending_posts">Publicaciones en tendencia</string>
     <string name="watermark_text">yeex</string>
     <string name="action_download">Descargar</string>
     <string name="action_download_pdf">Descargar PDF</string>
@@ -107,4 +109,28 @@
     <string name="no_paragraphs_yet">Aún no hay párrafos</string>
     <string name="publish_action">Publicar</string>
     <string name="publishing_in_progress">Publicando…</string>
+
+    <!-- Business account -->
+    <string name="business_account_toggle">Cuenta de empresa</string>
+    <string name="business_category_label">Categoría</string>
+    <string name="business_category_public_figure">Figura pública</string>
+    <string name="business_category_company">Empresa</string>
+    <string name="business_category_store">Tienda</string>
+    <string name="business_category_tv_channel">Canal de TV</string>
+    <string name="business_category_media">Medios</string>
+    <string name="business_category_other">Otro</string>
+    <string name="business_phone_label">Teléfono de empresa</string>
+    <string name="business_email_label">Correo de empresa</string>
+    <string name="business_links_label">Enlaces (separados por coma)</string>
+
+    <!-- Room type / live stream -->
+    <string name="room_type_label">Tipo de sala</string>
+    <string name="room_type_general">General</string>
+    <string name="room_type_tv_channel">Canal de TV</string>
+    <string name="tv_channel_badge">Canal de TV</string>
+    <string name="live_stream_url_label">Enlace de transmisión en vivo</string>
+    <string name="live_stream_url_hint">Enlace de transmisión (m3u8 / mp4 o un enlace de página)</string>
+    <string name="edit_live_stream">Editar enlace de transmisión</string>
+    <string name="live_stream_save">Guardar</string>
+    <string name="live_stream_remove">Quitar transmisión</string>
 </resources>
