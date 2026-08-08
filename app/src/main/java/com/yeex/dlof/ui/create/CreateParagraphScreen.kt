@@ -3,15 +3,26 @@ package com.yeex.dlof.ui.create
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.yeex.dlof.R
 import com.yeex.dlof.data.model.Paragraph
@@ -19,6 +30,10 @@ import com.yeex.dlof.data.model.ParagraphType
 import com.yeex.dlof.data.repository.AuthRepository
 import com.yeex.dlof.data.repository.ParagraphRepository
 import com.yeex.dlof.data.repository.UserRepository
+import com.yeex.dlof.ui.theme.YeexAccent
+import com.yeex.dlof.ui.theme.YeexDarkCard
+import com.yeex.dlof.ui.theme.YeexPink
+import com.yeex.dlof.ui.theme.yeexBrandGradient
 import com.yeex.dlof.util.MediaBase64
 import com.yeex.dlof.util.MediaDuration
 import com.yeex.dlof.util.VideoTrimUtil
@@ -26,6 +41,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+
+private const val TEXT_MAX_LEN = 220
+
+private enum class ComposerType { TEXT, IMAGE, VIDEO }
 
 @Composable
 fun CreateParagraphScreen(
@@ -45,44 +64,133 @@ fun CreateParagraphScreen(
     var error by remember { mutableStateOf<String?>(null) }
 
     val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        imageUri = uri; videoUri = null
+        if (uri != null) { imageUri = uri; videoUri = null }
     }
     val pickVideo = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        videoUri = uri; imageUri = null
+        if (uri != null) { videoUri = uri; imageUri = null }
+    }
+
+    val composerType = when {
+        videoUri != null -> ComposerType.VIDEO
+        imageUri != null -> ComposerType.IMAGE
+        else -> ComposerType.TEXT
     }
 
     // fillMaxWidth (not fillMaxSize) so this renders as a compact pop-up sheet
     // when hosted inside FeedScreen's ModalBottomSheet, rather than stretching
     // to the full screen height.
     Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-        Text(stringResource(R.string.create_paragraph), style = MaterialTheme.typography.headlineSmall)
-        Spacer(Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                stringResource(R.string.create_paragraph),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                stringResource(R.string.paragraph_expires),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(Modifier.height(18.dp))
 
-        OutlinedTextField(
-            value = text,
-            onValueChange = { text = it },
-            label = { Text(stringResource(R.string.feed_title)) },
-            modifier = Modifier.fillMaxWidth().height(120.dp)
+        // ---- Composer text box, purple border, char counter ----
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.5.dp, YeexAccent.copy(alpha = 0.55f), RoundedCornerShape(18.dp))
+                .background(YeexDarkCard, RoundedCornerShape(18.dp))
+                .padding(4.dp)
+        ) {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { if (it.length <= TEXT_MAX_LEN) text = it },
+                placeholder = { Text(stringResource(R.string.compose_placeholder)) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedBorderColor = Color.Transparent
+                ),
+                modifier = Modifier.fillMaxWidth().height(140.dp)
+            )
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Text(
+                "${text.length}/$TEXT_MAX_LEN",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+
+        Spacer(Modifier.height(18.dp))
+        Text(
+            stringResource(R.string.choose_paragraph_type),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
 
-        Row {
-            OutlinedButton(onClick = { pickImage.launch("image/*") }) {
-                Icon(Icons.Filled.PhotoCamera, contentDescription = stringResource(R.string.attach_image))
-                Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.attach_image))
-            }
-            Spacer(Modifier.width(8.dp))
-            OutlinedButton(onClick = { pickVideo.launch("video/*") }) {
-                Icon(Icons.Filled.Videocam, contentDescription = stringResource(R.string.attach_video))
-                Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.attach_video))
+        // ---- Type selector: تغيير النوع يفتح المنتقي المناسب أو يمسح الوسائط ----
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            TypeChip(
+                icon = Icons.Filled.TextFields,
+                label = stringResource(R.string.type_text),
+                selected = composerType == ComposerType.TEXT,
+                modifier = Modifier.weight(1f)
+            ) { imageUri = null; videoUri = null }
+            TypeChip(
+                icon = Icons.Filled.Image,
+                label = stringResource(R.string.type_image),
+                selected = composerType == ComposerType.IMAGE,
+                modifier = Modifier.weight(1f)
+            ) { pickImage.launch("image/*") }
+            TypeChip(
+                icon = Icons.Filled.Videocam,
+                label = stringResource(R.string.type_video),
+                selected = composerType == ComposerType.VIDEO,
+                modifier = Modifier.weight(1f)
+            ) { pickVideo.launch("video/*") }
+        }
+
+        if (composerType != ComposerType.TEXT) {
+            Spacer(Modifier.height(14.dp))
+            Text(
+                stringResource(R.string.media_length_hint),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(8.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(84.dp)
+                    .border(1.5.dp, YeexAccent, RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(YeexDarkCard),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = YeexAccent, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        if (composerType == ComposerType.IMAGE)
+                            stringResource(R.string.image_selected)
+                        else
+                            stringResource(R.string.video_selected),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             }
         }
 
-        if (imageUri != null) Text("تم اختيار صورة", modifier = Modifier.padding(top = 8.dp))
-        if (videoUri != null) Text("تم اختيار فيديو (سيتم اقتطاعه لأول 10 ثوانٍ إذا كان أطول، والحد الأدنى 5 ثوانٍ)", modifier = Modifier.padding(top = 8.dp))
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp)) }
+        error?.let {
+            Spacer(Modifier.height(10.dp))
+            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
 
         Spacer(Modifier.height(24.dp))
 
@@ -92,7 +200,7 @@ fun CreateParagraphScreen(
                     isPublishing = true
                     error = null
                     val uid = authRepo.currentUid()
-                    if (uid == null) { error = "يجب تسجيل الدخول"; isPublishing = false; return@launch }
+                    if (uid == null) { error = context.getString(R.string.error_login_required); isPublishing = false; return@launch }
 
                     var type = ParagraphType.TEXT.name
                     var mediaBase64 = ""
@@ -107,7 +215,7 @@ fun CreateParagraphScreen(
                             videoUri != null -> {
                                 val durationMs = MediaDuration.getDurationMs(context, videoUri!!)
                                 if (durationMs == null || durationMs < MediaDuration.MIN_VIDEO_MS) {
-                                    error = "يجب أن تكون مدة الفيديو 5 ثوانٍ على الأقل"
+                                    error = context.getString(R.string.error_video_too_short)
                                     isPublishing = false
                                     return@launch
                                 }
@@ -120,7 +228,7 @@ fun CreateParagraphScreen(
                                         VideoTrimUtil.trimToFile(context, videoUri!!, trimmedFile, MediaDuration.MAX_VIDEO_MS)
                                     }
                                     if (!trimmed) {
-                                        error = "تعذر اقتطاع الفيديو"
+                                        error = context.getString(R.string.error_trim_failed)
                                         isPublishing = false
                                         return@launch
                                     }
@@ -131,7 +239,7 @@ fun CreateParagraphScreen(
                                     MediaBase64.encodeVideoIfSmallEnough(context.contentResolver, videoUri!!)
                                 }
                                 if (encoded == null) {
-                                    error = "حجم الفيديو كبير جدًا"
+                                    error = context.getString(R.string.error_video_too_large)
                                     isPublishing = false
                                     return@launch
                                 }
@@ -157,19 +265,73 @@ fun CreateParagraphScreen(
                         )
                         onPublished()
                     } catch (e: Exception) {
-                        error = e.message ?: "خطأ غير معروف"
+                        error = e.message ?: context.getString(R.string.error_unknown)
                     } finally {
                         isPublishing = false
                     }
                 }
             },
             enabled = !isPublishing && (text.isNotBlank() || imageUri != null || videoUri != null),
-            modifier = Modifier.fillMaxWidth()
+            shape = RoundedCornerShape(50),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, disabledContainerColor = Color.Transparent),
+            contentPadding = PaddingValues(),
+            modifier = Modifier.fillMaxWidth().height(52.dp)
         ) {
-            Text(if (isPublishing) stringResource(R.string.publishing_in_progress) else stringResource(R.string.publish_action))
+            val enabled = !isPublishing && (text.isNotBlank() || imageUri != null || videoUri != null)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        if (enabled) yeexBrandGradient() else androidx.compose.ui.graphics.Brush.linearGradient(
+                            listOf(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.surfaceVariant)
+                        ),
+                        RoundedCornerShape(50)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isPublishing) {
+                    CircularProgressIndicator(modifier = Modifier.size(22.dp), color = Color.White, strokeWidth = 2.dp)
+                } else {
+                    Text(
+                        stringResource(R.string.publish_action),
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+            }
         }
+    }
+}
 
-        Spacer(Modifier.height(8.dp))
-        Text(stringResource(R.string.paragraph_expires), style = MaterialTheme.typography.labelSmall)
+@Composable
+private fun TypeChip(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = if (selected) YeexAccent.copy(alpha = 0.18f) else YeexDarkCard,
+        border = if (selected) BorderStroke(1.5.dp, YeexAccent) else BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        modifier = modifier.height(72.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(icon, contentDescription = label, tint = if (selected) YeexAccent else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
+            Spacer(Modifier.height(4.dp))
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                color = if (selected) YeexAccent else MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+            )
+        }
     }
 }
