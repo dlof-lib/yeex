@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -22,7 +23,6 @@ import com.yeex.dlof.R
 import com.yeex.dlof.ui.comments.CommentsSheet
 import com.yeex.dlof.ui.components.ParagraphCard
 import com.yeex.dlof.ui.components.ParagraphSkeleton
-import com.yeex.dlof.ui.components.YeexTopBar
 import com.yeex.dlof.ui.create.CreateParagraphScreen
 import com.yeex.dlof.ui.theme.YeexAccent
 
@@ -48,9 +48,7 @@ fun FeedScreen(
         factory = FeedViewModelFactory(roomId)
     ),
     onOpenProfile: (String) -> Unit = {},
-    onRepost: (String) -> Unit,
-    onOpenSearch: (() -> Unit)? = null,
-    onOpenRooms: (() -> Unit)? = null
+    onRepost: (String) -> Unit
 ) {
     val paragraphs by viewModel.paragraphs.collectAsState()
     val reactions by viewModel.reactions.collectAsState()
@@ -100,31 +98,40 @@ fun FeedScreen(
             }
         }
 
-        // Floating top bar instead of a Scaffold TopAppBar, so it sits over
-        // the media rather than pushing it down. The three-way segmented
-        // control (لك / متابعين / حاويات), the "yeex" wordmark, and the
-        // rooms/search shortcuts only make sense on the global feed — a
-        // specific room's own feed (roomId != null) is already scoped, and
-        // shown beneath that room's own header, so it keeps just the plain
-        // title.
-        YeexTopBar(
-            modifier = Modifier.align(Alignment.TopCenter),
-            showWordmark = roomId == null,
-            onOpenRooms = if (roomId == null) onOpenRooms else null,
-            onOpenSearch = if (roomId == null) onOpenSearch else null,
-            center = {
-                if (roomId == null) {
-                    FeedTabRow(selected = selectedTab, onSelect = { viewModel.selectTab(it) })
-                } else {
-                    Text(
-                        stringResource(R.string.feed_title),
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
+        // ---- Organized top bar: a dark gradient scrim (so text stays legible
+        // over any bright video/photo) with a fixed height and centered
+        // content — same treatment for both variants (segmented tabs on the
+        // global feed vs a plain centered title on a room's own feed) instead
+        // of one floating raw over the media and the other pinned to a
+        // different edge. ----
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopCenter)
+                .height(96.dp)
+                .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.45f), Color.Transparent)))
         )
+        if (roomId == null) {
+            FeedTabRow(
+                selected = selectedTab,
+                onSelect = { viewModel.selectTab(it) },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = 12.dp)
+            )
+        } else {
+            Text(
+                stringResource(R.string.feed_title),
+                color = Color.White,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = 12.dp)
+            )
+        }
 
         // Floating create button, positioned like a compact TikTok-style
         // action, above the bottom nav bar.
