@@ -1,31 +1,30 @@
 package com.yeex.dlof.data.repository
 
-import android.app.Activity
 import android.content.Context
 import android.util.Log
-import androidx.credentials.CredentialManager
-import androidx.credentials.GetCredentialRequest
-import androidx.credentials.exceptions.GetCredentialCancellationException
-import androidx.credentials.exceptions.GetCredentialException
-import androidx.credentials.exceptions.GetCredentialProviderConfigurationException
-import androidx.credentials.exceptions.NoCredentialException
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
-import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.auth.GoogleAuthProvider
-import com.google.firebase.auth.OAuthProvider
 import com.google.firebase.database.FirebaseDatabase
-import com.yeex.dlof.R
+import com.yeex.dlof.data.local.LocalAccountStore
+import com.yeex.dlof.data.local.SavedAccount
 import com.yeex.dlof.data.model.User
-import com.yeex.dlof.util.LocaleUtil
 import com.yeex.dlof.util.UsernameValidator
 import kotlinx.coroutines.tasks.await
 
+/**
+ * Identifier + password is the only sign-in method — there is no Google or
+ * GitHub sign-in in this app. Every successful login/register is also
+ * remembered locally (see [LocalAccountStore]) so:
+ *  - the session survives app restarts/force-closes (FirebaseAuth's own
+ *    default on-device persistence already does this — nothing extra
+ *    needed), and
+ *  - the person can add several accounts on the same device and switch
+ *    between them from the profile screen (see [switchAccount]) instead of
+ *    signing out and typing credentials again every time.
+ */
 class AuthRepository(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
     private val db: FirebaseDatabase = FirebaseDatabase.getInstance()
@@ -39,9 +38,9 @@ class AuthRepository(
      * admin-only .write rules — writing the full User object (which always carries their
      * false/"" defaults) via setValue() therefore fails the whole multi-location write with
      * PERMISSION_DENIED, which was surfacing to users as a generic "حدث خطأ غير متوقع" on
-     * every registration and every first Google/GitHub sign-in. Omitting them here is safe:
-     * they're not in the ".validate" hasChildren(...) requirement, and getValue(User::class.java)
-     * fills in the Kotlin data class defaults for any missing keys on read.
+     * every registration. Omitting them here is safe: they're not in the ".validate"
+     * hasChildren(...) requirement, and getValue(User::class.java) fills in the Kotlin data
+     * class defaults for any missing keys on read.
      */
     private fun User.toOwnWriteMap(): Map<String, Any?> = mapOf(
         "uid" to uid,
@@ -83,7 +82,13 @@ class AuthRepository(
         }
     }
 
-    suspend fun register(identifier: String, password: String, displayName: String, language: String): AuthResult {
+    suspend fun register(
+        identifier: String,
+        password: String,
+        displayName: String,
+        language: String,
+        context: Context? = null
+    ): AuthResult {
         val validation = UsernameValidator.validate(identifier)
         if (!validation.isValid) return AuthResult.Failure(validation.errorKey ?: "invalid")
 
@@ -119,19 +124,21 @@ class AuthRepository(
                 authResult.user?.delete()?.await()
                 throw writeError
             }
+            context?.let { rememberLocally(it, user, password) }
             AuthResult.Success(user)
         } catch (e: Exception) {
             AuthResult.Failure(mapAuthException("register", e))
         }
     }
 
-    suspend fun login(identifier: String, password: String): AuthResult {
+    suspend fun login(identifier: String, password: String, context: Context? = null): AuthResult {
         return try {
             val pseudoEmail = UsernameValidator.toPseudoEmail(identifier)
             val authResult = auth.signInWithEmailAndPassword(pseudoEmail, password).await()
             val uid = authResult.user?.uid ?: return AuthResult.Failure("unknown")
             val snapshot = usersRef.child(uid).get().await()
             val user = snapshot.getValue(User::class.java) ?: return AuthResult.Failure("profile_missing")
+            context?.let { rememberLocally(it, user, password) }
             AuthResult.Success(user)
         } catch (e: Exception) {
             // Deliberately don't expose *why* login failed (wrong id vs wrong password vs
@@ -142,104 +149,53 @@ class AuthRepository(
         }
     }
 
+    /**
+     * Signs out of the *current* account only. Accounts previously
+     * remembered via [rememberLocally] stay in [LocalAccountStore] so they
+     * still show up in the "تبديل الحساب" switcher afterwards — logging out
+     * is not the same as forgetting an account (see [forgetAccount] for that).
+     */
     fun logout() = auth.signOut()
 
     fun currentUid(): String? = auth.currentUser?.uid
 
-    // ---- Google Sign-In (Credential Manager) ----------------------------
+    // ---- Multi-account: remember, list, switch, forget ---------------------
 
-    suspend fun signInWithGoogle(context: Context): AuthResult {
-        return try {
-            val googleIdOption = GetGoogleIdOption.Builder()
-                .setFilterByAuthorizedAccounts(false)
-                .setServerClientId(context.getString(R.string.default_web_client_id))
-                .build()
-            val request = GetCredentialRequest.Builder()
-                .addCredentialOption(googleIdOption)
-                .build()
-            val response = CredentialManager.create(context).getCredential(context, request)
-            val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(response.credential.data)
-            val firebaseCredential = GoogleAuthProvider.getCredential(googleIdTokenCredential.idToken, null)
-            val authResult = auth.signInWithCredential(firebaseCredential).await()
-            val fbUser = authResult.user ?: return AuthResult.Failure("unknown")
-            ensureUserProfile(fbUser, context)
-        } catch (e: GetCredentialCancellationException) {
-            // The user genuinely dismissed the Google account picker — the only
-            // case that should show "تم إلغاء تسجيل الدخول عبر Google".
-            Log.i(TAG, "Google sign-in cancelled by user")
-            AuthResult.Failure("google_cancelled")
-        } catch (e: NoCredentialException) {
-            // No Google account is saved on the device / in Credential Manager,
-            // or the account exists but the app's OAuth client isn't registered
-            // for it — most commonly because no SHA-1 fingerprint has been added
-            // for this app in the Firebase console, so Google Play Services has
-            // nothing to match this app against and reports "no credential"
-            // instead of showing the picker.
-            Log.e(TAG, "Google sign-in: no credential available: ${e.message}", e)
-            AuthResult.Failure("google_no_account")
-        } catch (e: GetCredentialProviderConfigurationException) {
-            // Credential Manager / Google Play Services provider isn't set up
-            // correctly for this app (e.g. missing SHA-1 fingerprint or the
-            // default_web_client_id doesn't match a client registered against
-            // this app's package name + fingerprint in Firebase).
-            Log.e(TAG, "Google sign-in misconfigured: ${e.message}", e)
-            AuthResult.Failure("google_config_error")
-        } catch (e: GetCredentialException) {
-            Log.e(TAG, "Google sign-in failed: ${e.javaClass.simpleName}: ${e.message}", e)
-            AuthResult.Failure("google_cancelled")
-        } catch (e: Exception) {
-            AuthResult.Failure(mapAuthException("Google sign-in", e))
-        }
-    }
-
-    // ---- GitHub Sign-In (Firebase generic OAuthProvider) -----------------
-
-    private val githubProvider by lazy {
-        OAuthProvider.newBuilder("github.com").apply {
-            scopes = listOf("read:user", "user:email")
-        }.build()
-    }
-
-    suspend fun signInWithGithub(activity: Activity): AuthResult {
-        return try {
-            val pending = auth.pendingAuthResult
-            val authResult = if (pending != null) pending.await()
-            else auth.startActivityForSignInWithProvider(activity, githubProvider).await()
-            val fbUser = authResult.user ?: return AuthResult.Failure("unknown")
-            ensureUserProfile(fbUser, activity)
-        } catch (e: Exception) {
-            AuthResult.Failure(mapAuthException("GitHub sign-in", e))
-        }
-    }
-
-    // ---- Shared: first-time social sign-in needs a /users/{uid} profile --
-
-    private suspend fun ensureUserProfile(fbUser: FirebaseUser, context: Context): AuthResult {
-        val existingSnap = usersRef.child(fbUser.uid).get().await()
-        if (existingSnap.exists()) {
-            val user = existingSnap.getValue(User::class.java) ?: return AuthResult.Failure("profile_missing")
-            return AuthResult.Success(user)
-        }
-
-        val seed = UsernameValidator.sanitizeForAuto(
-            fbUser.displayName ?: fbUser.email?.substringBefore("@") ?: "yeexuser"
+    private fun rememberLocally(context: Context, user: User, password: String) {
+        LocalAccountStore.remember(
+            context,
+            SavedAccount(
+                uid = user.uid,
+                identifier = user.identifier,
+                displayName = user.displayName,
+                profileIconUrl = user.profileIconUrl
+            ),
+            password
         )
-        var candidate = seed
-        var suffix = 0
-        while (identifiersRef.child(candidate).get().await().exists()) {
-            suffix++
-            candidate = "$seed$suffix".take(UsernameValidator.MAX_LENGTH)
-        }
-
-        val user = User(
-            uid = fbUser.uid,
-            identifier = candidate,
-            displayName = fbUser.displayName ?: candidate,
-            createdAt = System.currentTimeMillis(),
-            language = LocaleUtil.getSavedLanguage(context) // whatever the picker was set to pre-login
-        )
-        usersRef.child(fbUser.uid).setValue(user.toOwnWriteMap()).await()
-        identifiersRef.child(candidate).setValue(fbUser.uid).await()
-        return AuthResult.Success(user)
     }
+
+    /** Every account that has ever signed in on this device, most-recently-used first. */
+    fun savedAccounts(context: Context): List<SavedAccount> = LocalAccountStore.list(context)
+
+    fun canSwitchInstantly(context: Context, uid: String): Boolean =
+        LocalAccountStore.hasStoredPassword(context, uid)
+
+    /**
+     * Switches to a previously-used account on this device. If its password
+     * was remembered (the common case — see [LocalAccountStore]) this signs
+     * the person straight in with no extra input; otherwise it fails with
+     * "profile_missing" so the caller falls back to the normal login screen
+     * pre-filled with that identifier.
+     */
+    suspend fun switchAccount(context: Context, uid: String): AuthResult {
+        val account = savedAccounts(context).find { it.uid == uid }
+            ?: return AuthResult.Failure("unknown")
+        val password = LocalAccountStore.passwordFor(context, uid)
+            ?: return AuthResult.Failure("profile_missing")
+        auth.signOut()
+        return login(account.identifier, password, context)
+    }
+
+    /** Removes an account from the on-device switcher entirely (not the account itself). */
+    fun forgetAccount(context: Context, uid: String) = LocalAccountStore.forget(context, uid)
 }
