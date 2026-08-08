@@ -23,6 +23,7 @@ import com.yeex.dlof.R
 import com.yeex.dlof.data.model.Room
 import com.yeex.dlof.data.repository.AuthRepository
 import com.yeex.dlof.data.repository.RoomRepository
+import com.yeex.dlof.util.RoomRanking
 import kotlinx.coroutines.launch
 
 private enum class RoomsTab { EXPLORE, MINE }
@@ -53,7 +54,10 @@ fun BrowseRoomsScreen(
 
     suspend fun reload() {
         isLoading = true
-        allPublicRooms = repo.listPublicRooms()
+        // Explore is ranked by RoomRanking's trending score (size + a
+        // freshness boost for brand-new rooms) instead of raw Firebase
+        // return order — see RoomRanking's doc comment.
+        allPublicRooms = RoomRanking.rankTrending(repo.listPublicRooms())
         if (uid != null) {
             myRooms = repo.listMyRooms(uid)
             myRoomIds = myRooms.map { it.id }.toSet()
