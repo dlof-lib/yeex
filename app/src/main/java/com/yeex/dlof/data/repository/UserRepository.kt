@@ -95,6 +95,32 @@ class UserRepository(
         usersRef.child(uid).child("profileIconUrl").setValue(base64).await()
     }
 
+    /**
+     * Updates the "حساب أعمال" (business account) fields — category, contact
+     * info, and links — from [com.yeex.dlof.ui.profile.EditAccountSheet]'s
+     * business section. A partial [updateChildren] rather than a full
+     * [updateProfile]-style set so it can be saved independently of the
+     * display-name/bio fields.
+     */
+    suspend fun updateBusinessAccount(
+        uid: String,
+        accountType: String,
+        businessCategory: String,
+        businessPhone: String,
+        businessEmail: String,
+        businessLinks: Map<String, String>
+    ) {
+        usersRef.child(uid).updateChildren(
+            mapOf(
+                "accountType" to accountType,
+                "businessCategory" to businessCategory,
+                "businessPhone" to businessPhone,
+                "businessEmail" to businessEmail,
+                "businessLinks" to businessLinks
+            )
+        ).await()
+    }
+
     suspend fun isTeking(currentUid: String, targetUid: String): Boolean =
         tekedByRef.child(currentUid).child(targetUid).get().await().exists()
 
