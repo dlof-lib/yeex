@@ -150,4 +150,24 @@
     <string name="error_trim_failed">Couldn't trim the video</string>
     <string name="error_video_too_large">Video file is too large</string>
     <string name="error_unknown">Unknown error</string>
+    <string name="repost_title">Repost paragraph</string>
+    <string name="repost_comment_hint">Add a comment (optional)...</string>
+    <string name="repost_where">Where do you want to post?</string>
+    <string name="repost_room_only">My room only</string>
+    <string name="repost_room_only_hint">Visible only in your private room</string>
+    <string name="repost_container">Container</string>
+    <string name="repost_container_hint">Choose a container</string>
+    <string name="repost_public">Public</string>
+    <string name="repost_public_hint">Visible to everyone</string>
+    <string name="repost_publish">Publish repost</string>
+    <string name="coming_soon">Coming soon</string>
+    <string name="more_options">More options</string>
+    <string name="action_report">Report</string>
+    <string name="view_count">%1$s views</string>
+    <string name="expires_in_label">Expires in</string>
+    <string name="feed_tab_for_you">For You</string>
+    <string name="feed_tab_following">Following</string>
+    <string name="feed_tab_containers">Containers</string>
+    <string name="replying_to">Replying to @%1$s</string>
+    <string name="action_reply">Reply</string>
 </resources>
