@@ -15,7 +15,6 @@ import androidx.navigation.NavType
 import com.yeex.dlof.data.repository.AuthRepository
 import com.yeex.dlof.ui.auth.LoginScreen
 import com.yeex.dlof.ui.auth.RegisterScreen
-import com.yeex.dlof.ui.comments.CommentsScreen
 import com.yeex.dlof.ui.common.SplashScreen
 import com.yeex.dlof.ui.components.BottomTab
 import com.yeex.dlof.ui.components.YeexBottomBar
@@ -31,7 +30,11 @@ import com.yeex.dlof.ui.verify.VerificationRequestScreen
 
 object Routes {
     const val SPLASH = "splash"
-    const val LOGIN = "login"
+    // Optional "prefill" query arg: used when adding another account from the
+    // profile screen's switcher, or when switching to a saved account whose
+    // password wasn't remembered on this device — pre-fills the "معرف" field
+    // so the person only has to type the password again.
+    const val LOGIN = "login?prefill={prefill}"
     const val REGISTER = "register"
     const val FEED = "feed"
     const val CREATE_PARAGRAPH = "create_paragraph"
@@ -41,20 +44,24 @@ object Routes {
     const val PROFILE = "profile/{uid}"
     const val SEARCH = "search"
     const val VERIFY = "verify"
-    const val COMMENTS = "comments/{paragraphId}"
     const val REPOST = "repost/{paragraphId}"
 
+    fun login(prefill: String = "") = "login?prefill=$prefill"
     fun room(id: String) = "room/$id"
     fun profile(uid: String) = "profile/$uid"
-    fun comments(paragraphId: String) = "comments/$paragraphId"
     fun repost(paragraphId: String) = "repost/$paragraphId"
 }
 
 /**
  * [YeexBottomBar] is shown only while on one of its four routes — see the
  * activeTab computation in [YeexNavGraph] — so focused flows like login,
- * room detail, comments, repost, or verification aren't cluttered with tabs
- * that don't apply to them.
+ * room detail, repost, or verification aren't cluttered with tabs that don't
+ * apply to them.
+ *
+ * Comments no longer have their own route: [FeedScreen] (and, through it,
+ * [RoomScreen]) open [com.yeex.dlof.ui.comments.CommentsSheet] in-place as a
+ * ModalBottomSheet instead of navigating here — see FeedScreen's
+ * `commentsParagraphId` state.
  */
 
 @Composable
@@ -102,28 +109,33 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
                 SplashScreen(
                     isLoggedIn = authRepo.currentUid() != null,
                     onFinished = { loggedIn ->
-                        val destination = if (loggedIn) Routes.FEED else Routes.LOGIN
+                        val destination = if (loggedIn) Routes.FEED else Routes.login()
                         navController.navigate(destination) {
                             popUpTo(Routes.SPLASH) { inclusive = true }
                         }
                     }
                 )
             }
-            composable(Routes.LOGIN) {
+            composable(
+                Routes.LOGIN,
+                arguments = listOf(navArgument("prefill") { type = NavType.StringType; defaultValue = "" })
+            ) { backStackEntry ->
+                val prefill = backStackEntry.arguments?.getString("prefill").orEmpty()
                 LoginScreen(
-                    onLoggedIn = { navController.navigate(Routes.FEED) { popUpTo(Routes.LOGIN) { inclusive = true } } },
+                    prefillIdentifier = prefill,
+                    onLoggedIn = { navController.navigate(Routes.FEED) { popUpTo(0) { inclusive = true } } },
                     onGoToRegister = { navController.navigate(Routes.REGISTER) }
                 )
             }
             composable(Routes.REGISTER) {
                 RegisterScreen(
-                    onRegistered = { navController.navigate(Routes.FEED) { popUpTo(Routes.LOGIN) { inclusive = true } } },
+                    onRegistered = { navController.navigate(Routes.FEED) { popUpTo(0) { inclusive = true } } },
                     onGoToLogin = { navController.popBackStack() }
                 )
             }
             composable(Routes.FEED) {
                 FeedScreen(
-                    onOpenComments = { paragraphId -> navController.navigate(Routes.comments(paragraphId)) },
+                    onOpenProfile = { uid -> navController.navigate(Routes.profile(uid)) },
                     onRepost = { paragraphId -> navController.navigate(Routes.repost(paragraphId)) }
                 )
             }
@@ -153,7 +165,7 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
                 val roomId = backStackEntry.arguments?.getString("roomId") ?: return@composable
                 RoomScreen(
                     roomId = roomId,
-                    onOpenComments = { paragraphId -> navController.navigate(Routes.comments(paragraphId)) },
+                    onOpenProfile = { uid -> navController.navigate(Routes.profile(uid)) },
                     onRepost = { paragraphId -> navController.navigate(Routes.repost(paragraphId)) }
                 )
             }
@@ -169,6 +181,15 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
                         navController.navigate(Routes.LOGIN) {
                             popUpTo(0) { inclusive = true }
                         }
+                    },
+                    onAddAccount = { navController.navigate(Routes.login()) },
+                    onAccountSwitched = {
+                        navController.navigate(Routes.FEED) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
+                    onNeedAccountPassword = { identifier ->
+                        navController.navigate(Routes.login(identifier))
                     }
                 )
             }
@@ -182,13 +203,6 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
             }
             composable(Routes.VERIFY) {
                 VerificationRequestScreen(onSubmitted = { navController.popBackStack() })
-            }
-            composable(
-                Routes.COMMENTS,
-                arguments = listOf(navArgument("paragraphId") { type = NavType.StringType })
-            ) { backStackEntry ->
-                val paragraphId = backStackEntry.arguments?.getString("paragraphId") ?: return@composable
-                CommentsScreen(paragraphId = paragraphId, onBack = { navController.popBackStack() })
             }
             composable(
                 Routes.REPOST,
