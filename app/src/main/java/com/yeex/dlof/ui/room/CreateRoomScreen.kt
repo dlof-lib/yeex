@@ -10,6 +10,7 @@ import com.yeex.dlof.R
 import com.yeex.dlof.data.model.Room
 import com.yeex.dlof.data.repository.AuthRepository
 import com.yeex.dlof.data.repository.RoomRepository
+import com.yeex.dlof.util.RoomType
 import kotlinx.coroutines.launch
 
 @Composable
@@ -24,6 +25,7 @@ fun CreateRoomScreen(
     var interests by remember { mutableStateOf("") }
     var socialLink by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
+    var roomType by remember { mutableStateOf(RoomType.GENERAL) }
     val scope = rememberCoroutineScope()
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -52,6 +54,27 @@ fun CreateRoomScreen(
             Switch(checked = isPublic, onCheckedChange = { isPublic = it })
         }
 
+        Spacer(Modifier.height(12.dp))
+        // Room type — TV_CHANNEL is the room-level counterpart of the
+        // TV-channel business-account category (see util/BusinessCategory.kt);
+        // a TV channel room additionally gets the live-stream link editor in
+        // RoomScreen once created.
+        Text(stringResource(R.string.room_type_label), style = MaterialTheme.typography.labelLarge)
+        Spacer(Modifier.height(6.dp))
+        Row {
+            FilterChip(
+                selected = roomType == RoomType.GENERAL,
+                onClick = { roomType = RoomType.GENERAL },
+                label = { Text(stringResource(R.string.room_type_general)) }
+            )
+            Spacer(Modifier.width(8.dp))
+            FilterChip(
+                selected = roomType == RoomType.TV_CHANNEL,
+                onClick = { roomType = RoomType.TV_CHANNEL },
+                label = { Text(stringResource(R.string.room_type_tv_channel)) }
+            )
+        }
+
         Spacer(Modifier.height(24.dp))
         Button(
             onClick = {
@@ -66,7 +89,8 @@ fun CreateRoomScreen(
                                 .map { it.trim() }
                                 .filter { it.isNotEmpty() },
                             socialLinks = if (socialLink.isNotBlank()) mapOf("link" to socialLink) else emptyMap(),
-                            phone = phone
+                            phone = phone,
+                            roomType = roomType
                         ),
                         uid
                     )
