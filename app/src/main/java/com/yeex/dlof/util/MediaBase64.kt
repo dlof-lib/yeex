@@ -43,6 +43,18 @@ object MediaBase64 {
     }
 
     /**
+     * Same size check as [encodeVideoIfSmallEnough] but reads from a local
+     * file — used for the trimmed-clip scratch file [VideoTrimUtil] produces,
+     * which (unlike a picked content:// [Uri]) isn't re-readable via the
+     * resolver.
+     */
+    fun encodeVideoFileIfSmallEnough(file: java.io.File): String? {
+        val bytes = file.readBytes()
+        if (bytes.size > MAX_VIDEO_BYTES) return null
+        return Base64.encodeToString(bytes, Base64.NO_WRAP)
+    }
+
+    /**
      * Encodes a picked account-icon image, downscaled small (profile icons
      * never need to be full resolution) so it comfortably fits the
      * `profileIconUrl` field cap in database.rules.json.
