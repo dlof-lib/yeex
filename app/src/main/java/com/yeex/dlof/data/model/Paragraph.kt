@@ -30,5 +30,6 @@ data class Paragraph(
     val repostCount: Long = 0,
     val repostOfId: String = "",    // set when this is a repost into a room
     val repostComment: String = "",
+    val viewCount: Long = 0,        // bumped once per viewer via ParagraphRepository.incrementView
     val engagementScore: Double = 0.0 // maintained by FeedRanking, used to sort the feed
 )
