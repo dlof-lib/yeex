@@ -23,6 +23,8 @@
         "displayName": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50" },
         "bio": { ".validate": "newData.isString() && newData.val().length <= 300" },
         "profileIconUrl": { ".validate": "newData.isString() && newData.val().length <= 900000" },
+        "bannerUrl": { ".validate": "newData.isString() && newData.val().length <= 1200000" },
+        "bannerVideoUrl": { ".validate": "newData.isString() && newData.val().length <= 2000" },
         "language": { ".validate": "newData.isString() && (newData.val() === 'ar' || newData.val() === 'en' || newData.val() === 'es')" },
         "createdAt": { ".validate": "newData.isNumber()" },
 
