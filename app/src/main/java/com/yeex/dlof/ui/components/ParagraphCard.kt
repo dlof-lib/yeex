@@ -61,9 +61,11 @@ import com.yeex.dlof.ui.theme.YeexDislike
 import com.yeex.dlof.ui.theme.YeexLike
 import com.yeex.dlof.ui.theme.YeexLikeGlow
 import com.yeex.dlof.data.repository.ParagraphRepository
+import com.yeex.dlof.util.BackgroundTaskType
 import com.yeex.dlof.util.DownloadUtil
 import com.yeex.dlof.util.MediaBase64
 import com.yeex.dlof.util.PdfExportUtil
+import com.yeex.dlof.util.TaskProgressManager
 import com.yeex.dlof.util.WatermarkUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -99,7 +101,6 @@ fun ParagraphCard(
     isActive: Boolean = true
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val watermarkLabel = stringResource(R.string.watermark_text)
     val savedMessage = stringResource(R.string.download_saved)
     val failedMessage = stringResource(R.string.download_failed)
@@ -241,29 +242,38 @@ fun ParagraphCard(
                     count = null,
                     contentDescription = stringResource(R.string.action_download),
                     onClick = {
-                        scope.launch {
+                        val downloadingLabel = context.getString(R.string.downloading_image_label)
+                        TaskProgressManager.launch(
+                            id = "download_${paragraph.id}_${System.currentTimeMillis()}",
+                            type = BackgroundTaskType.DOWNLOAD,
+                            label = downloadingLabel
+                        ) { updateProgress ->
+                            updateProgress(0.1f)
                             // Author name/avatar aren't denormalized onto the paragraph
                             // (see the comment on authorIdentifier above) — fetched
                             // here, once, only when a download is actually requested.
                             val author = runCatching { userRepo.getUser(paragraph.authorId) }.getOrNull()
+                            updateProgress(0.35f)
                             val authorAvatar = author?.profileIconUrl
                                 ?.takeIf { it.isNotBlank() }
                                 ?.let { MediaBase64.decodeToBitmap(it) }
-                            val ok = withContext(Dispatchers.Default) {
-                                val watermarked = WatermarkUtil.applyWatermark(
+                            updateProgress(0.55f)
+                            val watermarked = withContext(Dispatchers.Default) {
+                                WatermarkUtil.applyWatermark(
                                     source = bitmap,
                                     appLabel = watermarkLabel,
                                     authorIdentifier = paragraph.authorIdentifier,
                                     authorDisplayName = author?.displayName ?: paragraph.authorIdentifier,
                                     authorAvatar = authorAvatar
                                 )
+                            }
+                            updateProgress(0.8f)
+                            val ok = withContext(Dispatchers.Default) {
                                 DownloadUtil.saveToGallery(context, watermarked, "yeex_${paragraph.id}")
                             }
-                            Toast.makeText(
-                                context,
-                                if (ok) savedMessage else failedMessage,
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            updateProgress(0.95f)
+                            if (!ok) error(failedMessage)
+                            savedMessage
                         }
                     }
                 )
@@ -279,12 +289,20 @@ fun ParagraphCard(
                 count = null,
                 contentDescription = stringResource(R.string.action_download_pdf),
                 onClick = {
-                    scope.launch {
+                    val downloadingLabel = context.getString(R.string.downloading_pdf_label)
+                    TaskProgressManager.launch(
+                        id = "download_pdf_${paragraph.id}_${System.currentTimeMillis()}",
+                        type = BackgroundTaskType.DOWNLOAD,
+                        label = downloadingLabel
+                    ) { updateProgress ->
+                        updateProgress(0.1f)
                         val author = runCatching { userRepo.getUser(paragraph.authorId) }.getOrNull()
+                        updateProgress(0.3f)
                         val authorAvatar = author?.profileIconUrl
                             ?.takeIf { it.isNotBlank() }
                             ?.let { MediaBase64.decodeToBitmap(it) }
                         val authorName = author?.displayName ?: paragraph.authorIdentifier
+                        updateProgress(0.5f)
                         val ok = withContext(Dispatchers.Default) {
                             val sourceBitmap = bitmap
                                 ?: PdfExportUtil.renderTextCard(
@@ -300,11 +318,9 @@ fun ParagraphCard(
                             )
                             PdfExportUtil.exportBitmap(context, watermarked, "yeex_${paragraph.id}")
                         }
-                        Toast.makeText(
-                            context,
-                            if (ok) savedMessage else failedMessage,
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        updateProgress(0.95f)
+                        if (!ok) error(failedMessage)
+                        savedMessage
                     }
                 }
             )
