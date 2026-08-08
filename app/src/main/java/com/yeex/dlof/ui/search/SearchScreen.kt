@@ -89,6 +89,7 @@ fun SearchScreen(
     var hasSearched by remember { mutableStateOf(false) }
     var filter by remember { mutableStateOf(SearchFilter.ALL) }
     var suggestedAccounts by remember { mutableStateOf<List<User>>(emptyList()) }
+    var searchError by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     // "قد تعرفهم" only makes sense signed-in and only needs fetching once —
@@ -105,27 +106,41 @@ fun SearchScreen(
         if (trimmed.isEmpty()) {
             isLoading = false
             hasSearched = false
+            searchError = false
             containerResults = emptyList()
             userResults = emptyList()
             roomResults = emptyList()
             return@LaunchedEffect
         }
         isLoading = true
+        searchError = false
         delay(350)
-        val containerName = containerRepo.parseContainerQuery(trimmed)
-        isContainerQuery = containerName != null
-        if (containerName != null) {
-            containerResults = containerRepo.findByName(containerName)
+        // Any Firebase call below can throw (offline, timeout, transient
+        // permission/deserialization errors) — this runs inside a
+        // LaunchedEffect coroutine, so an uncaught exception here would
+        // propagate up and crash the whole app instead of just failing the
+        // search. Catch it and show an inline error state instead.
+        runCatching {
+            val containerName = containerRepo.parseContainerQuery(trimmed)
+            isContainerQuery = containerName != null
+            if (containerName != null) {
+                containerResults = containerRepo.findByName(containerName)
+                userResults = emptyList()
+                roomResults = emptyList()
+            } else {
+                containerResults = emptyList()
+                // Firebase's prefix query returns plain lexicographic order —
+                // SearchRanking re-sorts the (already-narrow) results by actual
+                // relevance: exact/prefix match strength, verified status, and
+                // popularity. See SearchRanking's doc comment.
+                userResults = SearchRanking.rankUsers(trimmed, userRepo.searchByIdentifierPrefix(trimmed))
+                roomResults = SearchRanking.rankRooms(trimmed, roomRepo.searchByName(trimmed))
+            }
+        }.onFailure {
+            searchError = true
+            containerResults = emptyList()
             userResults = emptyList()
             roomResults = emptyList()
-        } else {
-            containerResults = emptyList()
-            // Firebase's prefix query returns plain lexicographic order —
-            // SearchRanking re-sorts the (already-narrow) results by actual
-            // relevance: exact/prefix match strength, verified status, and
-            // popularity. See SearchRanking's doc comment.
-            userResults = SearchRanking.rankUsers(trimmed, userRepo.searchByIdentifierPrefix(trimmed))
-            roomResults = SearchRanking.rankRooms(trimmed, roomRepo.searchByName(trimmed))
         }
         isLoading = false
         hasSearched = true
@@ -133,7 +148,7 @@ fun SearchScreen(
 
     val showUsers = !isContainerQuery && (filter == SearchFilter.ALL || filter == SearchFilter.USERS)
     val showRooms = !isContainerQuery && (filter == SearchFilter.ALL || filter == SearchFilter.ROOMS)
-    val noResults = hasSearched && !isLoading && containerResults.isEmpty() &&
+    val noResults = hasSearched && !isLoading && !searchError && containerResults.isEmpty() &&
         (if (isContainerQuery) true else userResults.isEmpty() && roomResults.isEmpty())
 
     Column(Modifier.fillMaxSize()) {
@@ -212,6 +227,7 @@ fun SearchScreen(
                 isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
+                searchError -> SearchErrorState()
                 noResults -> SearchEmptyState()
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -351,6 +367,25 @@ private fun SearchIdleState(
         items(suggestedAccounts, key = { it.uid }) { u ->
             UserResultCard(u, onClick = { onOpenUser(u) })
         }
+    }
+}
+
+/** Shown when the search request itself failed (offline/timeout/etc.) — distinct from a plain "no results" so the user knows to retry rather than reword their query. */
+@Composable
+private fun SearchErrorState() {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            Icons.Outlined.TravelExplore,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(56.dp)
+        )
+        Spacer(Modifier.height(14.dp))
+        Text(stringResource(R.string.search_failed), style = MaterialTheme.typography.titleMedium)
     }
 }
 
