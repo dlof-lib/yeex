@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.yeex.dlof.R
+import com.yeex.dlof.ui.comments.CommentsSheet
 import com.yeex.dlof.ui.components.ParagraphCard
 import com.yeex.dlof.ui.components.ParagraphSkeleton
 import com.yeex.dlof.ui.create.CreateParagraphScreen
@@ -27,8 +28,12 @@ import com.yeex.dlof.ui.create.CreateParagraphScreen
  * gesture as the product spec, just an immersive full-bleed presentation
  * instead of a padded square card.
  *
- * Publishing still happens in-place as a [ModalBottomSheet] pop-up (see
- * [CreateParagraphScreen] host below) so the feed stays mounted underneath.
+ * Publishing and comments both happen in-place as a [ModalBottomSheet]
+ * pop-up (see [CreateParagraphScreen] / [CommentsSheet] hosts below) so the
+ * feed stays mounted underneath instead of navigating to a separate screen.
+ * Tapping an author (see [ParagraphCard.onOpenProfile]) still navigates —
+ * via [onOpenProfile] — since browsing someone else's account is a real
+ * screen, not a transient pop-up.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,13 +42,17 @@ fun FeedScreen(
     viewModel: FeedViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         factory = FeedViewModelFactory(roomId)
     ),
-    onOpenComments: (String) -> Unit,
+    onOpenProfile: (String) -> Unit = {},
     onRepost: (String) -> Unit
 ) {
     val paragraphs by viewModel.paragraphs.collectAsState()
     val reactions by viewModel.reactions.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     var showCreateSheet by remember { mutableStateOf(false) }
+    // Which paragraph's comments are open, if any — replaces navigating to a
+    // separate CommentsScreen with an in-place ModalBottomSheet, same
+    // treatment as publishing above.
+    var commentsParagraphId by remember { mutableStateOf<String?>(null) }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         when {
@@ -70,8 +79,9 @@ fun FeedScreen(
                         hasDisliked = myReaction == com.yeex.dlof.data.repository.Reaction.DISLIKE,
                         onLike = { viewModel.like(item.id) },
                         onDislike = { viewModel.dislike(item.id) },
-                        onComment = { onOpenComments(item.id) },
-                        onRepost = { onRepost(item.id) }
+                        onComment = { commentsParagraphId = item.id },
+                        onRepost = { onRepost(item.id) },
+                        onOpenProfile = onOpenProfile
                     )
                 }
             }
@@ -110,6 +120,20 @@ fun FeedScreen(
             CreateParagraphScreen(
                 roomId = roomId,
                 onPublished = { showCreateSheet = false }
+            )
+        }
+    }
+
+    val openCommentsId = commentsParagraphId
+    if (openCommentsId != null) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(onDismissRequest = { commentsParagraphId = null }, sheetState = sheetState) {
+            CommentsSheet(
+                paragraphId = openCommentsId,
+                onOpenProfile = { uid ->
+                    commentsParagraphId = null
+                    onOpenProfile(uid)
+                }
             )
         }
     }
