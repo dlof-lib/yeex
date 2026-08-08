@@ -68,7 +68,7 @@ fun RegisterScreen(
         Spacer(Modifier.height(24.dp))
 
         Button(
-            onClick = { viewModel.register(identifier, password, displayName, LocaleUtil.getSavedLanguage(context)) },
+            onClick = { viewModel.register(context, identifier, password, displayName, LocaleUtil.getSavedLanguage(context)) },
             enabled = validation.isValid && password.length >= 6 && state !is AuthUiState.Loading,
             modifier = Modifier.fillMaxWidth()
         ) {
