@@ -1,6 +1,8 @@
 package com.yeex.dlof.ui.feed
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -14,12 +16,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.yeex.dlof.R
 import com.yeex.dlof.ui.comments.CommentsSheet
 import com.yeex.dlof.ui.components.ParagraphCard
 import com.yeex.dlof.ui.components.ParagraphSkeleton
 import com.yeex.dlof.ui.create.CreateParagraphScreen
+import com.yeex.dlof.ui.theme.YeexAccent
 
 /**
  * Full-screen, edge-to-edge, TikTok-style feed: each [ParagraphCard] fills
@@ -48,6 +52,7 @@ fun FeedScreen(
     val paragraphs by viewModel.paragraphs.collectAsState()
     val reactions by viewModel.reactions.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val selectedTab by viewModel.selectedTab.collectAsState()
     var showCreateSheet by remember { mutableStateOf(false) }
     // Which paragraph's comments are open, if any — replaces navigating to a
     // separate CommentsScreen with an in-place ModalBottomSheet, same
@@ -92,17 +97,31 @@ fun FeedScreen(
             }
         }
 
-        // Small transparent top-bar overlay (title only) instead of a Scaffold
-        // TopAppBar, so it floats over the media rather than pushing it down.
-        Text(
-            stringResource(R.string.feed_title),
-            color = Color.White,
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .statusBarsPadding()
-                .padding(start = 16.dp, top = 8.dp)
-        )
+        // Small transparent top-bar overlay instead of a Scaffold TopAppBar,
+        // so it floats over the media rather than pushing it down. The
+        // three-way segmented control (لك / متابعين / حاويات) only makes
+        // sense on the global feed — a specific room's own feed (roomId !=
+        // null) keeps the plain title instead, since it's already scoped.
+        if (roomId == null) {
+            FeedTabRow(
+                selected = selectedTab,
+                onSelect = { viewModel.selectTab(it) },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = 10.dp)
+            )
+        } else {
+            Text(
+                stringResource(R.string.feed_title),
+                color = Color.White,
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .statusBarsPadding()
+                    .padding(start = 16.dp, top = 8.dp)
+            )
+        }
 
         // Floating create button, positioned like a compact TikTok-style
         // action, above the bottom nav bar.
@@ -141,6 +160,44 @@ fun FeedScreen(
                 }
             )
         }
+    }
+}
+
+/** Segmented "لك / متابعين / حاويات" control, composed right-to-left so
+ * "لك" (the default, active-by-default tab) sits at the reading start —
+ * i.e. the right edge in RTL — matching the reference design. */
+@Composable
+private fun FeedTabRow(selected: FeedTab, onSelect: (FeedTab) -> Unit, modifier: Modifier = Modifier) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+        FeedTabLabel(stringResource(R.string.feed_tab_for_you), selected == FeedTab.FOR_YOU) { onSelect(FeedTab.FOR_YOU) }
+        FeedTabLabel(stringResource(R.string.feed_tab_following), selected == FeedTab.FOLLOWING) { onSelect(FeedTab.FOLLOWING) }
+        FeedTabLabel(stringResource(R.string.feed_tab_containers), selected == FeedTab.CONTAINERS) { onSelect(FeedTab.CONTAINERS) }
+    }
+}
+
+@Composable
+private fun FeedTabLabel(label: String, isSelected: Boolean, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null,
+            onClick = onClick
+        )
+    ) {
+        Text(
+            label,
+            color = if (isSelected) Color.White else Color.White.copy(alpha = 0.6f),
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            style = MaterialTheme.typography.titleSmall
+        )
+        Spacer(Modifier.height(4.dp))
+        Box(
+            modifier = Modifier
+                .width(if (isSelected) 20.dp else 0.dp)
+                .height(2.5.dp)
+                .background(YeexAccent, androidx.compose.foundation.shape.RoundedCornerShape(2.dp))
+        )
     }
 }
 
