@@ -81,7 +81,12 @@ fun FeedScreen(
                         onDislike = { viewModel.dislike(item.id) },
                         onComment = { commentsParagraphId = item.id },
                         onRepost = { onRepost(item.id) },
-                        onOpenProfile = onOpenProfile
+                        onOpenProfile = onOpenProfile,
+                        // Only the page the pager has actually settled on
+                        // should autoplay its video — otherwise the page
+                        // mid-swipe-in plays too, and two videos' audio
+                        // overlaps for the length of the swipe gesture.
+                        isActive = page == pagerState.currentPage
                     )
                 }
             }
