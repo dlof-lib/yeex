@@ -1,6 +1,5 @@
 package com.yeex.dlof.ui.auth
 
-import android.app.Activity
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -16,25 +15,23 @@ sealed class AuthUiState {
     data class Error(val key: String) : AuthUiState()
 }
 
+/** Identifier + password only — there is no Google or GitHub sign-in in this app. */
 class AuthViewModel(private val repo: AuthRepository = AuthRepository()) : ViewModel() {
 
     private val _state = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val state: StateFlow<AuthUiState> = _state
 
-    fun register(identifier: String, password: String, displayName: String, language: String) {
-        runAuthAction { repo.register(identifier, password, displayName, language) }
+    /**
+     * [context] is used only to remember this account locally (see
+     * [com.yeex.dlof.data.local.LocalAccountStore]) so it can be switched to
+     * instantly later from the profile screen's account switcher.
+     */
+    fun register(context: Context, identifier: String, password: String, displayName: String, language: String) {
+        runAuthAction { repo.register(identifier, password, displayName, language, context) }
     }
 
-    fun login(identifier: String, password: String) {
-        runAuthAction { repo.login(identifier, password) }
-    }
-
-    fun signInWithGoogle(context: Context) {
-        runAuthAction { repo.signInWithGoogle(context) }
-    }
-
-    fun signInWithGithub(activity: Activity) {
-        runAuthAction { repo.signInWithGithub(activity) }
+    fun login(context: Context, identifier: String, password: String) {
+        runAuthAction { repo.login(identifier, password, context) }
     }
 
     /**
