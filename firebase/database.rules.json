@@ -26,6 +26,12 @@
         "language": { ".validate": "newData.isString() && (newData.val() === 'ar' || newData.val() === 'en' || newData.val() === 'es')" },
         "createdAt": { ".validate": "newData.isNumber()" },
 
+        "accountType": { ".validate": "newData.isString() && (newData.val() === 'PERSONAL' || newData.val() === 'BUSINESS')" },
+        "businessCategory": { ".validate": "newData.isString() && newData.val().length <= 30" },
+        "businessPhone": { ".validate": "newData.isString() && newData.val().length <= 30" },
+        "businessEmail": { ".validate": "newData.isString() && newData.val().length <= 100" },
+        "businessLinks": { ".validate": "newData.hasChildren() || newData.val() === null" },
+
         "verified": {
           ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (!data.exists() && auth.uid === $uid && newData.val() === false))",
           ".validate": "newData.isBoolean()"
@@ -139,6 +145,9 @@
         "phone": { ".validate": "newData.isString() && newData.val().length <= 30" },
         "iconUrl": { ".validate": "newData.isString() && newData.val().length <= 2000" },
         "createdAt": { ".validate": "newData.isNumber()" },
+
+        "roomType": { ".validate": "newData.isString() && (newData.val() === 'GENERAL' || newData.val() === 'TV_CHANNEL')" },
+        "liveStreamUrl": { ".validate": "newData.isString() && newData.val().length <= 2000" },
 
         "memberCount": {
           ".write": "auth != null",
