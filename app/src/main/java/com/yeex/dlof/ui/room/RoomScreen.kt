@@ -20,7 +20,10 @@ fun RoomScreen(
     onRepost: (String) -> Unit
 ) {
     var room by remember { mutableStateOf<Room?>(null) }
-    LaunchedEffect(roomId) { room = repo.getRoom(roomId) }
+    // Wrapped so a transient Firebase failure (offline, timeout) just leaves
+    // the room unresolved instead of crashing the whole app — an uncaught
+    // exception here would otherwise propagate out of this LaunchedEffect.
+    LaunchedEffect(roomId) { room = runCatching { repo.getRoom(roomId) }.getOrNull() }
 
     Column(Modifier.fillMaxSize()) {
         room?.let { r ->
