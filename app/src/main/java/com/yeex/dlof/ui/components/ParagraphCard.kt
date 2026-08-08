@@ -24,11 +24,15 @@ import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.Report
 import androidx.compose.material.icons.filled.ThumbDown
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -56,6 +60,7 @@ import com.yeex.dlof.ui.theme.YeexCrimson
 import com.yeex.dlof.ui.theme.YeexDislike
 import com.yeex.dlof.ui.theme.YeexLike
 import com.yeex.dlof.ui.theme.YeexLikeGlow
+import com.yeex.dlof.data.repository.ParagraphRepository
 import com.yeex.dlof.util.DownloadUtil
 import com.yeex.dlof.util.MediaBase64
 import com.yeex.dlof.util.PdfExportUtil
@@ -87,6 +92,7 @@ fun ParagraphCard(
     onOpenProfile: (String) -> Unit = {},
     modifier: Modifier = Modifier,
     userRepo: UserRepository = UserRepository(),
+    paragraphRepo: ParagraphRepository = ParagraphRepository(),
     // Whether this card is the page the pager has actually settled on — see
     // VideoPlayer's isActive doc. Only forwarded to VideoPlayer; irrelevant
     // for image/text paragraphs.
@@ -105,6 +111,18 @@ fun ParagraphCard(
     val bitmap = remember(paragraph.id) {
         if (hasMedia && !isVideo) MediaBase64.decodeToBitmap(paragraph.mediaBase64) else null
     }
+    val (captionText, hashtags) = remember(paragraph.text) { extractHashtags(paragraph.text) }
+
+    // One view bump per paragraph, only once it's the page the user has
+    // actually settled on (not every card mid-swipe-through).
+    LaunchedEffect(paragraph.id, isActive) {
+        if (isActive && paragraph.id.isNotBlank()) {
+            runCatching { paragraphRepo.incrementView(paragraph.id) }
+        }
+    }
+
+    var showMenu by remember { mutableStateOf(false) }
+    val comingSoonMessage = stringResource(R.string.coming_soon)
 
     Box(
         modifier = modifier
@@ -292,11 +310,16 @@ fun ParagraphCard(
             )
         }
 
-        // ---- Bottom-left author + caption overlay ----
+        // ---- Top-start (visually left in RTL) expiry countdown ----
+        ExpiryCountdown(
+            expiresAt = paragraph.expiresAt,
+            modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(start = 14.dp, top = 12.dp)
+        )
+
+        // ---- Top-end (visually right in RTL) author row + overflow menu ----
         Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 14.dp, end = 84.dp, bottom = 24.dp)
+            modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(end = 14.dp, top = 12.dp),
+            horizontalAlignment = Alignment.End
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -306,42 +329,159 @@ fun ParagraphCard(
                     onClick = { if (paragraph.authorId.isNotBlank()) onOpenProfile(paragraph.authorId) }
                 )
             ) {
+                Column(horizontalAlignment = Alignment.End) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "@${paragraph.authorIdentifier}",
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        if (paragraph.authorVerified) {
+                            Spacer(Modifier.width(4.dp))
+                            Icon(
+                                Icons.Filled.Verified,
+                                contentDescription = stringResource(R.string.verified_badge),
+                                tint = YeexCrimson,
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
+                    }
+                    if (paragraph.createdAt > 0L) {
+                        Text(
+                            relativeAgeLabel(paragraph.createdAt),
+                            color = Color.White.copy(alpha = 0.75f),
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
+                Spacer(Modifier.width(8.dp))
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
+                        .size(38.dp)
                         .clip(CircleShape)
                         .background(Color.White.copy(alpha = 0.25f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Filled.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Filled.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
                 }
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    "@${paragraph.authorIdentifier}",
-                    color = Color.White,
-                    fontWeight = FontWeight.SemiBold,
-                    style = MaterialTheme.typography.titleSmall
-                )
-                if (paragraph.authorVerified) {
-                    Spacer(Modifier.width(4.dp))
-                    Icon(
-                        Icons.Filled.Verified,
-                        contentDescription = stringResource(R.string.verified_badge),
-                        tint = YeexCrimson,
-                        modifier = Modifier.size(16.dp)
+            }
+            Box {
+                IconButton(onClick = { showMenu = true }, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options), tint = Color.White)
+                }
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.action_report)) },
+                        leadingIcon = { Icon(Icons.Filled.Report, contentDescription = null) },
+                        onClick = {
+                            showMenu = false
+                            Toast.makeText(context, comingSoonMessage, Toast.LENGTH_SHORT).show()
+                        }
                     )
                 }
             }
-            if (paragraph.text.isNotBlank() && paragraph.type != ParagraphType.TEXT.name) {
-                Spacer(Modifier.height(6.dp))
+        }
+
+        // ---- Bottom-start caption overlay: text, hashtags, view count ----
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 14.dp, end = 84.dp, bottom = 24.dp)
+        ) {
+            if (captionText.isNotBlank()) {
                 Text(
-                    paragraph.text,
+                    captionText,
                     color = Color.White,
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 3
                 )
             }
+            if (hashtags.isNotEmpty()) {
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    hashtags.take(4).forEach { tag ->
+                        Text(
+                            "#$tag",
+                            color = YeexAccent.copy(alpha = 0.95f),
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Visibility, contentDescription = null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(15.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    stringResource(R.string.view_count, formatCount(paragraph.viewCount)),
+                    color = Color.White.copy(alpha = 0.85f),
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
         }
+    }
+}
+
+/** Extracts "#لحظة"-style hashtags (Arabic/Latin word chars + digits/underscore)
+ * out of [text], returning the caption with the hashtags stripped plus the
+ * de-duplicated tag list, so the feed can show them as a separate chip row
+ * (as in the reference design) instead of inline in the caption. */
+private fun extractHashtags(text: String): Pair<String, List<String>> {
+    val regex = Regex("#([\\p{L}0-9_]+)")
+    val tags = regex.findAll(text).map { it.groupValues[1] }.distinct().toList()
+    val cleaned = regex.replace(text, "").replace(Regex(" {2,}"), " ").trim()
+    return cleaned to tags
+}
+
+/** Short, localized relative time ("الآن" / "منذ 5د" / "منذ 3س" / "منذ 2ي"). */
+private fun relativeAgeLabel(createdAt: Long): String {
+    val diffMin = (System.currentTimeMillis() - createdAt).coerceAtLeast(0) / 60000L
+    return when {
+        diffMin < 1 -> "الآن"
+        diffMin < 60 -> "منذ ${diffMin}د"
+        diffMin < 60 * 24 -> "منذ ${diffMin / 60}س"
+        else -> "منذ ${diffMin / (60 * 24)}ي"
+    }
+}
+
+/** Live "expires in HH:MM:SS" countdown, ticking once a second, matching the
+ * reference design's top-left timer. Hidden once the paragraph has expired
+ * (it'll be swept by [ParagraphRepository.purgeExpired] shortly after). */
+@Composable
+private fun ExpiryCountdown(expiresAt: Long, modifier: Modifier = Modifier) {
+    if (expiresAt <= 0L) return
+    var remainingMs by remember(expiresAt) { mutableStateOf(expiresAt - System.currentTimeMillis()) }
+    LaunchedEffect(expiresAt) {
+        while (true) {
+            remainingMs = expiresAt - System.currentTimeMillis()
+            if (remainingMs <= 0L) break
+            kotlinx.coroutines.delay(1000)
+        }
+    }
+    if (remainingMs <= 0L) return
+    val totalSeconds = remainingMs / 1000
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    Column(modifier = modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.Timer, contentDescription = null, tint = YeexCrimson, modifier = Modifier.size(14.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(
+                stringResource(R.string.expires_in_label),
+                color = YeexCrimson,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+        Text(
+            "%02d:%02d:%02d".format(hours, minutes, seconds),
+            color = Color.White,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
