@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.TextFields
@@ -20,10 +21,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
+import coil.compose.AsyncImage
 import com.yeex.dlof.R
 import com.yeex.dlof.data.model.Paragraph
 import com.yeex.dlof.data.model.ParagraphType
@@ -164,24 +173,69 @@ fun CreateParagraphScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(8.dp))
+            // Real, appropriately-sized preview of the picked media — tall
+            // enough (240dp) to actually judge framing/crop before publishing,
+            // instead of a flat confirmation strip. Images are shown at their
+            // real proportions (Fit, letterboxed) and videos autoplay muted
+            // on loop, matching how both render full-size in the feed itself.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(84.dp)
+                    .height(240.dp)
                     .border(1.5.dp, YeexAccent, RoundedCornerShape(16.dp))
                     .clip(RoundedCornerShape(16.dp))
-                    .background(YeexDarkCard),
-                contentAlignment = Alignment.Center
+                    .background(Color.Black)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = YeexAccent, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
+                when (composerType) {
+                    ComposerType.IMAGE -> imageUri?.let { uri ->
+                        AsyncImage(
+                            model = uri,
+                            contentDescription = stringResource(R.string.image_selected),
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    ComposerType.VIDEO -> videoUri?.let { uri ->
+                        VideoUriPreview(uri = uri, modifier = Modifier.fillMaxSize())
+                    }
+                    ComposerType.TEXT -> {}
+                }
+
+                IconButton(
+                    onClick = { imageUri = null; videoUri = null },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .size(30.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(Color.Black.copy(alpha = 0.5f))
+                ) {
+                    Icon(
+                        Icons.Filled.Close,
+                        contentDescription = stringResource(R.string.remove_media),
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(8.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color.Black.copy(alpha = 0.5f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = YeexAccent, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(6.dp))
                     Text(
                         if (composerType == ComposerType.IMAGE)
                             stringResource(R.string.image_selected)
                         else
                             stringResource(R.string.video_selected),
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White
                     )
                 }
             }
@@ -302,6 +356,40 @@ fun CreateParagraphScreen(
             }
         }
     }
+}
+
+/**
+ * Muted, looping ExoPlayer preview for a just-picked video [Uri] — plays
+ * straight from the content Uri the picker returned, before publish encodes
+ * it to Base64. Mirrors [com.yeex.dlof.ui.components.VideoPlayer]'s zoom-fill
+ * behaviour so the composer preview matches how the video will actually
+ * appear full-screen in the feed.
+ */
+@Composable
+private fun VideoUriPreview(uri: Uri, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val exoPlayer = remember(uri) {
+        ExoPlayer.Builder(context).build().apply {
+            setMediaItem(MediaItem.fromUri(uri))
+            repeatMode = Player.REPEAT_MODE_ONE
+            volume = 0f
+            playWhenReady = true
+            prepare()
+        }
+    }
+    DisposableEffect(uri) {
+        onDispose { exoPlayer.release() }
+    }
+    AndroidView(
+        modifier = modifier,
+        factory = {
+            PlayerView(it).apply {
+                player = exoPlayer
+                useController = false
+                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+            }
+        }
+    )
 }
 
 @Composable
