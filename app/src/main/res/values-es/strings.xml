@@ -57,10 +57,14 @@
     <string name="search_rooms_section">Salas</string>
     <string name="search_no_results">Sin resultados</string>
     <string name="search_user_stats">%1$d Teking · %2$d Teker</string>
+    <string name="search_tab_all">Todo</string>
+    <string name="search_tab_users">Cuentas</string>
+    <string name="search_tab_rooms">Salas</string>
+    <string name="search_idle_title">Busca una cuenta o una sala</string>
+    <string name="search_idle_hint">Escribe un identificador o el nombre de una sala, o @container.name[].me para buscar un contenedor personalizado</string>
+    <string name="clear_search">Borrar búsqueda</string>
+    <string name="search_suggested_accounts">Quizá conozcas a</string>
     <string name="watermark_text">yeex</string>
-    <string name="or_divider">o</string>
-    <string name="btn_continue_google">Continuar con Google</string>
-    <string name="btn_continue_github">Continuar con GitHub</string>
     <string name="action_download">Descargar</string>
     <string name="action_download_pdf">Descargar PDF</string>
     <string name="download_saved">Guardado con marca de agua</string>
@@ -75,9 +79,6 @@
     <string name="auth_error_dot_placement">El identificador no puede empezar/terminar con punto ni tener dos puntos seguidos</string>
     <string name="auth_error_invalid_chars">El identificador contiene caracteres no permitidos</string>
     <string name="auth_error_profile_missing">No se encontraron los datos de la cuenta</string>
-    <string name="auth_error_google_cancelled">Se canceló el inicio de sesión con Google</string>
-    <string name="auth_error_google_no_account">No hay ninguna cuenta de Google disponible en este dispositivo, o la app aún no está habilitada para el inicio de sesión con Google. Agrega una cuenta de Google en la configuración del dispositivo e inténtalo de nuevo</string>
-    <string name="auth_error_google_config_error">El inicio de sesión con Google no está configurado correctamente para esta app en este momento. Inténtalo más tarde</string>
     <string name="auth_error_weak_password">La contraseña es demasiado débil, usa al menos 6 caracteres</string>
     <string name="auth_error_network">No se pudo conectar con el servidor, revisa tu conexión</string>
     <string name="auth_error_unknown">Ocurrió un error inesperado, inténtalo de nuevo</string>
@@ -99,6 +100,9 @@
     <string name="logout_confirm_title">¿Cerrar sesión?</string>
     <string name="logout_confirm_body">Se cerrará la sesión de esta cuenta en este dispositivo.</string>
     <string name="switch_account">Cambiar de cuenta</string>
+    <string name="switch_account_hint">Elige una cuenta para cambiarte a ella, o añade una nueva</string>
+    <string name="add_account">Añadir cuenta</string>
+    <string name="forget_account">Olvidar cuenta</string>
     <string name="no_paragraphs_yet">Aún no hay párrafos</string>
     <string name="publish_action">Publicar</string>
     <string name="publishing_in_progress">Publicando…</string>
