@@ -48,7 +48,9 @@ fun FeedScreen(
         factory = FeedViewModelFactory(roomId)
     ),
     onOpenProfile: (String) -> Unit = {},
-    onRepost: (String) -> Unit
+    onRepost: (String) -> Unit,
+    onOpenSearch: () -> Unit = {},
+    onOpenRooms: () -> Unit = {}
 ) {
     val paragraphs by viewModel.paragraphs.collectAsState()
     val reactions by viewModel.reactions.collectAsState()
@@ -115,6 +117,8 @@ fun FeedScreen(
             FeedTabRow(
                 selected = selectedTab,
                 onSelect = { viewModel.selectTab(it) },
+                onOpenSearch = onOpenSearch,
+                onOpenRooms = onOpenRooms,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .statusBarsPadding()
@@ -177,7 +181,13 @@ fun FeedScreen(
  * "لك" (the default, active-by-default tab) sits at the reading start —
  * i.e. the right edge in RTL — matching the reference design. */
 @Composable
-private fun FeedTabRow(selected: FeedTab, onSelect: (FeedTab) -> Unit, modifier: Modifier = Modifier) {
+private fun FeedTabRow(
+    selected: FeedTab,
+    onSelect: (FeedTab) -> Unit,
+    onOpenSearch: () -> Unit = {},
+    onOpenRooms: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(22.dp)) {
         FeedTabLabel(stringResource(R.string.feed_tab_for_you), selected == FeedTab.FOR_YOU) { onSelect(FeedTab.FOR_YOU) }
         FeedTabLabel(stringResource(R.string.feed_tab_following), selected == FeedTab.FOLLOWING) { onSelect(FeedTab.FOLLOWING) }
