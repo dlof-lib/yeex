@@ -126,4 +126,15 @@
     <string name="no_paragraphs_yet">لا توجد فقرات بعد</string>
     <string name="publish_action">نشر</string>
     <string name="publishing_in_progress">جارٍ النشر…</string>
+
+    <!-- Comments -->
+    <string name="comments_title">التعليقات (%d)</string>
+    <string name="comment_hint">أضف تعليقًا…</string>
+    <string name="comments_empty">لا توجد تعليقات حتى الآن. كن الأول!</string>
+
+    <!-- Relative time -->
+    <string name="time_just_now">الآن</string>
+    <string name="time_minutes_ago">%d دقائق</string>
+    <string name="time_hours_ago">%d ساعات</string>
+    <string name="time_days_ago">%d أيام</string>
 </resources>
