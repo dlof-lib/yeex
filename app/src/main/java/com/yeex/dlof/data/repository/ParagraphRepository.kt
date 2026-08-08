@@ -47,6 +47,24 @@ class ParagraphRepository(
     suspend fun getParagraph(id: String): Paragraph? =
         paragraphsRef.child(id).get().await().getValue(Paragraph::class.java)
 
+    /**
+     * One-shot (non-flow) fetch of active paragraphs — for callers that just
+     * need a snapshot rather than a live subscription, e.g.
+     * [com.yeex.dlof.ui.search.SearchScreen]'s idle-state "الرائج الآن"
+     * section, which shouldn't keep a permanent Realtime Database listener
+     * open just to compute a top-5 trending list once.
+     */
+    suspend fun getActiveParagraphs(roomId: String? = null): List<Paragraph> {
+        val query = if (roomId != null) {
+            paragraphsRef.orderByChild("roomId").equalTo(roomId)
+        } else {
+            paragraphsRef.orderByChild("createdAt")
+        }
+        val now = System.currentTimeMillis()
+        return query.get().await().children.mapNotNull { it.getValue(Paragraph::class.java) }
+            .filter { it.expiresAt > now }
+    }
+
     /** Live feed: either the global public feed (roomId == "") or a specific room. */
     fun observeParagraphs(roomId: String? = null): Flow<List<Paragraph>> = callbackFlow {
         val query = if (roomId != null) {
