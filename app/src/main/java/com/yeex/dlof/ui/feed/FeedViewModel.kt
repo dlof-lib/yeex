@@ -6,21 +6,47 @@ import com.yeex.dlof.data.model.Paragraph
 import com.yeex.dlof.data.repository.AuthRepository
 import com.yeex.dlof.data.repository.ParagraphRepository
 import com.yeex.dlof.data.repository.Reaction
+import com.yeex.dlof.data.repository.RoomRepository
 import com.yeex.dlof.data.repository.UserRepository
 import com.yeex.dlof.util.FeedRanking
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
+/** The three top segments in the reference feed design: "لك" (For You, the
+ * default ranked feed), "متابعين" (paragraphs by accounts the viewer Teks),
+ * and "حاويات" (paragraphs posted in rooms the viewer has joined). */
+enum class FeedTab { FOR_YOU, FOLLOWING, CONTAINERS }
+
 class FeedViewModel(
     private val repo: ParagraphRepository = ParagraphRepository(),
     private val authRepo: AuthRepository = AuthRepository(),
     private val userRepo: UserRepository = UserRepository(),
+    private val roomRepo: RoomRepository = RoomRepository(),
     private val roomId: String? = null // null = global feed
 ) : ViewModel() {
 
+    // Unfiltered, ranked feed straight from Firebase — [paragraphs] below is
+    // this list filtered client-side by the selected [FeedTab], so switching
+    // tabs is instant with no extra Firebase reads.
+    private val _allParagraphs = MutableStateFlow<List<Paragraph>>(emptyList())
+
+    private val _selectedTab = MutableStateFlow(FeedTab.FOR_YOU)
+    val selectedTab: StateFlow<FeedTab> = _selectedTab
+
     private val _paragraphs = MutableStateFlow<List<Paragraph>>(emptyList())
     val paragraphs: StateFlow<List<Paragraph>> = _paragraphs
+
+    fun selectTab(tab: FeedTab) {
+        _selectedTab.value = tab
+        _paragraphs.value = filterForTab(_allParagraphs.value, tab)
+    }
+
+    private fun filterForTab(all: List<Paragraph>, tab: FeedTab): List<Paragraph> = when (tab) {
+        FeedTab.FOR_YOU -> all
+        FeedTab.FOLLOWING -> all.filter { it.authorId in followingUids }
+        FeedTab.CONTAINERS -> all.filter { it.roomId.isNotBlank() && it.roomId in joinedRoomIds }
+    }
 
     // True until the first Firebase snapshot arrives, so FeedScreen can show
     // a skeleton placeholder instead of prematurely claiming the feed is empty.
@@ -39,13 +65,21 @@ class FeedViewModel(
     // paragraph update would multiply reads for no real ranking benefit.
     private var followingUids: Set<String> = emptySet()
 
+    // Rooms the viewer owns or has joined — powers the "حاويات" tab. Same
+    // one-shot-fetch trade-off as followingUids above.
+    private var joinedRoomIds: Set<String> = emptySet()
+
     init {
         viewModelScope.launch {
             authRepo.currentUid()?.let { uid ->
                 followingUids = runCatching { userRepo.followingUids(uid) }.getOrDefault(emptySet())
+                joinedRoomIds = runCatching { roomRepo.listMyRooms(uid) }.getOrDefault(emptyList())
+                    .map { it.id }.toSet()
             }
             repo.observeParagraphs(roomId).collect { raw ->
-                _paragraphs.value = FeedRanking.rankForFeed(raw, System.currentTimeMillis(), followingUids)
+                val ranked = FeedRanking.rankForFeed(raw, System.currentTimeMillis(), followingUids)
+                _allParagraphs.value = ranked
+                _paragraphs.value = filterForTab(ranked, _selectedTab.value)
                 _isLoading.value = false
                 loadReactionsFor(raw)
             }
@@ -73,7 +107,7 @@ class FeedViewModel(
      * source of truth and will reconcile this value right after.
      */
     private fun applyOptimisticDelta(paragraphId: String, likeDelta: Int, dislikeDelta: Int) {
-        _paragraphs.value = _paragraphs.value.map { p ->
+        val apply: (Paragraph) -> Paragraph = { p ->
             if (p.id == paragraphId) {
                 p.copy(
                     likeCount = (p.likeCount + likeDelta).coerceAtLeast(0),
@@ -81,6 +115,8 @@ class FeedViewModel(
                 )
             } else p
         }
+        _allParagraphs.value = _allParagraphs.value.map(apply)
+        _paragraphs.value = _paragraphs.value.map(apply)
     }
 
     fun like(paragraphId: String) {
