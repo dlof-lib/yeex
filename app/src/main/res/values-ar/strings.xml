@@ -153,6 +153,10 @@
     <string name="media_length_hint">فيديو 5-10 ثوانٍ</string>
     <string name="image_selected">تم اختيار صورة</string>
     <string name="remove_media">إزالة</string>
+    <string name="downloading_image_label">جاري تنزيل الصورة…</string>
+    <string name="downloading_pdf_label">جاري تنزيل PDF…</string>
+    <string name="publishing_label">جاري نشر الفقرة…</string>
+    <string name="publish_success">تم النشر بنجاح</string>
     <string name="video_selected">تم اختيار فيديو (سيتم اقتطاعه لأول 10 ثوانٍ إذا كان أطول)</string>
     <string name="error_login_required">يجب تسجيل الدخول</string>
     <string name="error_video_too_short">يجب أن تكون مدة الفيديو 5 ثوانٍ على الأقل</string>
