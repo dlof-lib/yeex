@@ -99,6 +99,10 @@
     <string name="save">حفظ</string>
     <string name="cancel">إلغاء</string>
     <string name="latest_paragraphs">آخر الفقرات</string>
+                <string name="new_badge">جديد</string>
+<string name="view_all">عرض الكل</string>
+<string name="latest_paragraphs_short">فقرات</string>
+    <string name="today_label">اليوم</string>
     <string name="logout">تسجيل الخروج</string>
     <string name="logout_confirm_title">تسجيل الخروج؟</string>
     <string name="logout_confirm_body">سيتم تسجيل خروجك من هذا الحساب على هذا الجهاز.</string>
@@ -133,4 +137,17 @@
     <string name="edit_live_stream">تعديل رابط البث</string>
     <string name="live_stream_save">حفظ</string>
     <string name="live_stream_remove">إزالة البث</string>
+    <string name="compose_placeholder">شارك أفكارك، لحظاتك، رأيك...</string>
+    <string name="choose_paragraph_type">اختر نوع الفقرة</string>
+    <string name="type_text">نص</string>
+    <string name="type_image">صورة</string>
+    <string name="type_video">فيديو</string>
+    <string name="media_length_hint">فيديو 5-10 ثوانٍ</string>
+    <string name="image_selected">تم اختيار صورة</string>
+    <string name="video_selected">تم اختيار فيديو (سيتم اقتطاعه لأول 10 ثوانٍ إذا كان أطول)</string>
+    <string name="error_login_required">يجب تسجيل الدخول</string>
+    <string name="error_video_too_short">يجب أن تكون مدة الفيديو 5 ثوانٍ على الأقل</string>
+    <string name="error_trim_failed">تعذر اقتطاع الفيديو</string>
+    <string name="error_video_too_large">حجم الفيديو كبير جدًا</string>
+    <string name="error_unknown">خطأ غير معروف</string>
 </resources>
