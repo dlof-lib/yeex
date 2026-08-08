@@ -31,6 +31,17 @@ class RoomRepository(
     suspend fun getRoom(roomId: String): Room? =
         roomsRef.child(roomId).get().await().getValue(Room::class.java)
 
+    /**
+     * Sets/clears the room's live-stream link (empty string clears it) —
+     * callable only by the room owner per database.rules.json's room-level
+     * `.write` rule (which already gates the whole room node, so this is
+     * enforced server-side too, not just by [com.yeex.dlof.ui.room.RoomScreen]
+     * hiding the edit control from non-owners).
+     */
+    suspend fun updateLiveStream(roomId: String, url: String) {
+        roomsRef.child(roomId).child("liveStreamUrl").setValue(url).await()
+    }
+
     suspend fun listPublicRooms(): List<Room> =
         roomsRef.orderByChild("isPublic").equalTo(true).get().await()
             .children.mapNotNull { it.getValue(Room::class.java) }
