@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
@@ -43,7 +44,16 @@ fun UserAvatar(iconBase64: String, size: Dp = 44.dp, modifier: Modifier = Modifi
         contentAlignment = Alignment.Center
     ) {
         if (bitmap != null) {
-            Image(bitmap = bitmap.asImageBitmap(), contentDescription = null, modifier = Modifier.size(size))
+            // Avatars are already stored as an exact square (see
+            // MediaBase64.encodeAvatar), so Crop is a no-op scale-fit for
+            // in-app images but still protects against any legacy
+            // non-square icon rendering distorted or letterboxed.
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(size)
+            )
         } else {
             Icon(Icons.Filled.Person, contentDescription = null, modifier = Modifier.size(size * 0.6f))
         }
