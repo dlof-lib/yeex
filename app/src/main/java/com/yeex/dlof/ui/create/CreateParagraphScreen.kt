@@ -43,8 +43,10 @@ import com.yeex.dlof.ui.theme.YeexAccent
 import com.yeex.dlof.ui.theme.YeexDarkCard
 import com.yeex.dlof.ui.theme.YeexPink
 import com.yeex.dlof.ui.theme.yeexBrandGradient
+import com.yeex.dlof.util.BackgroundTaskType
 import com.yeex.dlof.util.MediaBase64
 import com.yeex.dlof.util.MediaDuration
+import com.yeex.dlof.util.TaskProgressManager
 import com.yeex.dlof.util.VideoTrimUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -71,6 +73,8 @@ fun CreateParagraphScreen(
     var videoUri by remember { mutableStateOf<Uri?>(null) }
     var isPublishing by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    val publishingLabel = stringResource(R.string.publishing_label)
+    val publishSuccessMessage = stringResource(R.string.publish_success)
 
     val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) { imageUri = uri; videoUri = null }
@@ -256,73 +260,94 @@ fun CreateParagraphScreen(
                     val uid = authRepo.currentUid()
                     if (uid == null) { error = context.getString(R.string.error_login_required); isPublishing = false; return@launch }
 
-                    var type = ParagraphType.TEXT.name
-                    var mediaBase64 = ""
-                    var mime = ""
-                    try {
+                    // Fast, local pre-flight checks stay here so a problem (too-short
+                    // clip, not logged in) surfaces inline in the sheet right away.
+                    // Everything past this point — encoding, trimming, and the actual
+                    // network publish — hands off to TaskProgressManager, which keeps
+                    // running (with a real progress bar) even after this sheet closes,
+                    // so the person doesn't have to sit and wait for it to finish.
+                    val currentVideoUri = videoUri
+                    if (currentVideoUri != null) {
+                        val durationMs = MediaDuration.getDurationMs(context, currentVideoUri)
+                        if (durationMs == null || durationMs < MediaDuration.MIN_VIDEO_MS) {
+                            error = context.getString(R.string.error_video_too_short)
+                            isPublishing = false
+                            return@launch
+                        }
+                    }
+
+                    val appContext = context.applicationContext
+                    val capturedText = text
+                    val capturedImageUri = imageUri
+                    val capturedVideoUri = currentVideoUri
+                    val capturedRoomId = roomId
+
+                    TaskProgressManager.launch(
+                        id = "publish_${System.currentTimeMillis()}",
+                        type = BackgroundTaskType.PUBLISH,
+                        label = publishingLabel
+                    ) { updateProgress ->
+                        var type = ParagraphType.TEXT.name
+                        var mediaBase64 = ""
+                        var mime = ""
+                        updateProgress(0.1f)
+
                         when {
-                            imageUri != null -> {
-                                mediaBase64 = MediaBase64.encodeImage(context.contentResolver, imageUri!!)
+                            capturedImageUri != null -> {
+                                mediaBase64 = MediaBase64.encodeImage(appContext.contentResolver, capturedImageUri)
                                 type = ParagraphType.IMAGE.name
                                 mime = "image/jpeg"
+                                updateProgress(0.5f)
                             }
-                            videoUri != null -> {
-                                val durationMs = MediaDuration.getDurationMs(context, videoUri!!)
-                                if (durationMs == null || durationMs < MediaDuration.MIN_VIDEO_MS) {
-                                    error = context.getString(R.string.error_video_too_short)
-                                    isPublishing = false
-                                    return@launch
-                                }
+                            capturedVideoUri != null -> {
+                                val durationMs = MediaDuration.getDurationMs(appContext, capturedVideoUri)
+                                    ?: error(appContext.getString(R.string.error_video_too_short))
                                 // Clips longer than MAX_VIDEO_MS are trimmed down to the
                                 // limit (first N seconds) instead of being rejected —
                                 // no re-encode, so this is fast and lossless.
                                 val encoded = if (durationMs > MediaDuration.MAX_VIDEO_MS) {
-                                    val trimmedFile = File(context.cacheDir, "yeex_trim_${System.currentTimeMillis()}.mp4")
+                                    val trimmedFile = File(appContext.cacheDir, "yeex_trim_${System.currentTimeMillis()}.mp4")
                                     val trimmed = withContext(Dispatchers.IO) {
-                                        VideoTrimUtil.trimToFile(context, videoUri!!, trimmedFile, MediaDuration.MAX_VIDEO_MS)
+                                        VideoTrimUtil.trimToFile(appContext, capturedVideoUri, trimmedFile, MediaDuration.MAX_VIDEO_MS)
                                     }
-                                    if (!trimmed) {
-                                        error = context.getString(R.string.error_trim_failed)
-                                        isPublishing = false
-                                        return@launch
-                                    }
+                                    updateProgress(0.35f)
+                                    if (!trimmed) error(appContext.getString(R.string.error_trim_failed))
                                     val result = MediaBase64.encodeVideoFileIfSmallEnough(trimmedFile)
                                     trimmedFile.delete()
                                     result
                                 } else {
-                                    MediaBase64.encodeVideoIfSmallEnough(context.contentResolver, videoUri!!)
+                                    MediaBase64.encodeVideoIfSmallEnough(appContext.contentResolver, capturedVideoUri)
                                 }
-                                if (encoded == null) {
-                                    error = context.getString(R.string.error_video_too_large)
-                                    isPublishing = false
-                                    return@launch
-                                }
+                                    ?: error(appContext.getString(R.string.error_video_too_large))
                                 mediaBase64 = encoded
                                 type = ParagraphType.VIDEO.name
                                 mime = "video/mp4"
+                                updateProgress(0.6f)
                             }
                         }
+
                         // authorIdentifier/authorVerified are denormalized onto every paragraph
                         // so ParagraphCard and the feed never need a per-post user lookup.
                         val me = userRepo.getUser(uid)
+                        updateProgress(0.75f)
                         repo.publish(
                             Paragraph(
                                 authorId = uid,
                                 authorIdentifier = me?.identifier ?: "",
                                 authorVerified = me?.verified ?: false,
                                 type = type,
-                                text = text,
+                                text = capturedText,
                                 mediaBase64 = mediaBase64,
                                 mediaMimeType = mime,
-                                roomId = roomId ?: ""
+                                roomId = capturedRoomId ?: ""
                             )
                         )
-                        onPublished()
-                    } catch (e: Exception) {
-                        error = e.message ?: context.getString(R.string.error_unknown)
-                    } finally {
-                        isPublishing = false
+                        updateProgress(0.95f)
+                        publishSuccessMessage
                     }
+
+                    isPublishing = false
+                    onPublished()
                 }
             },
             enabled = !isPublishing && (text.isNotBlank() || imageUri != null || videoUri != null),
