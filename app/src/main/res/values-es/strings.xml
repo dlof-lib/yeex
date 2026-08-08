@@ -99,6 +99,10 @@
     <string name="save">Guardar</string>
     <string name="cancel">Cancelar</string>
     <string name="latest_paragraphs">Últimos párrafos</string>
+                <string name="new_badge">Nuevo</string>
+<string name="view_all">Ver todo</string>
+<string name="latest_paragraphs_short">Párrafos</string>
+    <string name="today_label">Hoy</string>
     <string name="logout">Cerrar sesión</string>
     <string name="logout_confirm_title">¿Cerrar sesión?</string>
     <string name="logout_confirm_body">Se cerrará la sesión de esta cuenta en este dispositivo.</string>
@@ -133,4 +137,17 @@
     <string name="edit_live_stream">Editar enlace de transmisión</string>
     <string name="live_stream_save">Guardar</string>
     <string name="live_stream_remove">Quitar transmisión</string>
+    <string name="compose_placeholder">Comparte tus ideas, momentos, opinión...</string>
+    <string name="choose_paragraph_type">Elige el tipo de párrafo</string>
+    <string name="type_text">Texto</string>
+    <string name="type_image">Imagen</string>
+    <string name="type_video">Video</string>
+    <string name="media_length_hint">Video de 5-10 segundos</string>
+    <string name="image_selected">Imagen seleccionada</string>
+    <string name="video_selected">Video seleccionado (se recortará a los primeros 10s si es más largo)</string>
+    <string name="error_login_required">Debes iniciar sesión</string>
+    <string name="error_video_too_short">El video debe durar al menos 5 segundos</string>
+    <string name="error_trim_failed">No se pudo recortar el video</string>
+    <string name="error_video_too_large">El archivo de video es demasiado grande</string>
+    <string name="error_unknown">Error desconocido</string>
 </resources>
