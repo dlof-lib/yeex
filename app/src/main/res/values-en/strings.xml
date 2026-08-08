@@ -56,6 +56,7 @@
     <string name="search_users_section">Accounts</string>
     <string name="search_rooms_section">Rooms</string>
     <string name="search_no_results">No results</string>
+    <string name="search_failed">Search failed. Check your connection and try again</string>
     <string name="search_user_stats">%1$d Teking · %2$d Teker</string>
     <string name="search_tab_all">All</string>
     <string name="search_tab_users">Accounts</string>
