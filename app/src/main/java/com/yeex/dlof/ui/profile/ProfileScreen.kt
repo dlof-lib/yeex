@@ -52,6 +52,7 @@ import com.yeex.dlof.ui.theme.YeexNavy
 import com.yeex.dlof.util.LocaleUtil
 import com.yeex.dlof.util.MediaBase64
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.catch
 
 /**
  * Professional profile screen: gradient banner header with an overlapping
@@ -91,15 +92,26 @@ fun ProfileScreen(
     val isMe = myUid == targetUid
 
     LaunchedEffect(targetUid) {
-        if (myUid != null && !isMe) isFollowing = userRepo.isTeking(myUid, targetUid)
+        // Every branch here is wrapped/guarded: a plain suspend call
+        // (isTeking) can throw directly, and the Firebase-backed flows
+        // (observeUser/observeParagraphs) can emit an exception via
+        // close(error) if the underlying listener is cancelled — either
+        // would otherwise be an uncaught exception that crashes the app.
+        if (myUid != null && !isMe) {
+            isFollowing = runCatching { userRepo.isTeking(myUid, targetUid) }.getOrDefault(false)
+        }
         launch {
-            userRepo.observeUser(targetUid).collect { user = it }
+            userRepo.observeUser(targetUid)
+                .catch { /* keep last-known user rather than crashing */ }
+                .collect { user = it }
         }
-        paragraphRepo.observeParagraphs(null).collect { all ->
-            latest = all.filter { it.authorId == targetUid }
-                .sortedByDescending { it.createdAt }
-                .take(5)
-        }
+        paragraphRepo.observeParagraphs(null)
+            .catch { /* keep last-known list rather than crashing */ }
+            .collect { all ->
+                latest = all.filter { it.authorId == targetUid }
+                    .sortedByDescending { it.createdAt }
+                    .take(5)
+            }
     }
 
     Column(Modifier.fillMaxSize()) {
