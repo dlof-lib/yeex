@@ -10,6 +10,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,7 +29,7 @@ import com.yeex.dlof.data.repository.ParagraphRepository
 import com.yeex.dlof.data.repository.UserRepository
 import com.yeex.dlof.ui.components.UserAvatar
 import com.yeex.dlof.ui.theme.YeexAccent
-import com.yeex.dlof.ui.theme.YeexNavy
+import com.yeex.dlof.ui.theme.YeexLike
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.catch
 
@@ -37,6 +40,11 @@ import kotlinx.coroutines.flow.catch
  * separate full screen — same "منبثقة" (pop-up) treatment as publishing and
  * editing the profile, so the feed stays mounted underneath and dismissing
  * is a single swipe-down.
+ *
+ * Threaded one level deep (top-level comments + replies, matching the
+ * reference design): tapping "رد" under any comment — top-level or a reply —
+ * targets the same top-level parent, so replies never nest past one level.
+ * Each comment/reply also has its own heart + like count.
  */
 @Composable
 fun CommentsSheet(
@@ -52,25 +60,48 @@ fun CommentsSheet(
     var input by remember { mutableStateOf("") }
     var isSending by remember { mutableStateOf(false) }
     var avatars by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var likedByMe by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var replyTarget by remember { mutableStateOf<Comment?>(null) }
+    val myUid = authRepo.currentUid()
 
     LaunchedEffect(paragraphId) {
         // .catch prevents a Firebase listener error (offline/cancelled) from
         // propagating as an uncaught exception out of this coroutine, which
         // would otherwise crash the app instead of just stalling the list.
-        repo.observeComments(paragraphId).catch { isLoading = false }.collect {
-            comments = it.sortedByDescending { c -> c.createdAt }
+        repo.observeComments(paragraphId).catch { isLoading = false }.collect { fetched ->
+            comments = fetched
             isLoading = false
             // Best-effort avatar fetch for authors we haven't resolved yet —
             // keeps the list feeling like a real conversation instead of bare
             // "@handle" rows.
-            val missing = comments.map { c -> c.authorId }.distinct().filterNot { avatars.containsKey(it) }
-            if (missing.isNotEmpty()) {
-                val fetched = missing.mapNotNull { uid ->
+            val missingAvatars = fetched.map { c -> c.authorId }.distinct().filterNot { avatars.containsKey(it) }
+            if (missingAvatars.isNotEmpty()) {
+                val fetchedAvatars = missingAvatars.mapNotNull { uid ->
                     runCatching { userRepo.getUser(uid) }.getOrNull()?.let { uid to it.profileIconUrl }
                 }
-                if (fetched.isNotEmpty()) avatars = avatars + fetched
+                if (fetchedAvatars.isNotEmpty()) avatars = avatars + fetchedAvatars
+            }
+            // Resolve which of these comments the viewer has already liked.
+            if (myUid != null) {
+                val missingLikes = fetched.map { it.id }.filterNot { likedByMe.contains(it) }
+                val liked = missingLikes.filter { cid ->
+                    runCatching { repo.getCommentLikedByMe(paragraphId, cid, myUid) }.getOrDefault(false)
+                }
+                if (liked.isNotEmpty()) likedByMe = likedByMe + liked
             }
         }
+    }
+
+    val topLevel = comments.filter { it.parentId.isBlank() }.sortedByDescending { it.createdAt }
+    val repliesByParent = comments.filter { it.parentId.isNotBlank() }.groupBy { it.parentId }
+
+    fun toggleLike(comment: Comment) {
+        val uid = myUid ?: return
+        val wasLiked = likedByMe.contains(comment.id)
+        // Optimistic UI, reconciled by the Firebase listener right after.
+        likedByMe = if (wasLiked) likedByMe - comment.id else likedByMe + comment.id
+        comments = comments.map { if (it.id == comment.id) it.copy(likeCount = (it.likeCount + if (wasLiked) -1 else 1).coerceAtLeast(0)) else it }
+        scope.launch { runCatching { repo.toggleCommentLike(paragraphId, comment.id, uid) } }
     }
 
     Column(Modifier.fillMaxWidth().heightIn(min = 320.dp, max = 620.dp)) {
@@ -98,14 +129,52 @@ fun CommentsSheet(
                     modifier = Modifier.fillMaxWidth(),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
                 ) {
-                    items(comments, key = { it.id }) { c ->
+                    items(topLevel, key = { it.id }) { c ->
                         CommentRow(
                             comment = c,
                             avatarBase64 = avatars[c.authorId].orEmpty(),
-                            onClickAuthor = { if (c.authorId.isNotBlank()) onOpenProfile(c.authorId) }
+                            hasLiked = likedByMe.contains(c.id),
+                            onClickAuthor = { if (c.authorId.isNotBlank()) onOpenProfile(c.authorId) },
+                            onLike = { toggleLike(c) },
+                            onReply = { replyTarget = c }
                         )
+                        val replies = repliesByParent[c.id].orEmpty().sortedBy { it.createdAt }
+                        replies.forEach { r ->
+                            CommentRow(
+                                comment = r,
+                                avatarBase64 = avatars[r.authorId].orEmpty(),
+                                hasLiked = likedByMe.contains(r.id),
+                                onClickAuthor = { if (r.authorId.isNotBlank()) onOpenProfile(r.authorId) },
+                                onLike = { toggleLike(r) },
+                                onReply = { replyTarget = c }, // replies to a reply still target the thread's top-level comment
+                                isReply = true
+                            )
+                        }
                     }
                 }
+            }
+        }
+
+        // ---- Optional "replying to @handle" banner ----
+        replyTarget?.let { target ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    stringResource(R.string.replying_to, target.authorIdentifier),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = YeexAccent,
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(
+                    Icons.Filled.Close,
+                    contentDescription = stringResource(R.string.cancel),
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clickableNoRipple { replyTarget = null },
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
 
@@ -131,8 +200,9 @@ fun CommentsSheet(
             IconButton(
                 enabled = canSend,
                 onClick = {
-                    val uid = authRepo.currentUid() ?: return@IconButton
+                    val uid = myUid ?: return@IconButton
                     val text = input.trim()
+                    val parentId = replyTarget?.id ?: ""
                     scope.launch {
                         isSending = true
                         val me = runCatching { userRepo.getUser(uid) }.getOrNull()
@@ -142,11 +212,13 @@ fun CommentsSheet(
                                     paragraphId = paragraphId,
                                     authorId = uid,
                                     authorIdentifier = me?.identifier ?: "",
-                                    text = text
+                                    text = text,
+                                    parentId = parentId
                                 )
                             )
                         }
                         input = ""
+                        replyTarget = null
                         isSending = false
                     }
                 },
@@ -187,24 +259,34 @@ private fun EmptyCommentsState() {
 }
 
 @Composable
-private fun CommentRow(comment: Comment, avatarBase64: String, onClickAuthor: () -> Unit) {
+private fun CommentRow(
+    comment: Comment,
+    avatarBase64: String,
+    hasLiked: Boolean,
+    onClickAuthor: () -> Unit,
+    onLike: () -> Unit,
+    onReply: () -> Unit,
+    isReply: Boolean = false
+) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = if (isReply) 40.dp else 0.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.Top
     ) {
         UserAvatar(
             iconBase64 = avatarBase64,
-            size = 36.dp,
+            size = if (isReply) 30.dp else 36.dp,
             modifier = Modifier.clickableNoRipple(onClickAuthor)
         )
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "@${comment.authorIdentifier}",
+                    comment.authorIdentifier,
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = YeexNavy,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.clickableNoRipple(onClickAuthor)
                 )
                 Spacer(Modifier.width(8.dp))
@@ -216,6 +298,26 @@ private fun CommentRow(comment: Comment, avatarBase64: String, onClickAuthor: ()
             }
             Spacer(Modifier.height(2.dp))
             Text(comment.text, style = MaterialTheme.typography.bodyMedium)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                stringResource(R.string.action_reply),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clickableNoRipple(onReply)
+            )
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(start = 8.dp)) {
+            Icon(
+                if (hasLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                contentDescription = stringResource(R.string.action_like),
+                tint = if (hasLiked) YeexLike else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp).clickableNoRipple(onLike)
+            )
+            if (comment.likeCount > 0) {
+                Spacer(Modifier.height(2.dp))
+                Text("${comment.likeCount}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }
