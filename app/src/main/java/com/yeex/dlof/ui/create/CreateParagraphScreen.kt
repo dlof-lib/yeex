@@ -21,7 +21,11 @@ import com.yeex.dlof.data.repository.ParagraphRepository
 import com.yeex.dlof.data.repository.UserRepository
 import com.yeex.dlof.util.MediaBase64
 import com.yeex.dlof.util.MediaDuration
+import com.yeex.dlof.util.VideoTrimUtil
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 
 @Composable
 fun CreateParagraphScreen(
@@ -77,7 +81,7 @@ fun CreateParagraphScreen(
         }
 
         if (imageUri != null) Text("تم اختيار صورة", modifier = Modifier.padding(top = 8.dp))
-        if (videoUri != null) Text("تم اختيار فيديو (يجب أن يكون 5-10 ثوانٍ)", modifier = Modifier.padding(top = 8.dp))
+        if (videoUri != null) Text("تم اختيار فيديو (سيتم اقتطاعه لأول 10 ثوانٍ إذا كان أطول، والحد الأدنى 5 ثوانٍ)", modifier = Modifier.padding(top = 8.dp))
         error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp)) }
 
         Spacer(Modifier.height(24.dp))
@@ -102,12 +106,30 @@ fun CreateParagraphScreen(
                             }
                             videoUri != null -> {
                                 val durationMs = MediaDuration.getDurationMs(context, videoUri!!)
-                                if (durationMs == null || durationMs < MediaDuration.MIN_VIDEO_MS || durationMs > MediaDuration.MAX_VIDEO_MS) {
-                                    error = "يجب أن تكون مدة الفيديو بين 5 و10 ثوانٍ"
+                                if (durationMs == null || durationMs < MediaDuration.MIN_VIDEO_MS) {
+                                    error = "يجب أن تكون مدة الفيديو 5 ثوانٍ على الأقل"
                                     isPublishing = false
                                     return@launch
                                 }
-                                val encoded = MediaBase64.encodeVideoIfSmallEnough(context.contentResolver, videoUri!!)
+                                // Clips longer than MAX_VIDEO_MS are trimmed down to the
+                                // limit (first N seconds) instead of being rejected —
+                                // no re-encode, so this is fast and lossless.
+                                val encoded = if (durationMs > MediaDuration.MAX_VIDEO_MS) {
+                                    val trimmedFile = File(context.cacheDir, "yeex_trim_${System.currentTimeMillis()}.mp4")
+                                    val trimmed = withContext(Dispatchers.IO) {
+                                        VideoTrimUtil.trimToFile(context, videoUri!!, trimmedFile, MediaDuration.MAX_VIDEO_MS)
+                                    }
+                                    if (!trimmed) {
+                                        error = "تعذر اقتطاع الفيديو"
+                                        isPublishing = false
+                                        return@launch
+                                    }
+                                    val result = MediaBase64.encodeVideoFileIfSmallEnough(trimmedFile)
+                                    trimmedFile.delete()
+                                    result
+                                } else {
+                                    MediaBase64.encodeVideoIfSmallEnough(context.contentResolver, videoUri!!)
+                                }
                                 if (encoded == null) {
                                     error = "حجم الفيديو كبير جدًا"
                                     isPublishing = false
