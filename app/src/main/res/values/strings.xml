@@ -93,6 +93,12 @@
     <string name="download_saved">تم الحفظ مع العلامة المائية</string>
     <string name="download_failed">تعذّر الحفظ</string>
 
+    <!-- Video controls / translation / double-tap like -->
+    <string name="action_resume">استئناف</string>
+    <string name="action_translate">ترجمة</string>
+    <string name="translate_failed">تعذّرت الترجمة</string>
+    <string name="translated_label">مُترجَم</string>
+
     <!-- Auth errors -->
     <string name="auth_error_invalid_credentials">المعرف أو كلمة السر غير صحيحة</string>
     <string name="auth_error_identifier_taken">هذا المعرف مستخدم بالفعل</string>
@@ -199,6 +205,7 @@
     <string name="type_text">نص</string>
     <string name="type_image">صورة</string>
     <string name="type_video">فيديو</string>
+    <string name="type_moment">لحظة</string>
     <string name="media_length_hint">فيديو 5-10 ثوانٍ</string>
     <string name="image_selected">تم اختيار صورة</string>
     <string name="remove_media">إزالة</string>
@@ -212,6 +219,18 @@
     <string name="error_trim_failed">تعذر اقتطاع الفيديو</string>
     <string name="error_video_too_large">حجم الفيديو كبير جدًا</string>
     <string name="error_unknown">خطأ غير معروف</string>
+    <string name="moment_steps_title">مراحل اللحظة</string>
+    <string name="moment_steps_hint">أضف مرحلة لكل حدث، واسحب من المقبض ⠿ لإعادة الترتيب</string>
+    <string name="moment_add_step">إضافة مرحلة</string>
+    <string name="moment_step_label">المرحلة %1$d</string>
+    <string name="moment_step_time_hint">الوقت (مثال: 08:00)</string>
+    <string name="moment_step_title_hint">عنوان المرحلة</string>
+    <string name="moment_step_text_hint">وصف قصير (اختياري)</string>
+    <string name="moment_step_remove">حذف المرحلة</string>
+    <string name="moment_step_add_photo">إضافة صورة</string>
+    <string name="moment_drag_handle">اسحب لإعادة الترتيب</string>
+    <string name="moment_min_steps_error">أضف مرحلتين على الأقل للحظة</string>
+    <string name="moment_step_needs_title_error">أدخل عنوانًا لكل مرحلة</string>
     <string name="repost_title">إعادة فقرة</string>
     <string name="repost_comment_hint">أضف تعليقًا (اختياري)...</string>
     <string name="repost_where">أين تريد النشر؟</string>
