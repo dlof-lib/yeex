@@ -276,6 +276,12 @@ fun IdentifierChecklist(identifier: String) {
     val noForbidden = identifier.none { it in setOf('_', '-', '~', ' ') }
     val noUppercase = identifier.none { it.isUpperCase() }
     val dotsOk = !identifier.startsWith(".") && !identifier.endsWith(".") && !identifier.contains("..")
+    // Must mirror UsernameValidator.ALLOWED_REGEX exactly: any letter (\p{L} — covers caseless
+    // scripts like Arabic/CJK, not just Ll), western/arabic-indic digits, or a dot. Without this
+    // row the checklist could show every rule satisfied (e.g. for a symbol or emoji) while
+    // validate() still rejects the identifier with "invalid_chars" and the button stays disabled
+    // with no visible reason why.
+    val allowedCharsOk = identifier.isEmpty() || Regex("^[\\p{L}0-9\u0660-\u0669.]+$").matches(identifier)
 
     AnimatedVisibility(visible = identifier.isNotEmpty(), enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
         Column(Modifier.padding(top = 6.dp, start = 4.dp, end = 4.dp)) {
@@ -283,6 +289,7 @@ fun IdentifierChecklist(identifier: String) {
             ChecklistRow(stringResource(R.string.rule_lowercase), noUppercase)
             ChecklistRow(stringResource(R.string.rule_forbidden_chars), noForbidden)
             ChecklistRow(stringResource(R.string.rule_dots), dotsOk)
+            ChecklistRow(stringResource(R.string.rule_allowed_chars), allowedCharsOk)
         }
     }
 }
