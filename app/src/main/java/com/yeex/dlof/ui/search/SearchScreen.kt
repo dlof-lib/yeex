@@ -5,15 +5,21 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
@@ -26,8 +32,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.yeex.dlof.R
@@ -40,6 +52,7 @@ import com.yeex.dlof.data.repository.ParagraphRepository
 import com.yeex.dlof.data.repository.RoomRepository
 import com.yeex.dlof.data.repository.AuthRepository
 import com.yeex.dlof.data.repository.UserRepository
+import com.yeex.dlof.ui.components.ShimmerBox
 import com.yeex.dlof.ui.components.UserAvatar
 import com.yeex.dlof.ui.theme.YeexAccent
 import com.yeex.dlof.ui.theme.YeexCrimson
@@ -47,6 +60,7 @@ import com.yeex.dlof.ui.theme.YeexNavy
 import com.yeex.dlof.util.FeedRanking
 import com.yeex.dlof.util.RoomRanking
 import com.yeex.dlof.util.RoomType
+import com.yeex.dlof.util.SearchHistoryStore
 import com.yeex.dlof.util.SearchRanking
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -76,6 +90,24 @@ private enum class SearchFilter { ALL, USERS, ROOMS }
  * surfaces a "قد تعرفهم" (people you may know) row from
  * [UserRepository.suggestedAccounts] — a friend-of-a-friend suggestion over
  * the tek graph — so the search tab isn't a blank page until you type.
+ *
+ * Further polish on top of that base:
+ *  - A local, on-device "عمليات بحث سابقة" (recent searches) row —
+ *    [SearchHistoryStore] — shown in the idle state above the trending
+ *    content, tap to re-run, per-item remove, and a clear-all action. Pure
+ *    SharedPreferences, nothing sent anywhere.
+ *  - The matched substring in each result's name/handle is bolded
+ *    ([highlightedAnnotatedString]) so scanning a results list is faster
+ *    than reading every row start-to-finish.
+ *  - The loading state is a shimmer skeleton shaped like the real result
+ *    rows ([SearchResultsSkeleton]) instead of a plain centered spinner,
+ *    matching the shimmer treatment [com.yeex.dlof.ui.components.ParagraphSkeleton]
+ *    already uses for the feed.
+ *  - The error state now has a working "إعادة المحاولة" retry button
+ *    instead of just an icon + message with no way to recover without
+ *    retyping the query.
+ *  - The keyboard's IME action is "Search" and submits/dismisses the
+ *    keyboard directly instead of only offering a generic "done".
  */
 @Composable
 fun SearchScreen(
@@ -101,7 +133,22 @@ fun SearchScreen(
     var trendingRooms by remember { mutableStateOf<List<Room>>(emptyList()) }
     var trendingParagraphs by remember { mutableStateOf<List<Paragraph>>(emptyList()) }
     var searchError by remember { mutableStateOf(false) }
+    // Bumped by the error state's retry button to force the search
+    // LaunchedEffect below to re-run even when `query` itself hasn't
+    // changed (a plain `query` key alone wouldn't fire again for an
+    // identical string).
+    var retryTick by remember { mutableStateOf(0) }
+    // Local "عمليات بحث سابقة" list — see [SearchHistoryStore]. Loaded once
+    // and kept in sync with what's persisted as searches happen / entries
+    // get removed, so the idle-state row updates immediately either way.
+    var searchHistory by remember { mutableStateOf<List<String>>(emptyList()) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(Unit) {
+        searchHistory = SearchHistoryStore.recent(context)
+    }
 
     // "قد تعرفهم" + "الرائج الآن" only need fetching once — both are shown
     // solely in the idle (query-blank) state below, as one-shot snapshots
@@ -120,8 +167,10 @@ fun SearchScreen(
     }
 
     // Debounced, real-time search: waits for a short pause in typing instead
-    // of firing a query on every keystroke, then runs once per settled query.
-    LaunchedEffect(query) {
+    // of firing a query on every keystroke, then runs once per settled
+    // query. Also keyed on retryTick so the error state's retry button can
+    // force a re-run of the exact same query.
+    LaunchedEffect(query, retryTick) {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) {
             isLoading = false
@@ -170,6 +219,11 @@ fun SearchScreen(
             containerResults = emptyList()
             userResults = emptyList()
             roomResults = emptyList()
+        }.onSuccess {
+            // Only recorded once the search actually resolved (not on
+            // failure) — a query that only ever errored out isn't a
+            // meaningful "recent search" to resurface later.
+            searchHistory = SearchHistoryStore.record(context, trimmed)
         }
         isLoading = false
         hasSearched = true
@@ -204,6 +258,7 @@ fun SearchScreen(
                             BasicSearchField(
                                 query = query,
                                 onQueryChange = { query = it },
+                                onSearchSubmit = { keyboardController?.hide() },
                                 modifier = Modifier.weight(1f)
                             )
                             AnimatedVisibility(visible = query.isNotEmpty(), enter = fadeIn(), exit = fadeOut()) {
@@ -253,13 +308,20 @@ fun SearchScreen(
                     suggestedAccounts = suggestedAccounts,
                     trendingRooms = trendingRooms,
                     trendingParagraphs = trendingParagraphs,
+                    searchHistory = searchHistory,
                     onOpenUser = onOpenUser,
-                    onOpenRoom = onOpenRoom
+                    onOpenRoom = onOpenRoom,
+                    onSelectHistory = { picked -> query = picked },
+                    onRemoveHistory = { removed ->
+                        searchHistory = SearchHistoryStore.remove(context, removed)
+                    },
+                    onClearHistory = {
+                        SearchHistoryStore.clear(context)
+                        searchHistory = emptyList()
+                    }
                 )
-                isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-                searchError -> SearchErrorState()
+                isLoading -> SearchResultsSkeleton()
+                searchError -> SearchErrorState(onRetry = { retryTick++ })
                 noResults -> SearchEmptyState()
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -274,7 +336,7 @@ fun SearchScreen(
                             SectionHeader(stringResource(R.string.search_users_section))
                         }
                         items(userResults, key = { it.uid }) { u ->
-                            UserResultCard(u, onClick = { onOpenUser(u) })
+                            UserResultCard(u, query = query, onClick = { onOpenUser(u) })
                         }
                     }
 
@@ -283,7 +345,7 @@ fun SearchScreen(
                             SectionHeader(stringResource(R.string.search_rooms_section))
                         }
                         items(roomResults, key = { it.id }) { r ->
-                            RoomResultCard(r, onClick = { onOpenRoom(r) })
+                            RoomResultCard(r, query = query, onClick = { onOpenRoom(r) })
                         }
                     }
 
@@ -296,13 +358,20 @@ fun SearchScreen(
 
 /** A borderless, single-line text field styled to sit inline in the search pill. */
 @Composable
-private fun BasicSearchField(query: String, onQueryChange: (String) -> Unit, modifier: Modifier = Modifier) {
+private fun BasicSearchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onSearchSubmit: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
     androidx.compose.foundation.text.BasicTextField(
         value = query,
         onValueChange = onQueryChange,
         singleLine = true,
         textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
         cursorBrush = Brush.verticalGradient(listOf(YeexAccent, YeexAccent)),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { onSearchSubmit() }),
         modifier = modifier.padding(vertical = 10.dp),
         decorationBox = { inner ->
             if (query.isEmpty()) {
@@ -345,15 +414,49 @@ private fun SectionHeader(title: String) {
     )
 }
 
+/**
+ * Shimmer placeholder shaped like the real result rows ([UserResultCard] /
+ * [RoomResultCard]) — shown while a search is in flight instead of a plain
+ * centered spinner, so the results area doesn't "jump" from a
+ * centered-blank state into a left-aligned list once results land.
+ */
+@Composable
+private fun SearchResultsSkeleton() {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Spacer(Modifier.height(8.dp))
+        repeat(6) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ShimmerBox(modifier = Modifier.size(44.dp), shape = CircleShape)
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    ShimmerBox(modifier = Modifier.fillMaxWidth(0.45f).height(14.dp))
+                    Spacer(Modifier.height(8.dp))
+                    ShimmerBox(modifier = Modifier.fillMaxWidth(0.28f).height(11.dp))
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun SearchIdleState(
     suggestedAccounts: List<User>,
     trendingRooms: List<Room>,
     trendingParagraphs: List<Paragraph>,
+    searchHistory: List<String>,
     onOpenUser: (User) -> Unit,
-    onOpenRoom: (Room) -> Unit
+    onOpenRoom: (Room) -> Unit,
+    onSelectHistory: (String) -> Unit,
+    onRemoveHistory: (String) -> Unit,
+    onClearHistory: () -> Unit
 ) {
-    if (suggestedAccounts.isEmpty() && trendingRooms.isEmpty() && trendingParagraphs.isEmpty()) {
+    if (suggestedAccounts.isEmpty() && trendingRooms.isEmpty() && trendingParagraphs.isEmpty() && searchHistory.isEmpty()) {
         Column(
             modifier = Modifier.fillMaxSize().padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -392,6 +495,48 @@ private fun SearchIdleState(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp)
     ) {
+        if (searchHistory.isNotEmpty()) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        stringResource(R.string.search_recent_searches),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        stringResource(R.string.clear_all),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = YeexAccent,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onClearHistory
+                        )
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 4.dp)
+                ) {
+                    items(searchHistory, key = { it }) { pastQuery ->
+                        RecentSearchChip(
+                            query = pastQuery,
+                            onClick = { onSelectHistory(pastQuery) },
+                            onRemove = { onRemoveHistory(pastQuery) }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(18.dp))
+            }
+        }
+
         if (trendingRooms.isNotEmpty()) {
             item {
                 Text(
@@ -446,6 +591,48 @@ private fun SearchIdleState(
             }
             items(suggestedAccounts, key = { it.uid }) { u ->
                 UserResultCard(u, onClick = { onOpenUser(u) })
+            }
+        }
+    }
+}
+
+/** One chip in the "عمليات بحث سابقة" row: tapping the label re-runs that
+ * search, tapping the trailing × removes just that entry — two separate
+ * click targets inside the same [Surface] rather than one click doing
+ * double duty, so removing a stale entry doesn't accidentally re-search it
+ * first. */
+@Composable
+private fun RecentSearchChip(query: String, onClick: () -> Unit, onRemove: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 12.dp, end = 6.dp, top = 7.dp, bottom = 7.dp)
+        ) {
+            Icon(
+                Icons.Filled.History,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(15.dp)
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                query,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.width(2.dp))
+            IconButton(onClick = onRemove, modifier = Modifier.size(22.dp)) {
+                Icon(
+                    Icons.Filled.Close,
+                    contentDescription = stringResource(R.string.remove_recent_search),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(14.dp)
+                )
             }
         }
     }
@@ -528,9 +715,9 @@ private fun TrendingParagraphRow(p: Paragraph, onClick: () -> Unit) {
     }
 }
 
-/** Shown when the search request itself failed (offline/timeout/etc.) — distinct from a plain "no results" so the user knows to retry rather than reword their query. */
+/** Shown when the search request itself failed (offline/timeout/etc.) — distinct from a plain "no results" so the user knows to retry rather than reword their query. Now has a working retry action instead of leaving the only recovery path as retyping the query. */
 @Composable
-private fun SearchErrorState() {
+private fun SearchErrorState(onRetry: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -544,6 +731,10 @@ private fun SearchErrorState() {
         )
         Spacer(Modifier.height(14.dp))
         Text(stringResource(R.string.search_failed), style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(16.dp))
+        Button(onClick = onRetry) {
+            Text(stringResource(R.string.retry))
+        }
     }
 }
 
@@ -610,9 +801,13 @@ private fun ContainerResultCard(container: Container, onClick: () -> Unit) {
  * A single "browse other accounts" row: avatar, display name + verified
  * badge, @identifier, and Teking/Teker counts, all inside a tappable card —
  * reads like a real account preview instead of a bare-text lookup.
+ *
+ * When [query] is non-blank, the matched portion of the display name /
+ * identifier is bolded ([highlightedAnnotatedString]) so scanning a list of
+ * results is faster than reading each row start-to-finish.
  */
 @Composable
-private fun UserResultCard(user: User, onClick: () -> Unit) {
+private fun UserResultCard(user: User, query: String = "", onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(14.dp),
@@ -628,7 +823,7 @@ private fun UserResultCard(user: User, onClick: () -> Unit) {
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        user.displayName.ifBlank { user.identifier },
+                        highlightedAnnotatedString(user.displayName.ifBlank { user.identifier }, query),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
@@ -646,7 +841,7 @@ private fun UserResultCard(user: User, onClick: () -> Unit) {
                     }
                 }
                 Text(
-                    "@${user.identifier}",
+                    highlightedAnnotatedString("@${user.identifier}", query),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -668,9 +863,10 @@ private fun UserResultCard(user: User, onClick: () -> Unit) {
     }
 }
 
-/** Same visual language as [UserResultCard] but for public/private rooms. */
+/** Same visual language as [UserResultCard] but for public/private rooms —
+ * see [UserResultCard] for the [query] highlighting behavior. */
 @Composable
-private fun RoomResultCard(room: Room, onClick: () -> Unit) {
+private fun RoomResultCard(room: Room, query: String = "", onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(14.dp),
@@ -698,7 +894,7 @@ private fun RoomResultCard(room: Room, onClick: () -> Unit) {
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    room.name,
+                    highlightedAnnotatedString(room.name, query),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -712,5 +908,27 @@ private fun RoomResultCard(room: Room, onClick: () -> Unit) {
             }
             Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+    }
+}
+
+/** Bolds+tints the first case-insensitive occurrence of [query] inside
+ * [text] (brand accent color), so a matched result's name/handle reads
+ * as "why this matched" at a glance instead of requiring the person to
+ * re-read the whole row against what they typed. Falls back to plain text
+ * when [query] is blank or doesn't actually occur in [text] (e.g. a
+ * display-name match whose identifier doesn't contain the query). */
+@Composable
+private fun highlightedAnnotatedString(text: String, query: String): AnnotatedString {
+    val trimmedQuery = query.trim()
+    if (trimmedQuery.isEmpty()) return AnnotatedString(text)
+    val start = text.indexOf(trimmedQuery, ignoreCase = true)
+    if (start < 0) return AnnotatedString(text)
+    val end = start + trimmedQuery.length
+    return buildAnnotatedString {
+        append(text.substring(0, start))
+        withStyle(SpanStyle(color = YeexAccent, fontWeight = FontWeight.Bold)) {
+            append(text.substring(start, end))
+        }
+        append(text.substring(end))
     }
 }
