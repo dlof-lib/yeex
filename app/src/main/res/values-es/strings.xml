@@ -73,6 +73,12 @@
     <string name="download_saved">Guardado con marca de agua</string>
     <string name="download_failed">No se pudo guardar</string>
 
+    <!-- Video controls / translation / double-tap like -->
+    <string name="action_resume">Reanudar</string>
+    <string name="action_translate">Traducir</string>
+    <string name="translate_failed">No se pudo traducir</string>
+    <string name="translated_label">Traducido</string>
+
     <!-- Auth errors -->
     <string name="auth_error_invalid_credentials">Identificador o contraseña incorrectos</string>
     <string name="auth_error_identifier_taken">Este identificador ya está en uso</string>
@@ -168,6 +174,7 @@
     <string name="type_text">Texto</string>
     <string name="type_image">Imagen</string>
     <string name="type_video">Video</string>
+    <string name="type_moment">Momento</string>
     <string name="media_length_hint">Video de 5-10 segundos</string>
     <string name="image_selected">Imagen seleccionada</string>
     <string name="remove_media">Quitar</string>
@@ -181,6 +188,18 @@
     <string name="error_trim_failed">No se pudo recortar el video</string>
     <string name="error_video_too_large">El archivo de video es demasiado grande</string>
     <string name="error_unknown">Error desconocido</string>
+    <string name="moment_steps_title">Etapas del momento</string>
+    <string name="moment_steps_hint">Añade una etapa por cada evento y arrastra el asa ⠿ para reordenar</string>
+    <string name="moment_add_step">Añadir etapa</string>
+    <string name="moment_step_label">Etapa %1$d</string>
+    <string name="moment_step_time_hint">Hora (ej. 08:00)</string>
+    <string name="moment_step_title_hint">Título de la etapa</string>
+    <string name="moment_step_text_hint">Descripción breve (opcional)</string>
+    <string name="moment_step_remove">Eliminar etapa</string>
+    <string name="moment_step_add_photo">Añadir foto</string>
+    <string name="moment_drag_handle">Arrastra para reordenar</string>
+    <string name="moment_min_steps_error">Añade al menos dos etapas a un Momento</string>
+    <string name="moment_step_needs_title_error">Ingresa un título para cada etapa</string>
     <string name="repost_title">Volver a publicar</string>
     <string name="repost_comment_hint">Añade un comentario (opcional)...</string>
     <string name="repost_where">¿Dónde quieres publicar?</string>
