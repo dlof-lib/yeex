@@ -80,18 +80,25 @@ fun AuthBackground(content: @Composable BoxScope.() -> Unit) {
     }
 }
 
-/** The "y" wordmark + app name + a short tagline, shared by Login and Register. */
+/** The yeex cat-mark logo + app name + a short tagline, shared by Login and Register. */
 @Composable
 fun AuthBrandHeader(tagline: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
-                .size(72.dp)
+                .size(88.dp)
                 .clip(CircleShape)
-                .background(yeexBrandGradient()),
+                .background(yeexBrandGradient())
+                .padding(3.dp)
+                .clip(CircleShape)
+                .background(YeexWhite),
             contentAlignment = Alignment.Center
         ) {
-            Text("y", color = YeexWhite, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(R.drawable.ic_yeex_logo),
+                contentDescription = stringResource(R.string.app_name),
+                modifier = Modifier.size(54.dp)
+            )
         }
         Spacer(Modifier.height(14.dp))
         Text(
