@@ -34,11 +34,12 @@ import kotlin.math.min
  * read at normal viewing size / after re-compression by sharing apps).
  *
  * Applied to:
- *  - Image paragraphs when downloaded.
- *  - Video paragraphs: only the thumbnail/cover frame is watermarked by this
- *    utility; watermarking every frame of the video itself requires a
- *    frame-by-frame re-encode (e.g. via the FFmpeg-kit library) and is left
- *    as a follow-up — see README "Roadmap".
+ *  - Image paragraphs when downloaded ([applyWatermark]).
+ *  - Video paragraphs: every frame, not just the cover — [renderFrameOverlay]
+ *    renders this same stamp as a transparent layer that [VideoWatermarkUtil]
+ *    composites over the whole clip via Media3's Transformer/effect
+ *    pipeline, plus a bouncing per-author "who posted this" bubble built
+ *    from [renderAuthorBubble] (see that file for the moving-badge part).
  *  - PDF exports: apply this same bitmap watermark to each rendered page
  *    before writing the PDF (see the `pdf` export flow).
  */
@@ -76,13 +77,53 @@ object WatermarkUtil {
     ): Bitmap {
         val output = source.copy(Bitmap.Config.ARGB_8888, true)
         val canvas = Canvas(output)
-        val w = output.width
-        val h = output.height
+        canvas.drawBitmap(
+            renderFrameOverlay(
+                width = output.width,
+                height = output.height,
+                appLabel = appLabel,
+                authorIdentifier = authorIdentifier,
+                authorDisplayName = authorDisplayName,
+                authorAvatar = authorAvatar,
+                authorVerified = authorVerified,
+                likeCount = likeCount,
+                viewCount = viewCount
+            ),
+            0f, 0f, null
+        )
+        return output
+    }
 
-        drawDiagonalTile(canvas, w, h, appLabel)
+    /**
+     * Same stamp as [applyWatermark] (diagonal tile + author badge + brand
+     * tag, or the centered brand badge when there's no author context), but
+     * rendered onto a *transparent* [width]x[height] canvas instead of on
+     * top of a source image.
+     *
+     * This is the piece [VideoWatermarkUtil] needs: Media3's `BitmapOverlay`
+     * composites a transparent bitmap over every decoded video frame, so the
+     * exact same drawing code used for photos/PDFs also burns the mark into
+     * every frame of a downloaded video — no separate "video watermark"
+     * design, just this layer replayed at the video's resolution.
+     */
+    fun renderFrameOverlay(
+        width: Int,
+        height: Int,
+        appLabel: String = "yeex",
+        authorIdentifier: String = "",
+        authorDisplayName: String = "",
+        authorAvatar: Bitmap? = null,
+        authorVerified: Boolean = false,
+        likeCount: Long = 0,
+        viewCount: Long = 0
+    ): Bitmap {
+        val overlay = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(overlay)
+
+        drawDiagonalTile(canvas, width, height, appLabel)
         if (authorIdentifier.isNotBlank()) {
             drawAuthorBadge(
-                canvas, w, h,
+                canvas, width, height,
                 identifier = authorIdentifier,
                 displayName = authorDisplayName.ifBlank { authorIdentifier },
                 avatar = authorAvatar,
@@ -90,14 +131,119 @@ object WatermarkUtil {
                 likeCount = likeCount,
                 viewCount = viewCount
             )
-            drawBrandTag(canvas, w, h, appLabel)
+            drawBrandTag(canvas, width, height, appLabel)
         } else {
-            // No author context available (e.g. legacy call site) — keep the
-            // single centered brand badge so the image is never unmarked.
-            drawBrandBadge(canvas, w, h, appLabel)
+            drawBrandBadge(canvas, width, height, appLabel)
         }
 
-        return output
+        return overlay
+    }
+
+    /**
+     * Small circular "who posted this" bubble — avatar + a colored app-tag
+     * chip clipped across its bottom edge + the "@identifier" handle under
+     * it — meant to be replayed at a handful of different corners over a
+     * video's duration (see [VideoWatermarkUtil]'s bouncing overlay), the
+     * same pattern short-video apps use so a downloaded clip still carries
+     * proof of its source even if a viewer crops/covers one fixed spot.
+     *
+     * @param diameterPx target avatar circle size; the returned bitmap is
+     *   slightly taller/wider than this to fit the tag chip and handle text.
+     */
+    fun renderAuthorBubble(
+        diameterPx: Int,
+        appLabel: String = "yeex",
+        authorIdentifier: String,
+        authorAvatar: Bitmap?
+    ): Bitmap {
+        val tagHeight = diameterPx * 0.34f
+        val handlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textSize = diameterPx * 0.24f
+            typeface = Typeface.create(Typeface.DEFAULT_BOLD, Typeface.BOLD)
+            textAlign = Paint.Align.CENTER
+        }
+        val handle = "@$authorIdentifier"
+        val handlePad = handlePaint.textSize * 0.55f
+        val handleBoxHeight = handlePaint.textSize + handlePad
+        val padding = diameterPx * 0.08f
+
+        val width = maxOf(diameterPx, handlePaint.measureText(handle).toInt() + padding.toInt() * 2)
+        val height = (diameterPx + tagHeight * 0.55f + handleBoxHeight + padding).toInt()
+        val bubble = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bubble)
+
+        val avatarRect = RectF(
+            (width - diameterPx) / 2f, 0f,
+            (width + diameterPx) / 2f, diameterPx.toFloat()
+        )
+        // Soft drop shadow so the bubble reads on both light and dark video frames.
+        val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; alpha = 90 }
+        canvas.drawOval(RectF(avatarRect).apply { offset(0f, diameterPx * 0.04f) }, shadowPaint)
+
+        if (authorAvatar != null) {
+            drawCircularBitmap(canvas, authorAvatar, avatarRect)
+        } else {
+            val fallbackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = BRAND_CRIMSON }
+            canvas.drawOval(avatarRect, fallbackPaint)
+            drawCatMark(canvas, avatarRect.centerX(), avatarRect.centerY(), diameterPx * 0.52f, Color.WHITE)
+        }
+        val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            style = Paint.Style.STROKE
+            strokeWidth = diameterPx * 0.045f
+        }
+        canvas.drawOval(avatarRect, ringPaint)
+
+        // App-tag chip straddling the avatar's bottom edge (like the "TEK"
+        // strip in the reference screenshot), with the cat mark instead of
+        // plain text so it's legible at the small size a bounced bubble ends
+        // up rendered at.
+        val chipWidth = diameterPx * 0.62f
+        val chipRect = RectF(
+            avatarRect.centerX() - chipWidth / 2f, avatarRect.bottom - tagHeight / 2f,
+            avatarRect.centerX() + chipWidth / 2f, avatarRect.bottom + tagHeight / 2f
+        )
+        val chipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = BRAND_NAVY }
+        canvas.drawRoundRect(chipRect, tagHeight / 2f, tagHeight / 2f, chipPaint)
+        drawCatMark(canvas, chipRect.left + tagHeight * 0.55f, chipRect.centerY(), tagHeight * 0.62f, Color.WHITE)
+        val chipTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textSize = tagHeight * 0.62f
+            typeface = Typeface.create(Typeface.DEFAULT_BOLD, Typeface.BOLD)
+        }
+        val chipFm = chipTextPaint.fontMetrics
+        canvas.drawText(
+            appLabel.uppercase(Locale.US),
+            chipRect.left + tagHeight * 1.05f,
+            chipRect.centerY() - (chipFm.ascent + chipFm.descent) / 2f,
+            chipTextPaint
+        )
+
+        val handleY = avatarRect.bottom + tagHeight * 0.55f + handlePaint.textSize
+        canvas.drawText(handle, width / 2f, handleY, handlePaint)
+
+        return bubble
+    }
+
+    /** Simple two-eared cat-head silhouette, matching the app's logo mark — used as a compact stand-in for a text label at small overlay sizes. */
+    private fun drawCatMark(canvas: Canvas, cx: Float, cy: Float, size: Float, color: Int) {
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
+        val r = size / 2f
+        val path = Path()
+        // Left ear
+        path.moveTo(cx - r * 0.75f, cy - r * 0.15f)
+        path.lineTo(cx - r * 1.05f, cy - r * 1.05f)
+        path.lineTo(cx - r * 0.15f, cy - r * 0.55f)
+        path.close()
+        // Right ear
+        path.moveTo(cx + r * 0.75f, cy - r * 0.15f)
+        path.lineTo(cx + r * 1.05f, cy - r * 1.05f)
+        path.lineTo(cx + r * 0.15f, cy - r * 0.55f)
+        path.close()
+        canvas.drawPath(path, paint)
+        // Head
+        canvas.drawOval(RectF(cx - r, cy - r * 0.55f, cx + r, cy + r * 0.85f), paint)
     }
 
     /** "1234" -> "1.2K", "2500000" -> "2.5M" — compact, locale-neutral counters matching in-app RailAction formatting. */
