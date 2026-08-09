@@ -55,6 +55,17 @@ fun ParagraphSkeleton(modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * The same pulsing shimmer treatment as [ParagraphSkeleton], exposed as a
+ * plain placeholder block so other loading states around the app (e.g.
+ * search results) can reuse it instead of re-implementing the shimmer
+ * animation themselves.
+ */
+@Composable
+fun ShimmerBox(modifier: Modifier = Modifier, shape: RoundedCornerShape = RoundedCornerShape(6.dp)) {
+    Box(modifier = modifier.background(shimmerBrush(), shape))
+}
+
 @Composable
 private fun shimmerBrush(): Brush {
     val base = MaterialTheme.colorScheme.surfaceVariant
