@@ -67,6 +67,9 @@
     <string name="search_suggested_accounts">قد تعرفهم</string>
     <string name="search_trending_rooms">الرائج الآن</string>
     <string name="search_trending_posts">منشورات رائجة</string>
+    <string name="search_recent_searches">عمليات بحث سابقة</string>
+    <string name="clear_all">مسح الكل</string>
+    <string name="remove_recent_search">إزالة</string>
     <string name="watermark_text">yeex</string>
     <string name="action_download">تنزيل</string>
     <string name="action_download_video">تنزيل الفيديو</string>
