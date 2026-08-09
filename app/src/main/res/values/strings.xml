@@ -274,4 +274,20 @@
     <string name="gallery_picker_empty_message">لم يتم العثور على صور في معرضك بعد</string>
     <string name="gallery_picker_one_selected">تم اختيار صورة واحدة</string>
     <string name="gallery_picker_confirm">استخدام الصورة</string>
+
+    <!-- Auth screen redesign: tagline, password fields, live rule checklist, strength meter -->
+    <string name="login_tagline">سجّل الدخول للمتابعة إلى yeex</string>
+    <string name="register_tagline">أنشئ حسابك وابدأ المشاركة</string>
+    <string name="show_password">إظهار كلمة السر</string>
+    <string name="hide_password">إخفاء كلمة السر</string>
+    <string name="rule_length">من %1$d إلى %2$d حرفًا</string>
+    <string name="rule_lowercase">أحرف صغيرة فقط</string>
+    <string name="rule_forbidden_chars">بدون _ - ~ أو مسافات</string>
+    <string name="rule_dots">النقاط لا تكون في البداية أو النهاية أو متتالية</string>
+    <string name="password_strength_weak">كلمة سر ضعيفة</string>
+    <string name="password_strength_medium">كلمة سر متوسطة</string>
+    <string name="password_strength_strong">كلمة سر قوية</string>
+    <string name="field_confirm_password">تأكيد كلمة السر</string>
+    <string name="error_password_mismatch">كلمتا السر غير متطابقتين</string>
+    <string name="terms_agreement">أوافق على شروط الاستخدام وسياسة الخصوصية الخاصة بـ %1$s</string>
 </resources>
