@@ -645,7 +645,13 @@ private fun EditAccountSheet(
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(Modifier.fillMaxWidth().padding(20.dp)) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.92f)
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp)
+        ) {
             Text(stringResource(R.string.edit_profile), style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(16.dp))
 
