@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Image as ImageIcon
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhotoCamera
@@ -93,6 +94,7 @@ fun ProfileScreen(
     var latest by remember { mutableStateOf<List<Paragraph>>(emptyList()) }
     var todayCount by remember { mutableStateOf(0) }
     var showEditSheet by remember { mutableStateOf(false) }
+    var showGlanceSheet by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     var showLogoutConfirm by remember { mutableStateOf(false) }
     var showSwitchSheet by remember { mutableStateOf(false) }
@@ -152,6 +154,14 @@ fun ProfileScreen(
                                 onClick = {
                                     showMenu = false
                                     showEditSheet = true
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.account_glance)) },
+                                leadingIcon = { Icon(Icons.Filled.Info, contentDescription = null) },
+                                onClick = {
+                                    showMenu = false
+                                    showGlanceSheet = true
                                 }
                             )
                             DropdownMenuItem(
@@ -351,9 +361,14 @@ fun ProfileScreen(
         EditAccountSheet(
             user = user,
             userRepo = userRepo,
+            authRepo = authRepo,
             uid = myUid,
             onDismiss = { showEditSheet = false }
         )
+    }
+
+    if (showGlanceSheet) {
+        AccountGlanceSheet(user = user, onDismiss = { showGlanceSheet = false })
     }
 
     if (showSwitchSheet && myUid != null) {
@@ -600,6 +615,80 @@ private fun relativeAge(createdAt: Long): String {
 }
 
 /**
+ * "لمحة" (glance) pop-up — a read-only summary of every account field,
+ * editable or not (identifier, join date, account type, verification
+ * status, business contact info…), since [EditAccountSheet] only shows the
+ * fields it lets you change and has no single place that shows everything
+ * at once.
+ */
+@Composable
+private fun AccountGlanceSheet(user: User?, onDismiss: () -> Unit) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.9f)
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp)
+        ) {
+            Text(stringResource(R.string.account_glance_title), style = MaterialTheme.typography.headlineSmall)
+            Spacer(Modifier.height(16.dp))
+
+            if (user == null) {
+                CircularProgressIndicator()
+            } else {
+                GlanceRow(stringResource(R.string.account_info_identifier), "@${user.identifier}")
+                GlanceRow(stringResource(R.string.display_name_label), user.displayName)
+                if (user.bio.isNotBlank()) GlanceRow(stringResource(R.string.bio_label), user.bio)
+                GlanceRow(
+                    stringResource(R.string.account_info_verified),
+                    if (user.verified) stringResource(R.string.verified_badge) else stringResource(R.string.account_info_not_verified)
+                )
+                GlanceRow(
+                    stringResource(R.string.account_info_account_type),
+                    if (user.accountType == "BUSINESS") stringResource(R.string.account_type_business) else stringResource(R.string.account_type_personal)
+                )
+                if (user.accountType == "BUSINESS") {
+                    if (user.businessCategory.isNotBlank()) {
+                        GlanceRow(stringResource(R.string.business_category_label), com.yeex.dlof.util.BusinessCategory.label(user.businessCategory))
+                    }
+                    if (user.businessPhone.isNotBlank()) GlanceRow(stringResource(R.string.business_phone_label), user.businessPhone)
+                    if (user.businessEmail.isNotBlank()) GlanceRow(stringResource(R.string.business_email_label), user.businessEmail)
+                    if (user.businessLinks.isNotEmpty()) {
+                        GlanceRow(stringResource(R.string.business_links_label), user.businessLinks.values.joinToString(", "))
+                    }
+                }
+                GlanceRow(stringResource(R.string.label_teking), user.tekingCount.toString())
+                GlanceRow(stringResource(R.string.action_teker), user.tekerCount.toString())
+                if (user.createdAt > 0L) {
+                    val formatted = remember(user.createdAt) {
+                        java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date(user.createdAt))
+                    }
+                    GlanceRow(stringResource(R.string.account_info_created), formatted)
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+            Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.cancel))
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+private fun GlanceRow(label: String, value: String) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(2.dp))
+        Text(value, style = MaterialTheme.typography.bodyLarge)
+    }
+    HorizontalDivider()
+}
+
+/**
  * "Edit account" pop-up (ModalBottomSheet) — lets the user change their
  * account icon, display name, and bio without leaving the profile screen,
  * per the "الحساب أيضًا شاشة منبثقة" + "خيار تغيير أيقونة الحساب" requirements.
@@ -609,6 +698,7 @@ private fun relativeAge(createdAt: Long): String {
 private fun EditAccountSheet(
     user: User?,
     userRepo: UserRepository,
+    authRepo: AuthRepository,
     uid: String,
     onDismiss: () -> Unit
 ) {
@@ -632,6 +722,17 @@ private fun EditAccountSheet(
     var businessPhone by remember { mutableStateOf(user?.businessPhone ?: "") }
     var businessEmail by remember { mutableStateOf(user?.businessEmail ?: "") }
     var businessLinksText by remember { mutableStateOf(user?.businessLinks?.values?.joinToString(", ") ?: "") }
+
+    // ---- Change identifier: separate from the rest of the form since it
+    // needs the current password (re-authentication) and hits Firebase Auth
+    // directly rather than just /users, so it's confirmed independently
+    // instead of being bundled into the main "حفظ" save action below. ----
+    var currentIdentifier by remember(user?.identifier) { mutableStateOf(user?.identifier ?: "") }
+    var showIdentifierForm by remember { mutableStateOf(false) }
+    var newIdentifier by remember { mutableStateOf("") }
+    var identifierPassword by remember { mutableStateOf("") }
+    var identifierError by remember { mutableStateOf<String?>(null) }
+    var isChangingIdentifier by remember { mutableStateOf(false) }
 
     val pickIcon = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
@@ -680,6 +781,85 @@ private fun EditAccountSheet(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(12.dp))
+
+            // ---- Change identifier ----
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.account_info_identifier), style = MaterialTheme.typography.labelLarge)
+                    Text("@$currentIdentifier", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                TextButton(onClick = {
+                    showIdentifierForm = !showIdentifierForm
+                    identifierError = null
+                    newIdentifier = ""
+                    identifierPassword = ""
+                }) {
+                    Text(stringResource(R.string.change_identifier))
+                }
+            }
+
+            if (showIdentifierForm) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.identifier_change_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = newIdentifier,
+                    onValueChange = { newIdentifier = it; identifierError = null },
+                    label = { Text(stringResource(R.string.new_identifier_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = identifierPassword,
+                    onValueChange = { identifierPassword = it; identifierError = null },
+                    label = { Text(stringResource(R.string.current_password_label)) },
+                    singleLine = true,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (identifierError != null) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        stringResource(authErrorStringRes(identifierError!!)),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        scope.launch {
+                            isChangingIdentifier = true
+                            identifierError = null
+                            when (val result = authRepo.changeIdentifier(context, newIdentifier.trim(), identifierPassword)) {
+                                is AuthRepository.AuthResult.Success -> {
+                                    currentIdentifier = result.user.identifier
+                                    showIdentifierForm = false
+                                    newIdentifier = ""
+                                    identifierPassword = ""
+                                }
+                                is AuthRepository.AuthResult.Failure -> {
+                                    identifierError = result.messageKey
+                                }
+                            }
+                            isChangingIdentifier = false
+                        }
+                    },
+                    enabled = !isChangingIdentifier && newIdentifier.isNotBlank() && identifierPassword.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(if (isChangingIdentifier) "..." else stringResource(R.string.confirm_change))
+                }
+            }
 
             Spacer(Modifier.height(16.dp))
             HorizontalDivider()
