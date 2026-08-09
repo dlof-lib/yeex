@@ -104,15 +104,44 @@ object MediaBase64 {
     // database.rules.json's node size limits.
     private const val MOMENT_STEP_IMAGE_DIMENSION = 640
     private const val MOMENT_STEP_JPEG_QUALITY = 70
+    // Safety margin under database.rules.json's per-step "imageBase64" cap
+    // (1,500,000 chars). Without this guard, an unusually busy/high-entropy
+    // photo can still land over the limit even after the downscale above —
+    // Firebase then rejects the *entire* Moment write (every stage, not just
+    // that one photo) with an opaque permission-denied error, which is
+    // exactly the "publish failed" symptom this used to cause with no
+    // explanation to the person publishing. Re-compressing (and, as a last
+    // resort, shrinking further) here means a photo attaches successfully or
+    // degrades gracefully — it never silently breaks the whole publish.
+    private const val MOMENT_STEP_IMAGE_MAX_BASE64_CHARS = 1_400_000
 
-    /** Encodes a photo attached to a single [com.yeex.dlof.data.model.MomentStep]. */
+    /** Encodes a photo attached to a single [com.yeex.dlof.data.model.MomentStep], guaranteed to stay under the rules cap. */
     fun encodeMomentStepImage(resolver: ContentResolver, uri: Uri): String {
         val input = resolver.openInputStream(uri) ?: error("cannot open image")
         val original = BitmapFactory.decodeStream(input)
         input.close()
-        val scaled = downscale(original, MOMENT_STEP_IMAGE_DIMENSION)
+
+        var bitmap = downscale(original, MOMENT_STEP_IMAGE_DIMENSION)
+        var quality = MOMENT_STEP_JPEG_QUALITY
+        var encoded = jpegBase64(bitmap, quality)
+
+        // Step 1: re-compress at progressively lower quality, same dimensions.
+        while (encoded.length > MOMENT_STEP_IMAGE_MAX_BASE64_CHARS && quality > 35) {
+            quality -= 15
+            encoded = jpegBase64(bitmap, quality)
+        }
+        // Step 2 (rare): still over the cap even at low quality — shrink the
+        // dimensions themselves rather than degrading quality further.
+        if (encoded.length > MOMENT_STEP_IMAGE_MAX_BASE64_CHARS) {
+            bitmap = downscale(bitmap, MOMENT_STEP_IMAGE_DIMENSION / 2)
+            encoded = jpegBase64(bitmap, MOMENT_STEP_JPEG_QUALITY)
+        }
+        return encoded
+    }
+
+    private fun jpegBase64(bitmap: Bitmap, quality: Int): String {
         val out = ByteArrayOutputStream()
-        scaled.compress(Bitmap.CompressFormat.JPEG, MOMENT_STEP_JPEG_QUALITY, out)
+        bitmap.compress(Bitmap.CompressFormat.JPEG, quality, out)
         return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
     }
 
