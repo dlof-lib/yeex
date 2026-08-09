@@ -221,6 +221,7 @@ private fun MomentStepCard(
                 OutlinedTextField(
                     value = step.time,
                     onValueChange = { if (it.length <= 20) step.time = it },
+                    label = { Text(stringResource(R.string.moment_step_time_label)) },
                     placeholder = { Text(stringResource(R.string.moment_step_time_hint)) },
                     singleLine = true,
                     modifier = Modifier.weight(0.4f)
@@ -228,6 +229,7 @@ private fun MomentStepCard(
                 OutlinedTextField(
                     value = step.title,
                     onValueChange = { if (it.length <= 60) step.title = it },
+                    label = { Text(stringResource(R.string.moment_step_title_label)) },
                     placeholder = { Text(stringResource(R.string.moment_step_title_hint)) },
                     singleLine = true,
                     modifier = Modifier.weight(0.6f)
@@ -239,6 +241,7 @@ private fun MomentStepCard(
             OutlinedTextField(
                 value = step.text,
                 onValueChange = { if (it.length <= 160) step.text = it },
+                label = { Text(stringResource(R.string.moment_step_text_label)) },
                 placeholder = { Text(stringResource(R.string.moment_step_text_hint)) },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
             )
