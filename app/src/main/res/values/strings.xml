@@ -286,6 +286,7 @@
     <string name="rule_lowercase">أحرف صغيرة فقط</string>
     <string name="rule_forbidden_chars">بدون _ - ~ أو مسافات</string>
     <string name="rule_dots">النقاط لا تكون في البداية أو النهاية أو متتالية</string>
+    <string name="rule_allowed_chars">حروف أو أرقام أو نقاط فقط</string>
     <string name="password_strength_weak">كلمة سر ضعيفة</string>
     <string name="password_strength_medium">كلمة سر متوسطة</string>
     <string name="password_strength_strong">كلمة سر قوية</string>
