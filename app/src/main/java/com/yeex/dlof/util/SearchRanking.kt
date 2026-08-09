@@ -42,6 +42,12 @@ object SearchRanking {
         score += when {
             identifier == q -> 100.0
             identifier.startsWith(q) -> 60.0 - (identifier.length - q.length).coerceAtMost(40)
+            // A mid-identifier hit (e.g. "@dev.majd" matching "majd") still
+            // outranks a bare display-name/popularity match, mirroring the
+            // "contains" tier [roomRelevance] already gives room names —
+            // previously any non-prefix identifier match scored the same as
+            // no match at all.
+            identifier.contains(q) -> 25.0
             else -> 0.0
         }
         if (displayName.contains(q)) score += 15.0
