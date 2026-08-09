@@ -84,6 +84,15 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-dash:1.4.1")
     implementation("androidx.media3:media3-ui:1.4.1")
 
+    // Burns the yeex watermark + moving author bubble into every frame of a
+    // downloaded video (see VideoWatermarkUtil / README "علامة مائية على كل
+    // فريمات الفيديو"). Uses Media3's own decode-effect-encode pipeline
+    // instead of pulling in ffmpeg-kit (~30-50MB extra) since media3-exoplayer
+    // is already a dependency above — transformer/effect are the matching
+    // same-version modules from the same library family, not a new stack.
+    implementation("androidx.media3:media3-transformer:1.4.1")
+    implementation("androidx.media3:media3-effect:1.4.1")
+
     // Local multi-account store (encrypted at rest via Android Keystore) used
     // by AuthRepository/LocalAccountStore to remember every "معرف" that has
     // signed in on this device and let ProfileScreen's account switcher swap
