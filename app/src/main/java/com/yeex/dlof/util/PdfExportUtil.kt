@@ -107,9 +107,14 @@ object PdfExportUtil {
         val ordered = steps.sortedBy { it.order }
         val titleLines = if (title.isNotBlank()) wrapText(title, titlePaint, width - margin * 2) else emptyList()
         val blocks = ordered.map { step ->
+            // The category icon is a real vector Icon in the app UI (see
+            // ui/create/MomentIcons.kt) precisely because drawing it as a
+            // raw character glyph is unreliable — the same reasoning applies
+            // here even more: Canvas.drawText has no vector-icon fallback at
+            // all, so the header only carries time/title text; the colored
+            // dot drawn alongside it below still marks each stage's category color.
             val header = listOfNotNull(
                 step.time.takeIf { it.isNotBlank() },
-                step.icon.takeIf { it.isNotBlank() },
                 step.title.takeIf { it.isNotBlank() }
             ).joinToString(" ")
             val bodyLines = if (step.text.isNotBlank()) wrapText(step.text, stepTextPaint, maxWidth) else emptyList()
