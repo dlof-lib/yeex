@@ -16,9 +16,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Download
@@ -26,17 +28,20 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Report
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,13 +49,16 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.mlkit.nl.translate.TranslateLanguage
 import com.yeex.dlof.R
 import com.yeex.dlof.data.model.Paragraph
 import com.yeex.dlof.data.model.ParagraphType
@@ -66,10 +74,12 @@ import com.yeex.dlof.util.DownloadUtil
 import com.yeex.dlof.util.MediaBase64
 import com.yeex.dlof.util.PdfExportUtil
 import com.yeex.dlof.util.TaskProgressManager
+import com.yeex.dlof.util.TranslationUtil
 import com.yeex.dlof.util.WatermarkUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 /**
  * Renders a single paragraph as an immersive, edge-to-edge FULL-SCREEN page —
@@ -101,9 +111,11 @@ fun ParagraphCard(
     isActive: Boolean = true
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val watermarkLabel = stringResource(R.string.watermark_text)
     val savedMessage = stringResource(R.string.download_saved)
     val failedMessage = stringResource(R.string.download_failed)
+    val translateFailedMessage = stringResource(R.string.translate_failed)
     val hasMedia = paragraph.mediaBase64.isNotEmpty()
     val isVideo = paragraph.type == ParagraphType.VIDEO.name
     // Only IMAGE paragraphs decode to a Bitmap. VIDEO paragraphs store raw
@@ -113,6 +125,17 @@ fun ParagraphCard(
         if (hasMedia && !isVideo) MediaBase64.decodeToBitmap(paragraph.mediaBase64) else null
     }
     val (captionText, hashtags) = remember(paragraph.text) { extractHashtags(paragraph.text) }
+
+    // ---- Tap-to-pause (video only) + double-tap-to-like state ----
+    var isPaused by remember(paragraph.id) { mutableStateOf(false) }
+    var playbackSpeed by remember(paragraph.id) { mutableStateOf(1f) }
+    var heartBurstVisible by remember { mutableStateOf(false) }
+    var heartBurstTrigger by remember { mutableStateOf(0) }
+    var heartBurstOffset by remember { mutableStateOf(Offset.Zero) }
+
+    // ---- On-device caption translation state (see TranslationUtil) ----
+    var translatedText by remember(paragraph.id) { mutableStateOf<String?>(null) }
+    var isTranslating by remember(paragraph.id) { mutableStateOf(false) }
 
     // One view bump per paragraph, only once it's the page the user has
     // actually settled on (not every card mid-swipe-through).
@@ -131,52 +154,111 @@ fun ParagraphCard(
             .background(Color.Black)
     ) {
         // ---- Background layer: media fills the whole screen ----
-        when (paragraph.type) {
-            ParagraphType.VIDEO.name -> {
-                if (hasMedia) {
-                    VideoPlayer(
-                        paragraphId = paragraph.id,
-                        mediaBase64 = paragraph.mediaBase64,
-                        modifier = Modifier.fillMaxSize(),
-                        isActive = isActive
+        // A single tap pauses/resumes video (no-op for other types); a
+        // double tap always shows the heart burst and likes the paragraph
+        // (never unlikes — a second double tap is a no-op on the like
+        // state itself, matching Instagram/TikTok). Attached here, on the
+        // background layer specifically (not the outer root Box), so the
+        // rail/top-row/caption children declared further down still get
+        // first claim on any tap that lands on them.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(paragraph.id, isVideo, hasLiked) {
+                    detectTapGestures(
+                        onTap = { if (isVideo) isPaused = !isPaused },
+                        onDoubleTap = { offset ->
+                            heartBurstOffset = offset
+                            heartBurstTrigger++
+                            heartBurstVisible = true
+                            if (!hasLiked) onLike()
+                        }
                     )
+                }
+        ) {
+            when (paragraph.type) {
+                ParagraphType.VIDEO.name -> {
+                    if (hasMedia) {
+                        VideoPlayer(
+                            paragraphId = paragraph.id,
+                            mediaBase64 = paragraph.mediaBase64,
+                            modifier = Modifier.fillMaxSize(),
+                            isActive = isActive,
+                            isPaused = isPaused,
+                            playbackSpeed = playbackSpeed
+                        )
+                    }
+                }
+                ParagraphType.IMAGE.name -> {
+                    if (bitmap != null) {
+                        // Fit (not Crop) so the image is shown at its real
+                        // proportions instead of being cropped to fill the
+                        // screen — any letterboxing just shows the black
+                        // background behind it.
+                        Image(
+                            bitmap = bitmap.asImageBitmap(),
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+                ParagraphType.MOMENT.name -> {
+                    // Leaves room for the top author row / expiry timer, the
+                    // right-side action rail, and the bottom caption+view-count
+                    // overlay drawn further down, instead of the timeline
+                    // rendering underneath them.
+                    MomentTimeline(
+                        steps = paragraph.momentSteps,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .statusBarsPadding()
+                            .padding(top = 56.dp, bottom = 150.dp, start = 12.dp, end = 84.dp)
+                    )
+                }
+                else -> {
+                    // Text-only paragraphs get a subtle brand gradient instead of a blank void.
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(YeexAccent.copy(alpha = 0.55f), Color.Black)
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            paragraph.text,
+                            color = Color.White,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Medium,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 28.dp)
+                        )
+                    }
                 }
             }
-            ParagraphType.IMAGE.name -> {
-                if (bitmap != null) {
-                    // Fit (not Crop) so the image is shown at its real
-                    // proportions instead of being cropped to fill the
-                    // screen — any letterboxing just shows the black
-                    // background behind it.
-                    Image(
-                        bitmap = bitmap.asImageBitmap(),
-                        contentDescription = null,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
+        }
+
+        // ---- Pause indicator: shown centered while a video is manually paused ----
+        if (isVideo && isPaused) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.35f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.PlayArrow, contentDescription = stringResource(R.string.action_resume), tint = Color.White, modifier = Modifier.size(34.dp))
             }
-            else -> {
-                // Text-only paragraphs get a subtle brand gradient instead of a blank void.
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(YeexAccent.copy(alpha = 0.55f), Color.Black)
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        paragraph.text,
-                        color = Color.White,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Medium,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 28.dp)
-                    )
-                }
+        }
+
+        // ---- Double-tap heart burst ----
+        if (heartBurstVisible) {
+            key(heartBurstTrigger) {
+                DoubleTapHeartBurst(offsetPx = heartBurstOffset, onFinished = { heartBurstVisible = false })
             }
         }
 
@@ -228,6 +310,33 @@ fun ParagraphCard(
                 contentDescription = stringResource(R.string.action_comment),
                 onClick = onComment
             )
+            if (captionText.isNotBlank()) {
+                RailAction(
+                    icon = Icons.Filled.Translate,
+                    tint = if (translatedText != null) YeexAccent else Color.White,
+                    count = null,
+                    contentDescription = stringResource(R.string.action_translate),
+                    loading = isTranslating,
+                    onClick = {
+                        if (translatedText != null) {
+                            // Toggle back to the original caption instead of
+                            // re-translating — a second tap always means
+                            // "show me what I had before", not "translate again".
+                            translatedText = null
+                        } else if (!isTranslating) {
+                            scope.launch {
+                                isTranslating = true
+                                val targetTag = TranslateLanguage.fromLanguageTag(Locale.getDefault().language)
+                                    ?: TranslateLanguage.ENGLISH
+                                val result = TranslationUtil.translate(captionText, targetTag)
+                                isTranslating = false
+                                result.onSuccess { translated -> translatedText = translated }
+                                    .onFailure { Toast.makeText(context, translateFailedMessage, Toast.LENGTH_SHORT).show() }
+                            }
+                        }
+                    }
+                )
+            }
             RailAction(
                 icon = Icons.Filled.Repeat,
                 tint = Color.White,
@@ -304,11 +413,18 @@ fun ParagraphCard(
                         val authorName = author?.displayName ?: paragraph.authorIdentifier
                         updateProgress(0.5f)
                         val ok = withContext(Dispatchers.Default) {
-                            val sourceBitmap = bitmap
-                                ?: PdfExportUtil.renderTextCard(
+                            val sourceBitmap = when {
+                                bitmap != null -> bitmap
+                                paragraph.type == ParagraphType.MOMENT.name -> PdfExportUtil.renderMomentCard(
+                                    title = paragraph.text,
+                                    authorLine = "@${paragraph.authorIdentifier}",
+                                    steps = paragraph.momentSteps
+                                )
+                                else -> PdfExportUtil.renderTextCard(
                                     text = paragraph.text,
                                     authorLine = "@${paragraph.authorIdentifier}"
                                 )
+                            }
                             val watermarked = WatermarkUtil.applyWatermark(
                                 source = sourceBitmap,
                                 appLabel = watermarkLabel,
@@ -326,17 +442,60 @@ fun ParagraphCard(
             )
         }
 
-        // ---- Top-start (visually left in RTL) expiry countdown ----
-        ExpiryCountdown(
-            expiresAt = paragraph.expiresAt,
-            modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(start = 14.dp, top = 12.dp)
-        )
+        // ---- Top-start (visually left in RTL): playback speed chip (video only) ----
+        if (isVideo) {
+            Surface(
+                onClick = {
+                    val speeds = listOf(0.5f, 1f, 1.5f, 2f)
+                    val idx = speeds.indexOf(playbackSpeed).let { if (it == -1) 1 else it }
+                    playbackSpeed = speeds[(idx + 1) % speeds.size]
+                },
+                shape = RoundedCornerShape(50),
+                color = Color.Black.copy(alpha = 0.4f),
+                modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(start = 14.dp, top = 12.dp)
+            ) {
+                Text(
+                    speedLabel(playbackSpeed),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
+        }
 
-        // ---- Top-end (visually right in RTL) author row + overflow menu ----
-        Column(
-            modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(end = 14.dp, top = 12.dp),
-            horizontalAlignment = Alignment.End
+        // ---- Top-end (visually right in RTL): overflow menu only — the
+        // author avatar and expiry timer now live at the bottom, smaller,
+        // alongside the caption instead of crowding the top of the screen. ----
+        Box(
+            modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(end = 14.dp, top = 12.dp)
         ) {
+            IconButton(
+                onClick = { showMenu = true },
+                modifier = Modifier.size(32.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.28f))
+            ) {
+                Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options), tint = Color.White, modifier = Modifier.size(18.dp))
+            }
+            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_report)) },
+                    leadingIcon = { Icon(Icons.Filled.Report, contentDescription = null) },
+                    onClick = {
+                        showMenu = false
+                        Toast.makeText(context, comingSoonMessage, Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+        }
+
+        // ---- Bottom-start overlay: compact author row + expiry timer, caption, hashtags, view count ----
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 14.dp, end = 84.dp, bottom = 24.dp)
+        ) {
+            // Author avatar + handle + expiry countdown, all smaller and down
+            // here instead of a larger block pinned to the top of the screen.
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.clickable(
@@ -345,73 +504,61 @@ fun ParagraphCard(
                     onClick = { if (paragraph.authorId.isNotBlank()) onOpenProfile(paragraph.authorId) }
                 )
             ) {
-                Column(horizontalAlignment = Alignment.End) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "@${paragraph.authorIdentifier}",
-                            color = Color.White,
-                            fontWeight = FontWeight.SemiBold,
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        if (paragraph.authorVerified) {
-                            Spacer(Modifier.width(4.dp))
-                            Icon(
-                                Icons.Filled.Verified,
-                                contentDescription = stringResource(R.string.verified_badge),
-                                tint = YeexCrimson,
-                                modifier = Modifier.size(15.dp)
-                            )
-                        }
-                    }
-                    if (paragraph.createdAt > 0L) {
-                        Text(
-                            relativeAgeLabel(paragraph.createdAt),
-                            color = Color.White.copy(alpha = 0.75f),
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
-                }
-                Spacer(Modifier.width(8.dp))
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(24.dp)
                         .clip(CircleShape)
                         .background(Color.White.copy(alpha = 0.25f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Filled.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+                    Icon(Icons.Filled.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
                 }
-            }
-            Box {
-                IconButton(onClick = { showMenu = true }, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options), tint = Color.White)
-                }
-                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.action_report)) },
-                        leadingIcon = { Icon(Icons.Filled.Report, contentDescription = null) },
-                        onClick = {
-                            showMenu = false
-                            Toast.makeText(context, comingSoonMessage, Toast.LENGTH_SHORT).show()
-                        }
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    "@${paragraph.authorIdentifier}",
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelMedium
+                )
+                if (paragraph.authorVerified) {
+                    Spacer(Modifier.width(3.dp))
+                    Icon(
+                        Icons.Filled.Verified,
+                        contentDescription = stringResource(R.string.verified_badge),
+                        tint = YeexCrimson,
+                        modifier = Modifier.size(12.dp)
                     )
                 }
+                if (paragraph.createdAt > 0L) {
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        "· ${relativeAgeLabel(paragraph.createdAt)}",
+                        color = Color.White.copy(alpha = 0.7f),
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+                if (paragraph.expiresAt > 0L) {
+                    Spacer(Modifier.width(8.dp))
+                    CompactExpiryCountdown(expiresAt = paragraph.expiresAt)
+                }
             }
-        }
 
-        // ---- Bottom-start caption overlay: text, hashtags, view count ----
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 14.dp, end = 84.dp, bottom = 24.dp)
-        ) {
+            Spacer(Modifier.height(8.dp))
+
             if (captionText.isNotBlank()) {
                 Text(
-                    captionText,
+                    translatedText ?: captionText,
                     color = Color.White,
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 3
                 )
+                if (translatedText != null) {
+                    Text(
+                        stringResource(R.string.translated_label),
+                        color = Color.White.copy(alpha = 0.6f),
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
             }
             if (hashtags.isNotEmpty()) {
                 Spacer(Modifier.height(6.dp))
@@ -440,6 +587,42 @@ fun ParagraphCard(
     }
 }
 
+private fun speedLabel(speed: Float): String {
+    val trimmed = if (speed == speed.toLong().toFloat()) speed.toLong().toString() else speed.toString()
+    return "${trimmed}x"
+}
+
+/** Fading, scaling heart that bursts outward from a double-tap point — the
+ * classic Instagram/TikTok "double tap to like" confirmation. Purely
+ * decorative (no pointer input), so it never blocks taps on whatever's
+ * underneath it once it starts fading. */
+@Composable
+private fun DoubleTapHeartBurst(offsetPx: Offset, onFinished: () -> Unit) {
+    val scale = remember { Animatable(0f) }
+    val alpha = remember { Animatable(1f) }
+    LaunchedEffect(Unit) {
+        scale.animateTo(1.25f, animationSpec = tween(180, easing = FastOutSlowInEasing))
+        scale.animateTo(1f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
+        kotlinx.coroutines.delay(250)
+        alpha.animateTo(0f, animationSpec = tween(280))
+        onFinished()
+    }
+    Icon(
+        Icons.Filled.Favorite,
+        contentDescription = null,
+        tint = Color.White,
+        modifier = Modifier
+            .size(90.dp)
+            .graphicsLayer {
+                scaleX = scale.value
+                scaleY = scale.value
+                this.alpha = alpha.value
+                translationX = offsetPx.x - size.width / 2f
+                translationY = offsetPx.y - size.height / 2f
+            }
+    )
+}
+
 /** Extracts "#لحظة"-style hashtags (Arabic/Latin word chars + digits/underscore)
  * out of [text], returning the caption with the hashtags stripped plus the
  * de-duplicated tag list, so the feed can show them as a separate chip row
@@ -462,11 +645,12 @@ private fun relativeAgeLabel(createdAt: Long): String {
     }
 }
 
-/** Live "expires in HH:MM:SS" countdown, ticking once a second, matching the
- * reference design's top-left timer. Hidden once the paragraph has expired
- * (it'll be swept by [ParagraphRepository.purgeExpired] shortly after). */
+/** Compact, single-line "HH:MM:SS left" chip, ticking once a second — now
+ * shown small next to the author handle at the bottom instead of a larger
+ * two-line block pinned to the top of the screen. Hidden once the paragraph
+ * has expired (it'll be swept by [ParagraphRepository.purgeExpired] shortly after). */
 @Composable
-private fun ExpiryCountdown(expiresAt: Long, modifier: Modifier = Modifier) {
+private fun CompactExpiryCountdown(expiresAt: Long, modifier: Modifier = Modifier) {
     if (expiresAt <= 0L) return
     var remainingMs by remember(expiresAt) { mutableStateOf(expiresAt - System.currentTimeMillis()) }
     LaunchedEffect(expiresAt) {
@@ -481,21 +665,14 @@ private fun ExpiryCountdown(expiresAt: Long, modifier: Modifier = Modifier) {
     val hours = totalSeconds / 3600
     val minutes = (totalSeconds % 3600) / 60
     val seconds = totalSeconds % 60
-    Column(modifier = modifier) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Timer, contentDescription = null, tint = YeexCrimson, modifier = Modifier.size(14.dp))
-            Spacer(Modifier.width(4.dp))
-            Text(
-                stringResource(R.string.expires_in_label),
-                color = YeexCrimson,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
+    val label = if (hours > 0) "%d:%02d:%02d".format(hours, minutes, seconds) else "%02d:%02d".format(minutes, seconds)
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
+        Icon(Icons.Filled.Timer, contentDescription = stringResource(R.string.expires_in_label), tint = YeexCrimson, modifier = Modifier.size(11.dp))
+        Spacer(Modifier.width(3.dp))
         Text(
-            "%02d:%02d:%02d".format(hours, minutes, seconds),
-            color = Color.White,
-            style = MaterialTheme.typography.labelLarge,
+            label,
+            color = YeexCrimson,
+            style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold
         )
     }
@@ -508,17 +685,23 @@ private fun RailAction(
     tint: Color,
     count: Long?,
     contentDescription: String,
+    loading: Boolean = false,
     onClick: () -> Unit
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         IconButton(
             onClick = onClick,
+            enabled = !loading,
             modifier = Modifier
                 .size(46.dp)
                 .clip(CircleShape)
                 .background(Color.Black.copy(alpha = 0.28f))
         ) {
-            Icon(icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(26.dp))
+            if (loading) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+            } else {
+                Icon(icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(26.dp))
+            }
         }
         if (count != null) {
             Text(
