@@ -141,6 +141,11 @@ fun ParagraphCard(
     // ---- Tap-to-pause (video only) + double-tap-to-like state ----
     var isPaused by remember(paragraph.id) { mutableStateOf(false) }
     var playbackSpeed by remember(paragraph.id) { mutableStateOf(1f) }
+    // Progress/seek handle for the bottom scrub bar (video only) — see
+    // VideoPlayerState. Scoped to paragraph.id so swiping to a different
+    // video starts with a fresh position instead of carrying over the
+    // previous one's.
+    val videoPlayerState = rememberVideoPlayerState(key = paragraph.id)
     var heartBurstVisible by remember { mutableStateOf(false) }
     var heartBurstTrigger by remember { mutableStateOf(0) }
     var heartBurstOffset by remember { mutableStateOf(Offset.Zero) }
@@ -204,7 +209,8 @@ fun ParagraphCard(
                             isActive = isActive,
                             isPaused = isPaused,
                             playbackSpeed = playbackSpeed,
-                            onLoop = { loopFlashTrigger++ }
+                            onLoop = { loopFlashTrigger++ },
+                            state = videoPlayerState
                         )
                     }
                 }
@@ -300,6 +306,21 @@ fun ParagraphCard(
                     )
                 )
         )
+
+        // ---- Bottom video scrub bar: thin always-on progress line that
+        // becomes a draggable seek bar on touch. Pinned to the true bottom
+        // edge of the screen (below the caption/action rail, which all sit
+        // higher up with their own bottom padding) so it never collides
+        // with them, and inset by the system navigation bar so gesture-nav
+        // devices don't clip it. ----
+        if (isVideo && hasMedia) {
+            VideoProgressBar(
+                state = videoPlayerState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+            )
+        }
 
         // ---- Right-side vertical action rail (TikTok-style) ----
         Column(
