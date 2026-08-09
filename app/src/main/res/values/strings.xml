@@ -86,6 +86,8 @@
     <string name="search_recent_searches">عمليات بحث سابقة</string>
     <string name="clear_all">مسح الكل</string>
     <string name="remove_recent_search">إزالة</string>
+    <string name="more_options">خيارات إضافية</string>
+    <string name="clear_search_history">مسح سجل البحث</string>
 
     <!-- Watermark -->
     <string name="watermark_text">yeex</string>
