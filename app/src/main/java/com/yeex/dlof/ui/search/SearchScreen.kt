@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Verified
@@ -151,6 +152,10 @@ fun SearchScreen(
     // and kept in sync with what's persisted as searches happen / entries
     // get removed, so the idle-state row updates immediately either way.
     var searchHistory by remember { mutableStateOf<List<String>>(emptyList()) }
+    // Controls the "⋮" overflow menu in the new top bar (see the top-bar
+    // Row below) — kept separate from the search-field state above since it
+    // opens/closes independently of typing or query results.
+    var topBarMenuExpanded by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -244,10 +249,11 @@ fun SearchScreen(
         (if (isContainerQuery) true else userResults.isEmpty() && roomResults.isEmpty())
 
     Column(Modifier.fillMaxSize()) {
-        // ---- Search bar ----
+        // ---- Header (top bar + search bar) ----
         // A soft frosted surface instead of a flat divider bar, with a
-        // subtle brand-gradient hairline underneath it so the header reads
-        // as part of Yeex's purple → pink identity rather than a generic
+        // real brand-gradient hairline drawn underneath it (see the
+        // gradient Box right after this Surface) so the header reads as
+        // part of Yeex's purple → pink identity rather than a generic
         // Material app bar.
         Surface(
             color = MaterialTheme.colorScheme.surface,
@@ -263,6 +269,74 @@ fun SearchScreen(
                     )
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
+                // ---- Top bar: brand mark + quick actions ----
+                // Promoted out of the search-field row into its own row so
+                // the screen opens with the same "yeex" identity as the
+                // home feed's [YeexTopBar], with the rooms shortcut and a
+                // new "⋮" overflow menu (search-history clear, room
+                // browsing) sitting where a professional app bar keeps its
+                // secondary actions instead of crowding the search pill.
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            brush = YeexBrandGradient,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        stringResource(R.string.nav_search),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(Modifier.weight(1f))
+                    SearchTopBarAction(
+                        icon = Icons.Filled.Groups,
+                        contentDescription = stringResource(R.string.browse_rooms),
+                        onClick = onOpenRooms
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Box {
+                        SearchTopBarAction(
+                            icon = Icons.Filled.MoreVert,
+                            contentDescription = stringResource(R.string.more_options),
+                            onClick = { topBarMenuExpanded = true }
+                        )
+                        DropdownMenu(
+                            expanded = topBarMenuExpanded,
+                            onDismissRequest = { topBarMenuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.clear_search_history)) },
+                                leadingIcon = {
+                                    Icon(Icons.Filled.History, contentDescription = null)
+                                },
+                                enabled = searchHistory.isNotEmpty(),
+                                onClick = {
+                                    SearchHistoryStore.clear(context)
+                                    searchHistory = emptyList()
+                                    topBarMenuExpanded = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.browse_rooms)) },
+                                leadingIcon = {
+                                    Icon(Icons.Filled.Groups, contentDescription = null)
+                                },
+                                onClick = {
+                                    topBarMenuExpanded = false
+                                    onOpenRooms()
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                // ---- Search field ----
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     // The pill glows with a faint brand-gradient outline while
                     // there's an active query, giving quiet feedback that a
@@ -322,26 +396,6 @@ fun SearchScreen(
                             }
                         }
                     }
-                    Spacer(Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(YeexBrandGradient)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = androidx.compose.material.ripple.rememberRipple(color = Color.White),
-                                onClick = onOpenRooms
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Filled.Groups,
-                            contentDescription = stringResource(R.string.browse_rooms),
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
                 }
 
                 if (!isContainerQuery) {
@@ -366,6 +420,14 @@ fun SearchScreen(
                 }
             }
         }
+        // Thin brand-gradient hairline under the header, in place of a flat
+        // Divider, echoing the purple → pink identity used across the app.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(2.dp)
+                .background(YeexBrandGradient)
+        )
 
         Box(Modifier.fillMaxSize()) {
             when {
@@ -941,6 +1003,29 @@ private fun GradientIconBadge(icon: androidx.compose.ui.graphics.vector.ImageVec
         contentAlignment = Alignment.Center
     ) {
         Icon(icon, contentDescription = null, tint = YeexAccent, modifier = Modifier.size(size * 0.5f))
+    }
+}
+
+/** A small tonal circular icon button for the search screen's top bar
+ * (rooms shortcut, "⋮" overflow) — a lighter-weight sibling of
+ * [GradientIconBadge] sized for an app-bar action rather than a result
+ * card's leading badge. */
+@Composable
+private fun SearchTopBarAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String?,
+    onClick: () -> Unit
+) {
+    IconButton(onClick = onClick, modifier = Modifier.size(40.dp)) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = contentDescription, tint = YeexAccent, modifier = Modifier.size(18.dp))
+        }
     }
 }
 
