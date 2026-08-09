@@ -10,7 +10,14 @@ android {
 
     defaultConfig {
         applicationId = "com.yeex.dlof"
-        minSdk = 24
+        // 23 (Android 6.0 Marshmallow) is the real floor for this project,
+        // not an arbitrary choice: every other dependency here (Compose,
+        // Media3, MLKit, Navigation) supports back to API 21, but
+        // androidx.security:security-crypto — used by the local
+        // multi-account store to encrypt saved credentials at rest — hard
+        // -requires minSdk 23 in its own manifest. Going lower would either
+        // fail the manifest merge or force dropping encrypted local storage.
+        minSdk = 23
         targetSdk = 34
         versionCode = 1
         versionName = "0.1.0"
