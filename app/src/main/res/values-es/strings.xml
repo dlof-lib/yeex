@@ -190,6 +190,7 @@
     <string name="publish_success">Publicado con éxito</string>
     <string name="video_selected">Video seleccionado (se recortará a los primeros 10s si es más largo)</string>
     <string name="error_login_required">Debes iniciar sesión</string>
+    <string name="error_publish_failed">No se pudo publicar; comprueba tu conexión e inténtalo de nuevo</string>
     <string name="error_video_too_short">El video debe durar al menos 5 segundos</string>
     <string name="error_trim_failed">No se pudo recortar el video</string>
     <string name="error_video_too_large">El archivo de video es demasiado grande</string>
@@ -198,8 +199,11 @@
     <string name="moment_steps_hint">Añade una etapa por cada evento y arrastra el asa ⠿ para reordenar</string>
     <string name="moment_add_step">Añadir etapa</string>
     <string name="moment_step_label">Etapa %1$d</string>
-    <string name="moment_step_time_hint">Hora (ej. 08:00)</string>
+    <string name="moment_step_time_label">Hora</string>
+    <string name="moment_step_time_hint">ej. 08:00</string>
+    <string name="moment_step_title_label">Título</string>
     <string name="moment_step_title_hint">Título de la etapa</string>
+    <string name="moment_step_text_label">Descripción</string>
     <string name="moment_step_text_hint">Descripción breve (opcional)</string>
     <string name="moment_step_remove">Eliminar etapa</string>
     <string name="moment_step_add_photo">Añadir foto</string>
