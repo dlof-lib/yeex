@@ -1,14 +1,18 @@
 package com.yeex.dlof.ui.auth
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.yeex.dlof.R
+import com.yeex.dlof.ui.theme.YeexAccent
 
 /** Maps an [AuthRepository][com.yeex.dlof.data.repository.AuthRepository] error key to a localized, specific message. */
 internal fun authErrorStringRes(key: String): Int = when (key) {
@@ -48,52 +52,59 @@ fun LoginScreen(
         if (state is AuthUiState.Success) onLoggedIn()
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.displaySmall)
-        Spacer(Modifier.height(24.dp))
-
-        OutlinedTextField(
-            value = identifier,
-            onValueChange = { identifier = it.lowercase() },
-            label = { Text(stringResource(R.string.field_identifier)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(8.dp))
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text(stringResource(R.string.field_password)) },
-            visualTransformation = PasswordVisualTransformation(),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(24.dp))
-
-        Button(
-            onClick = { viewModel.login(context, identifier, password) },
-            enabled = identifier.isNotBlank() && password.isNotBlank() && state !is AuthUiState.Loading,
-            modifier = Modifier.fillMaxWidth()
+    AuthBackground {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .padding(top = 72.dp, bottom = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-            } else {
-                Text(stringResource(R.string.btn_login))
+            AuthBrandHeader(tagline = stringResource(R.string.login_tagline))
+            Spacer(Modifier.height(32.dp))
+
+            AuthCard {
+                AuthIdentifierField(
+                    value = identifier,
+                    onValueChange = { identifier = it },
+                    label = stringResource(R.string.field_identifier),
+                    isError = state is AuthUiState.Error,
+                    imeAction = ImeAction.Next,
+                    onImeAction = {},
+                    enabled = !isLoading
+                )
+                Spacer(Modifier.height(12.dp))
+                AuthPasswordField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = stringResource(R.string.field_password),
+                    isError = state is AuthUiState.Error,
+                    imeAction = ImeAction.Done,
+                    onImeAction = {
+                        if (identifier.isNotBlank() && password.isNotBlank()) viewModel.login(context, identifier, password)
+                    },
+                    enabled = !isLoading
+                )
+
+                if (state is AuthUiState.Error) {
+                    Spacer(Modifier.height(12.dp))
+                    AuthErrorBanner(stringResource(authErrorStringRes((state as AuthUiState.Error).key)))
+                }
+
+                Spacer(Modifier.height(20.dp))
+                GradientAuthButton(
+                    text = stringResource(R.string.btn_login),
+                    enabled = identifier.isNotBlank() && password.isNotBlank(),
+                    isLoading = isLoading,
+                    onClick = { viewModel.login(context, identifier, password) }
+                )
+            }
+
+            Spacer(Modifier.height(20.dp))
+            TextButton(onClick = onGoToRegister, enabled = !isLoading) {
+                Text(stringResource(R.string.no_account), color = YeexAccent)
             }
         }
-
-        if (state is AuthUiState.Error) {
-            Spacer(Modifier.height(8.dp))
-            Text(
-                stringResource(authErrorStringRes((state as AuthUiState.Error).key)),
-                color = MaterialTheme.colorScheme.error
-            )
-        }
-
-        Spacer(Modifier.height(16.dp))
-        TextButton(onClick = onGoToRegister) { Text(stringResource(R.string.no_account)) }
     }
 }
