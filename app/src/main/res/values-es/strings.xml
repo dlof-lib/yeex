@@ -135,6 +135,24 @@
     <string name="business_email_label">Correo de empresa</string>
     <string name="business_links_label">Enlaces (separados por coma)</string>
 
+    <!-- Change identifier -->
+    <string name="change_identifier">Cambiar identificador</string>
+    <string name="new_identifier_label">Nuevo identificador</string>
+    <string name="current_password_label">Contraseña actual</string>
+    <string name="confirm_change">Confirmar cambio</string>
+    <string name="identifier_change_hint">Se requiere tu contraseña actual para confirmar</string>
+
+    <!-- Account glance -->
+    <string name="account_glance">Vistazo</string>
+    <string name="account_glance_title">Vistazo de la cuenta</string>
+    <string name="account_info_identifier">Identificador</string>
+    <string name="account_info_created">Fecha de creación</string>
+    <string name="account_info_account_type">Tipo de cuenta</string>
+    <string name="account_type_personal">Personal</string>
+    <string name="account_type_business">Empresa</string>
+    <string name="account_info_verified">Estado de verificación</string>
+    <string name="account_info_not_verified">No verificada</string>
+
     <!-- Room type / live stream -->
     <string name="room_type_label">Tipo de sala</string>
     <string name="room_type_general">General</string>
