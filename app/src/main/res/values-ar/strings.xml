@@ -135,6 +135,24 @@
     <string name="business_email_label">البريد الإلكتروني للعمل</string>
     <string name="business_links_label">روابط (افصل بينها بفاصلة)</string>
 
+    <!-- Change identifier -->
+    <string name="change_identifier">تغيير المعرف</string>
+    <string name="new_identifier_label">المعرف الجديد</string>
+    <string name="current_password_label">كلمة السر الحالية</string>
+    <string name="confirm_change">تأكيد التغيير</string>
+    <string name="identifier_change_hint">يتطلب إدخال كلمة السر الحالية للتأكيد</string>
+
+    <!-- Account glance -->
+    <string name="account_glance">لمحة</string>
+    <string name="account_glance_title">لمحة عن الحساب</string>
+    <string name="account_info_identifier">المعرف</string>
+    <string name="account_info_created">تاريخ الإنشاء</string>
+    <string name="account_info_account_type">نوع الحساب</string>
+    <string name="account_type_personal">شخصي</string>
+    <string name="account_type_business">أعمال</string>
+    <string name="account_info_verified">حالة التوثيق</string>
+    <string name="account_info_not_verified">غير موثّق</string>
+
     <!-- Room type / live stream -->
     <string name="room_type_label">نوع الغرفة</string>
     <string name="room_type_general">عامة</string>
