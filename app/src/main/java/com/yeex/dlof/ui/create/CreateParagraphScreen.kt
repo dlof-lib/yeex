@@ -3,6 +3,7 @@ package com.yeex.dlof.ui.create
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.yeex.dlof.ui.gallery.YeexGalleryPickerSheet
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -116,6 +117,34 @@ fun CreateParagraphScreen(
         momentImageTarget = null
     }
 
+    // yeex's branded gallery replaces the raw system photo picker for post
+    // images and Moment step images; "browse files" inside it falls back to
+    // the system GetContent launchers above.
+    var showPostImageGallery by remember { mutableStateOf(false) }
+    var showMomentImageGallery by remember { mutableStateOf(false) }
+    YeexGalleryPickerSheet(
+        visible = showPostImageGallery,
+        onDismiss = { showPostImageGallery = false },
+        onImagePicked = { uri ->
+            imageUri = uri; videoUri = null; momentMode = false
+            showPostImageGallery = false
+        },
+        onOpenSystemPicker = { showPostImageGallery = false; pickImage.launch("image/*") }
+    )
+    YeexGalleryPickerSheet(
+        visible = showMomentImageGallery,
+        onDismiss = { showMomentImageGallery = false; momentImageTarget = null },
+        onImagePicked = { uri ->
+            momentImageTarget?.imageUri = uri
+            momentImageTarget = null
+            showMomentImageGallery = false
+        },
+        onOpenSystemPicker = {
+            showMomentImageGallery = false
+            pickMomentStepImage.launch("image/*")
+        }
+    )
+
     val composerType = when {
         momentMode -> ComposerType.MOMENT
         videoUri != null -> ComposerType.VIDEO
@@ -194,7 +223,7 @@ fun CreateParagraphScreen(
                 label = stringResource(R.string.type_image),
                 selected = composerType == ComposerType.IMAGE,
                 modifier = Modifier.weight(1f)
-            ) { pickImage.launch("image/*") }
+            ) { showPostImageGallery = true }
             TypeChip(
                 icon = Icons.Filled.Videocam,
                 label = stringResource(R.string.type_video),
@@ -222,7 +251,7 @@ fun CreateParagraphScreen(
                 steps = momentSteps,
                 onPickImage = { target ->
                     momentImageTarget = target
-                    pickMomentStepImage.launch("image/*")
+                    showMomentImageGallery = true
                 }
             )
         }
