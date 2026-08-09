@@ -67,6 +67,9 @@
     <string name="search_suggested_accounts">People you may know</string>
     <string name="search_trending_rooms">Trending now</string>
     <string name="search_trending_posts">Trending posts</string>
+    <string name="search_recent_searches">Recent searches</string>
+    <string name="clear_all">Clear all</string>
+    <string name="remove_recent_search">Remove</string>
     <string name="watermark_text">yeex</string>
     <string name="action_download">Download</string>
     <string name="action_download_video">Download video</string>
