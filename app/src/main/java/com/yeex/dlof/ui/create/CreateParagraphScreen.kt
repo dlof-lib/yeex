@@ -14,9 +14,11 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,6 +36,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.yeex.dlof.R
+import com.yeex.dlof.data.model.MomentStep
 import com.yeex.dlof.data.model.Paragraph
 import com.yeex.dlof.data.model.ParagraphType
 import com.yeex.dlof.data.repository.AuthRepository
@@ -54,8 +57,24 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 private const val TEXT_MAX_LEN = 220
+private const val MOMENT_MIN_STEPS = 2
 
-private enum class ComposerType { TEXT, IMAGE, VIDEO }
+private enum class ComposerType { TEXT, IMAGE, VIDEO, MOMENT }
+
+/**
+ * Immutable snapshot of a [MomentStepState] taken right before publish, so the
+ * background [TaskProgressManager] block (which can outlive this composable
+ * and runs off the main thread) never touches Compose mutable state directly.
+ */
+private data class MomentStepDraft(
+    val id: String,
+    val title: String,
+    val time: String,
+    val icon: String,
+    val text: String,
+    val imageUri: Uri?,
+    val colorHex: String
+)
 
 @Composable
 fun CreateParagraphScreen(
@@ -71,19 +90,34 @@ fun CreateParagraphScreen(
     var text by remember { mutableStateOf("") }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var videoUri by remember { mutableStateOf<Uri?>(null) }
+    var momentMode by remember { mutableStateOf(false) }
+    // Starts with the minimum 2 stages once MOMENT is picked (see the TypeChip
+    // onClick below), so the composer never shows a lone, unaddable stage.
+    val momentSteps = remember { mutableStateListOf<MomentStepState>() }
     var isPublishing by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val publishingLabel = stringResource(R.string.publishing_label)
     val publishSuccessMessage = stringResource(R.string.publish_success)
+    val momentMinStepsError = stringResource(R.string.moment_min_steps_error)
+    val momentStepTitleError = stringResource(R.string.moment_step_needs_title_error)
 
     val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) { imageUri = uri; videoUri = null }
+        if (uri != null) { imageUri = uri; videoUri = null; momentMode = false }
     }
     val pickVideo = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) { videoUri = uri; imageUri = null }
+        if (uri != null) { videoUri = uri; imageUri = null; momentMode = false }
+    }
+    // One shared picker for every Moment stage's optional photo — which stage
+    // it targets is tracked in momentImageTarget rather than creating a new
+    // launcher per (dynamically-added) stage.
+    var momentImageTarget by remember { mutableStateOf<MomentStepState?>(null) }
+    val pickMomentStepImage = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) momentImageTarget?.imageUri = uri
+        momentImageTarget = null
     }
 
     val composerType = when {
+        momentMode -> ComposerType.MOMENT
         videoUri != null -> ComposerType.VIDEO
         imageUri != null -> ComposerType.IMAGE
         else -> ComposerType.TEXT
@@ -148,13 +182,13 @@ fun CreateParagraphScreen(
         Spacer(Modifier.height(10.dp))
 
         // ---- Type selector: تغيير النوع يفتح المنتقي المناسب أو يمسح الوسائط ----
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TypeChip(
                 icon = Icons.Filled.TextFields,
                 label = stringResource(R.string.type_text),
                 selected = composerType == ComposerType.TEXT,
                 modifier = Modifier.weight(1f)
-            ) { imageUri = null; videoUri = null }
+            ) { imageUri = null; videoUri = null; momentMode = false }
             TypeChip(
                 icon = Icons.Filled.Image,
                 label = stringResource(R.string.type_image),
@@ -167,9 +201,33 @@ fun CreateParagraphScreen(
                 selected = composerType == ComposerType.VIDEO,
                 modifier = Modifier.weight(1f)
             ) { pickVideo.launch("video/*") }
+            TypeChip(
+                icon = Icons.Filled.Timeline,
+                label = stringResource(R.string.type_moment),
+                selected = composerType == ComposerType.MOMENT,
+                modifier = Modifier.weight(1f)
+            ) {
+                imageUri = null
+                videoUri = null
+                momentMode = true
+                if (momentSteps.isEmpty()) {
+                    repeat(MOMENT_MIN_STEPS) { momentSteps.add(MomentStepState()) }
+                }
+            }
         }
 
-        if (composerType != ComposerType.TEXT) {
+        if (composerType == ComposerType.MOMENT) {
+            Spacer(Modifier.height(18.dp))
+            MomentComposer(
+                steps = momentSteps,
+                onPickImage = { target ->
+                    momentImageTarget = target
+                    pickMomentStepImage.launch("image/*")
+                }
+            )
+        }
+
+        if (composerType == ComposerType.IMAGE || composerType == ComposerType.VIDEO) {
             Spacer(Modifier.height(14.dp))
             Text(
                 stringResource(R.string.media_length_hint),
@@ -276,11 +334,32 @@ fun CreateParagraphScreen(
                         }
                     }
 
+                    if (momentMode) {
+                        if (momentSteps.size < MOMENT_MIN_STEPS) {
+                            error = momentMinStepsError
+                            isPublishing = false
+                            return@launch
+                        }
+                        if (momentSteps.any { it.title.isBlank() }) {
+                            error = momentStepTitleError
+                            isPublishing = false
+                            return@launch
+                        }
+                    }
+
                     val appContext = context.applicationContext
                     val capturedText = text
                     val capturedImageUri = imageUri
                     val capturedVideoUri = currentVideoUri
                     val capturedRoomId = roomId
+                    // Snapshotted right away as plain data (not the mutable-state
+                    // MomentStepState objects) since this list is read from a
+                    // background dispatcher inside TaskProgressManager below.
+                    val capturedMomentSteps: List<MomentStepDraft> = if (momentMode) {
+                        momentSteps.map { s ->
+                            MomentStepDraft(s.id, s.title.trim(), s.time.trim(), s.icon, s.text.trim(), s.imageUri, s.colorHex)
+                        }
+                    } else emptyList()
 
                     TaskProgressManager.launch(
                         id = "publish_${System.currentTimeMillis()}",
@@ -290,9 +369,32 @@ fun CreateParagraphScreen(
                         var type = ParagraphType.TEXT.name
                         var mediaBase64 = ""
                         var mime = ""
+                        var momentStepsToSave: List<MomentStep> = emptyList()
                         updateProgress(0.1f)
 
                         when {
+                            capturedMomentSteps.isNotEmpty() -> {
+                                type = ParagraphType.MOMENT.name
+                                val stepCount = capturedMomentSteps.size
+                                momentStepsToSave = capturedMomentSteps.mapIndexed { index, draft ->
+                                    val encodedImage = draft.imageUri?.let { uri ->
+                                        runCatching {
+                                            MediaBase64.encodeMomentStepImage(appContext.contentResolver, uri)
+                                        }.getOrNull()
+                                    } ?: ""
+                                    updateProgress(0.1f + 0.6f * (index + 1) / stepCount)
+                                    MomentStep(
+                                        id = draft.id,
+                                        order = index,
+                                        title = draft.title,
+                                        time = draft.time,
+                                        icon = draft.icon,
+                                        text = draft.text,
+                                        imageBase64 = encodedImage,
+                                        colorHex = draft.colorHex
+                                    )
+                                }
+                            }
                             capturedImageUri != null -> {
                                 mediaBase64 = MediaBase64.encodeImage(appContext.contentResolver, capturedImageUri)
                                 type = ParagraphType.IMAGE.name
@@ -339,7 +441,8 @@ fun CreateParagraphScreen(
                                 text = capturedText,
                                 mediaBase64 = mediaBase64,
                                 mediaMimeType = mime,
-                                roomId = capturedRoomId ?: ""
+                                roomId = capturedRoomId ?: "",
+                                momentSteps = momentStepsToSave
                             )
                         )
                         updateProgress(0.95f)
@@ -350,13 +453,19 @@ fun CreateParagraphScreen(
                     onPublished()
                 }
             },
-            enabled = !isPublishing && (text.isNotBlank() || imageUri != null || videoUri != null),
+            enabled = !isPublishing && (
+                text.isNotBlank() || imageUri != null || videoUri != null ||
+                    (momentMode && momentSteps.size >= MOMENT_MIN_STEPS)
+            ),
             shape = RoundedCornerShape(50),
             colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, disabledContainerColor = Color.Transparent),
             contentPadding = PaddingValues(),
             modifier = Modifier.fillMaxWidth().height(52.dp)
         ) {
-            val enabled = !isPublishing && (text.isNotBlank() || imageUri != null || videoUri != null)
+            val enabled = !isPublishing && (
+                text.isNotBlank() || imageUri != null || videoUri != null ||
+                    (momentMode && momentSteps.size >= MOMENT_MIN_STEPS)
+            )
             Box(
                 modifier = Modifier
                     .fillMaxSize()
