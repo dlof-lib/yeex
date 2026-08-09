@@ -224,7 +224,6 @@
     <string name="repost_public_hint">Visible para todos</string>
     <string name="repost_publish">Publicar reenvío</string>
     <string name="coming_soon">Próximamente</string>
-    <string name="more_options">Más opciones</string>
     <string name="action_report">Reportar</string>
     <string name="view_count">%1$s vistas</string>
     <string name="expires_in_label">Expira en</string>
