@@ -16,7 +16,9 @@ import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.Transformer
 import com.google.common.collect.ImmutableList
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
@@ -138,7 +140,20 @@ object VideoWatermarkUtil {
         videoWidth: Int,
         videoHeight: Int,
         durationUs: Long
-    ): Boolean = suspendCancellableCoroutine { cont ->
+        // Media3's Transformer must be built AND started on a thread that
+        // has a Looper (it posts its own internal Handler there) — this is
+        // called from a background dispatcher (see ParagraphCard's video
+        // download action, which wraps the whole call in
+        // `withContext(Dispatchers.Default)`), which has no Looper at all.
+        // Building a Handler-based Transformer there throws immediately,
+        // the catch block below swallows it, and every download silently
+        // fell back to the unwatermarked original — which is why videos
+        // never seemed to actually export correctly. Hopping to
+        // Dispatchers.Main here fixes that: the encode itself still runs on
+        // Transformer's own background threads via its listener, so this
+        // doesn't block the UI, it just gives Transformer a Looper to live on.
+    ): Boolean = withContext(Dispatchers.Main) {
+        suspendCancellableCoroutine { cont ->
         try {
             val frameOverlay = StaticBitmapOverlay(frameOverlayBitmap)
             val bubbleOverlay = BouncingBitmapOverlay(
@@ -182,6 +197,7 @@ object VideoWatermarkUtil {
         } catch (e: Exception) {
             outputFile.delete()
             if (cont.isActive) cont.resumeWith(Result.success(false))
+        }
         }
     }
 
