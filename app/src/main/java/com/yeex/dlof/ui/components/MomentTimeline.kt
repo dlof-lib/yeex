@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,8 +22,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.yeex.dlof.data.model.MomentStep
+import com.yeex.dlof.ui.create.momentIconFor
 import com.yeex.dlof.ui.theme.YeexAccent
 import com.yeex.dlof.util.MediaBase64
 
@@ -67,7 +68,7 @@ private fun MomentStepRow(step: MomentStep, isLast: Boolean) {
             .height(IntrinsicSize.Min)
             .padding(horizontal = 4.dp)
     ) {
-        // ---- Connector: vertical line running through a ringed emoji dot ----
+        // ---- Connector: vertical line running through a ringed icon dot ----
         Box(modifier = Modifier.width(34.dp).fillMaxHeight()) {
             Box(
                 modifier = Modifier
@@ -86,7 +87,12 @@ private fun MomentStepRow(step: MomentStep, isLast: Boolean) {
                     .border(1.5.dp, dotColor, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text(step.icon.ifBlank { "•" }, fontSize = 13.sp)
+                Icon(
+                    momentIconFor(step.icon),
+                    contentDescription = null,
+                    tint = dotColor,
+                    modifier = Modifier.size(15.dp)
+                )
             }
         }
 
