@@ -67,6 +67,9 @@
     <string name="search_suggested_accounts">Quizá conozcas a</string>
     <string name="search_trending_rooms">Tendencias ahora</string>
     <string name="search_trending_posts">Publicaciones en tendencia</string>
+    <string name="search_recent_searches">Búsquedas recientes</string>
+    <string name="clear_all">Borrar todo</string>
+    <string name="remove_recent_search">Quitar</string>
     <string name="watermark_text">yeex</string>
     <string name="action_download">Descargar</string>
     <string name="action_download_video">Descargar video</string>
