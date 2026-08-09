@@ -190,6 +190,7 @@
     <string name="publish_success">Published successfully</string>
     <string name="video_selected">Video selected (trimmed to the first 10s if longer)</string>
     <string name="error_login_required">You must be logged in</string>
+    <string name="error_publish_failed">Couldn\'t publish — check your connection and try again</string>
     <string name="error_video_too_short">The video must be at least 5 seconds long</string>
     <string name="error_trim_failed">Couldn\'t trim the video</string>
     <string name="error_video_too_large">Video file is too large</string>
@@ -198,8 +199,11 @@
     <string name="moment_steps_hint">Add a stage for each event, and drag the ⠿ handle to reorder</string>
     <string name="moment_add_step">Add stage</string>
     <string name="moment_step_label">Stage %1$d</string>
-    <string name="moment_step_time_hint">Time (e.g. 08:00)</string>
+    <string name="moment_step_time_label">Time</string>
+    <string name="moment_step_time_hint">e.g. 08:00</string>
+    <string name="moment_step_title_label">Title</string>
     <string name="moment_step_title_hint">Stage title</string>
+    <string name="moment_step_text_label">Description</string>
     <string name="moment_step_text_hint">Short description (optional)</string>
     <string name="moment_step_remove">Remove stage</string>
     <string name="moment_step_add_photo">Add photo</string>
