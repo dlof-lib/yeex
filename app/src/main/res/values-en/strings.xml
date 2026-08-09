@@ -196,7 +196,8 @@
     <string name="error_video_too_large">Video file is too large</string>
     <string name="error_unknown">Unknown error</string>
     <string name="moment_steps_title">Moment stages</string>
-    <string name="moment_steps_hint">Add a stage for each event, and drag the ⠿ handle to reorder</string>
+    <string name="moment_steps_hint_prefix">Add a stage for each event, and drag the</string>
+    <string name="moment_steps_hint_suffix">handle to reorder</string>
     <string name="moment_add_step">Add stage</string>
     <string name="moment_step_label">Stage %1$d</string>
     <string name="moment_step_time_label">Time</string>
