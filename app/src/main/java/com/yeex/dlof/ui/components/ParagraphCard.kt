@@ -391,6 +391,143 @@ fun ParagraphCard(
                 contentDescription = stringResource(R.string.action_repost),
                 onClick = onRepost
             )
+            if (bitmap != null) {
+                RailAction(
+                    icon = Icons.Filled.Download,
+                    tint = Color.White,
+                    count = null,
+                    contentDescription = stringResource(R.string.action_download),
+                    onClick = {
+                        val downloadingLabel = context.getString(R.string.downloading_image_label)
+                        TaskProgressManager.launch(
+                            id = "download_${paragraph.id}_${System.currentTimeMillis()}",
+                            type = BackgroundTaskType.DOWNLOAD,
+                            label = downloadingLabel
+                        ) { updateProgress ->
+                            updateProgress(0.1f)
+                            // Author name/avatar aren't denormalized onto the paragraph
+                            // (see the comment on authorIdentifier above) — fetched
+                            // here, once, only when a download is actually requested.
+                            val author = runCatching { userRepo.getUser(paragraph.authorId) }.getOrNull()
+                            updateProgress(0.35f)
+                            val authorAvatar = author?.profileIconUrl
+                                ?.takeIf { it.isNotBlank() }
+                                ?.let { MediaBase64.decodeToBitmap(it) }
+                            updateProgress(0.55f)
+                            val watermarked = withContext(Dispatchers.Default) {
+                                WatermarkUtil.applyWatermark(
+                                    source = bitmap,
+                                    appLabel = watermarkLabel,
+                                    authorIdentifier = paragraph.authorIdentifier,
+                                    authorDisplayName = author?.displayName ?: paragraph.authorIdentifier,
+                                    authorAvatar = authorAvatar,
+                                    authorVerified = paragraph.authorVerified,
+                                    likeCount = paragraph.likeCount,
+                                    viewCount = paragraph.viewCount
+                                )
+                            }
+                            updateProgress(0.8f)
+                            val ok = withContext(Dispatchers.Default) {
+                                DownloadUtil.saveToGallery(context, watermarked, "yeex_${paragraph.id}")
+                            }
+                            updateProgress(0.95f)
+                            if (!ok) error(failedMessage)
+                            savedMessage
+                        }
+                    }
+                )
+            }
+            // Video download: separate branch from the image one above since
+            // VIDEO paragraphs never decode to a Bitmap (see the `bitmap`
+            // comment near the top of this function) — previously that meant
+            // no download action showed up for videos at all. Saves the raw
+            // MP4 bytes as-is: WatermarkUtil's frame-by-frame stamping isn't
+            // wired up yet (see its doc + README roadmap), so this is
+            // intentionally unwatermarked rather than silently failing.
+            if (isVideo && hasMedia) {
+                RailAction(
+                    icon = Icons.Filled.Download,
+                    tint = Color.White,
+                    count = null,
+                    contentDescription = stringResource(R.string.action_download_video),
+                    onClick = {
+                        val downloadingLabel = context.getString(R.string.downloading_video_label)
+                        TaskProgressManager.launch(
+                            id = "download_video_${paragraph.id}_${System.currentTimeMillis()}",
+                            type = BackgroundTaskType.DOWNLOAD,
+                            label = downloadingLabel
+                        ) { updateProgress ->
+                            updateProgress(0.1f)
+                            val videoBytes = withContext(Dispatchers.Default) {
+                                android.util.Base64.decode(paragraph.mediaBase64, android.util.Base64.NO_WRAP)
+                            }
+                            updateProgress(0.5f)
+                            val ok = withContext(Dispatchers.Default) {
+                                DownloadUtil.saveVideoToGallery(context, videoBytes, "yeex_${paragraph.id}")
+                            }
+                            updateProgress(0.95f)
+                            if (!ok) error(failedMessage)
+                            videoSavedMessage
+                        }
+                    }
+                )
+            }
+            // PDF export: works for any paragraph. IMAGE reuses the same
+            // decoded bitmap as the gallery download above; TEXT (which has
+            // no bitmap at all) is rendered onto a card first via
+            // PdfExportUtil.renderTextCard. Both paths get the same
+            // WatermarkUtil stamp before being wrapped into a one-page PDF.
+            RailAction(
+                icon = Icons.Filled.PictureAsPdf,
+                tint = Color.White,
+                count = null,
+                contentDescription = stringResource(R.string.action_download_pdf),
+                onClick = {
+                    val downloadingLabel = context.getString(R.string.downloading_pdf_label)
+                    TaskProgressManager.launch(
+                        id = "download_pdf_${paragraph.id}_${System.currentTimeMillis()}",
+                        type = BackgroundTaskType.DOWNLOAD,
+                        label = downloadingLabel
+                    ) { updateProgress ->
+                        updateProgress(0.1f)
+                        val author = runCatching { userRepo.getUser(paragraph.authorId) }.getOrNull()
+                        updateProgress(0.3f)
+                        val authorAvatar = author?.profileIconUrl
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { MediaBase64.decodeToBitmap(it) }
+                        val authorName = author?.displayName ?: paragraph.authorIdentifier
+                        updateProgress(0.5f)
+                        val ok = withContext(Dispatchers.Default) {
+                            val sourceBitmap = when {
+                                bitmap != null -> bitmap
+                                paragraph.type == ParagraphType.MOMENT.name -> PdfExportUtil.renderMomentCard(
+                                    title = paragraph.text,
+                                    authorLine = "@${paragraph.authorIdentifier}",
+                                    steps = paragraph.momentSteps
+                                )
+                                else -> PdfExportUtil.renderTextCard(
+                                    text = paragraph.text,
+                                    authorLine = "@${paragraph.authorIdentifier}"
+                                )
+                            }
+                            val watermarked = WatermarkUtil.applyWatermark(
+                                source = sourceBitmap,
+                                appLabel = watermarkLabel,
+                                authorIdentifier = paragraph.authorIdentifier,
+                                authorDisplayName = authorName,
+                                authorAvatar = authorAvatar,
+                                authorVerified = paragraph.authorVerified,
+                                likeCount = paragraph.likeCount,
+                                viewCount = paragraph.viewCount
+                            )
+                            PdfExportUtil.exportBitmap(context, watermarked, "yeex_${paragraph.id}")
+                        }
+                        updateProgress(0.95f)
+                        if (!ok) error(failedMessage)
+                        savedMessage
+                    }
+                }
+            )
         }
 
         // ---- Top-start (visually the RIGHT edge in RTL, since Start follows
@@ -418,157 +555,22 @@ fun ParagraphCard(
             }
         }
 
-        // ---- Top-end (visually the LEFT edge in RTL): overflow menu —
-        // secondary/infrequent actions (save image/video, export PDF,
-        // report) live here instead of crowding the side action rail,
-        // which is now reserved for the primary, frequent engagement
-        // actions (like/dislike/comment/repost). Same below-topbar
-        // clearance as the speed chip, so it doesn't land on top of
-        // YeexTopBar's search/rooms icons (which also sit on the End
-        // side in RTL). ----
+        // ---- Top-end (visually the LEFT edge in RTL): overflow menu only —
+        // the author avatar and expiry timer now live at the bottom, smaller,
+        // alongside the caption instead of crowding the top of the screen.
+        // Same below-topbar clearance as the speed chip, so it doesn't land
+        // on top of YeexTopBar's search/rooms icons (which also sit on the
+        // End side in RTL). ----
         Box(
             modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(end = 14.dp, top = TopOverlayClearance)
         ) {
             IconButton(
                 onClick = { showMenu = true },
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.28f))
-                    .border(width = 1.dp, color = Color.White.copy(alpha = 0.18f), shape = CircleShape)
+                modifier = Modifier.size(32.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.28f))
             ) {
                 Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options), tint = Color.White, modifier = Modifier.size(18.dp))
             }
             DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                if (bitmap != null) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.action_download)) },
-                        leadingIcon = { Icon(Icons.Filled.Download, contentDescription = null) },
-                        onClick = {
-                            showMenu = false
-                            val downloadingLabel = context.getString(R.string.downloading_image_label)
-                            TaskProgressManager.launch(
-                                id = "download_${paragraph.id}_${System.currentTimeMillis()}",
-                                type = BackgroundTaskType.DOWNLOAD,
-                                label = downloadingLabel
-                            ) { updateProgress ->
-                                updateProgress(0.1f)
-                                // Author name/avatar aren't denormalized onto the paragraph
-                                // (see the comment on authorIdentifier above) — fetched
-                                // here, once, only when a download is actually requested.
-                                val author = runCatching { userRepo.getUser(paragraph.authorId) }.getOrNull()
-                                updateProgress(0.35f)
-                                val authorAvatar = author?.profileIconUrl
-                                    ?.takeIf { it.isNotBlank() }
-                                    ?.let { MediaBase64.decodeToBitmap(it) }
-                                updateProgress(0.55f)
-                                val watermarked = withContext(Dispatchers.Default) {
-                                    WatermarkUtil.applyWatermark(
-                                        source = bitmap,
-                                        appLabel = watermarkLabel,
-                                        authorIdentifier = paragraph.authorIdentifier,
-                                        authorDisplayName = author?.displayName ?: paragraph.authorIdentifier,
-                                        authorAvatar = authorAvatar
-                                    )
-                                }
-                                updateProgress(0.8f)
-                                val ok = withContext(Dispatchers.Default) {
-                                    DownloadUtil.saveToGallery(context, watermarked, "yeex_${paragraph.id}")
-                                }
-                                updateProgress(0.95f)
-                                if (!ok) error(failedMessage)
-                                savedMessage
-                            }
-                        }
-                    )
-                }
-                // Video download: separate branch from the image one above since
-                // VIDEO paragraphs never decode to a Bitmap (see the `bitmap`
-                // comment near the top of this function) — previously that meant
-                // no download action showed up for videos at all. Saves the raw
-                // MP4 bytes as-is: WatermarkUtil's frame-by-frame stamping isn't
-                // wired up yet (see its doc + README roadmap), so this is
-                // intentionally unwatermarked rather than silently failing.
-                if (isVideo && hasMedia) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.action_download_video)) },
-                        leadingIcon = { Icon(Icons.Filled.Download, contentDescription = null) },
-                        onClick = {
-                            showMenu = false
-                            val downloadingLabel = context.getString(R.string.downloading_video_label)
-                            TaskProgressManager.launch(
-                                id = "download_video_${paragraph.id}_${System.currentTimeMillis()}",
-                                type = BackgroundTaskType.DOWNLOAD,
-                                label = downloadingLabel
-                            ) { updateProgress ->
-                                updateProgress(0.1f)
-                                val videoBytes = withContext(Dispatchers.Default) {
-                                    android.util.Base64.decode(paragraph.mediaBase64, android.util.Base64.NO_WRAP)
-                                }
-                                updateProgress(0.5f)
-                                val ok = withContext(Dispatchers.Default) {
-                                    DownloadUtil.saveVideoToGallery(context, videoBytes, "yeex_${paragraph.id}")
-                                }
-                                updateProgress(0.95f)
-                                if (!ok) error(failedMessage)
-                                videoSavedMessage
-                            }
-                        }
-                    )
-                }
-                // PDF export: works for any paragraph. IMAGE reuses the same
-                // decoded bitmap as the gallery download above; TEXT (which has
-                // no bitmap at all) is rendered onto a card first via
-                // PdfExportUtil.renderTextCard. Both paths get the same
-                // WatermarkUtil stamp before being wrapped into a one-page PDF.
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_download_pdf)) },
-                    leadingIcon = { Icon(Icons.Filled.PictureAsPdf, contentDescription = null) },
-                    onClick = {
-                        showMenu = false
-                        val downloadingLabel = context.getString(R.string.downloading_pdf_label)
-                        TaskProgressManager.launch(
-                            id = "download_pdf_${paragraph.id}_${System.currentTimeMillis()}",
-                            type = BackgroundTaskType.DOWNLOAD,
-                            label = downloadingLabel
-                        ) { updateProgress ->
-                            updateProgress(0.1f)
-                            val author = runCatching { userRepo.getUser(paragraph.authorId) }.getOrNull()
-                            updateProgress(0.3f)
-                            val authorAvatar = author?.profileIconUrl
-                                ?.takeIf { it.isNotBlank() }
-                                ?.let { MediaBase64.decodeToBitmap(it) }
-                            val authorName = author?.displayName ?: paragraph.authorIdentifier
-                            updateProgress(0.5f)
-                            val ok = withContext(Dispatchers.Default) {
-                                val sourceBitmap = when {
-                                    bitmap != null -> bitmap
-                                    paragraph.type == ParagraphType.MOMENT.name -> PdfExportUtil.renderMomentCard(
-                                        title = paragraph.text,
-                                        authorLine = "@${paragraph.authorIdentifier}",
-                                        steps = paragraph.momentSteps
-                                    )
-                                    else -> PdfExportUtil.renderTextCard(
-                                        text = paragraph.text,
-                                        authorLine = "@${paragraph.authorIdentifier}"
-                                    )
-                                }
-                                val watermarked = WatermarkUtil.applyWatermark(
-                                    source = sourceBitmap,
-                                    appLabel = watermarkLabel,
-                                    authorIdentifier = paragraph.authorIdentifier,
-                                    authorDisplayName = authorName,
-                                    authorAvatar = authorAvatar
-                                )
-                                PdfExportUtil.exportBitmap(context, watermarked, "yeex_${paragraph.id}")
-                            }
-                            updateProgress(0.95f)
-                            if (!ok) error(failedMessage)
-                            savedMessage
-                        }
-                    }
-                )
-                HorizontalDivider()
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.action_report)) },
                     leadingIcon = { Icon(Icons.Filled.Report, contentDescription = null) },
@@ -806,10 +808,7 @@ private fun CompactExpiryCountdown(expiresAt: Long, modifier: Modifier = Modifie
     }
 }
 
-/** One icon+count entry in the right-side action rail, TikTok-style. Shares
- * the same translucent-backdrop + hairline-border treatment as
- * [ReactionButton]'s neutral state, so every icon in the rail reads as one
- * consistent family instead of like/dislike looking distinct from the rest. */
+/** One icon+count entry in the right-side action rail, TikTok-style. */
 @Composable
 private fun RailAction(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -827,12 +826,11 @@ private fun RailAction(
                 .size(46.dp)
                 .clip(CircleShape)
                 .background(Color.Black.copy(alpha = 0.28f))
-                .border(width = 1.2.dp, color = Color.White.copy(alpha = 0.18f), shape = CircleShape)
         ) {
             if (loading) {
                 CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
             } else {
-                Icon(icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(24.dp))
+                Icon(icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(26.dp))
             }
         }
         if (count != null) {
