@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Report
 import androidx.compose.material.icons.filled.ThumbDown
@@ -92,6 +93,16 @@ import java.util.Locale
  * Tapping the author row (avatar + "@handle") calls [onOpenProfile] so the
  * feed can navigate to that account's profile and browse their paragraphs.
  */
+
+/**
+ * Top padding (applied after [androidx.compose.foundation.layout.statusBarsPadding])
+ * for this card's own top-corner overlays (speed chip, overflow menu). Must
+ * clear [com.yeex.dlof.ui.components.YeexTopBar]'s 52dp content height plus a
+ * small gap, since that shared bar floats over the same corners — otherwise
+ * these overlays collide with the wordmark/search/rooms icons living there.
+ */
+private val TopOverlayClearance = 64.dp
+
 @Composable
 fun ParagraphCard(
     paragraph: Paragraph,
@@ -114,6 +125,7 @@ fun ParagraphCard(
     val scope = rememberCoroutineScope()
     val watermarkLabel = stringResource(R.string.watermark_text)
     val savedMessage = stringResource(R.string.download_saved)
+    val videoSavedMessage = stringResource(R.string.download_saved_video)
     val failedMessage = stringResource(R.string.download_failed)
     val translateFailedMessage = stringResource(R.string.translate_failed)
     val hasMedia = paragraph.mediaBase64.isNotEmpty()
@@ -132,6 +144,12 @@ fun ParagraphCard(
     var heartBurstVisible by remember { mutableStateOf(false) }
     var heartBurstTrigger by remember { mutableStateOf(0) }
     var heartBurstOffset by remember { mutableStateOf(Offset.Zero) }
+
+    // ---- TikTok-style "end of video" loop flash: VideoPlayer calls onLoop
+    // every time playback wraps back to frame 0, and this briefly shows a
+    // centered replay glyph so looping reads as an intentional beat instead
+    // of a silent jump-cut — then fades itself back out. ----
+    var loopFlashTrigger by remember(paragraph.id) { mutableStateOf(0) }
 
     // ---- On-device caption translation state (see TranslationUtil) ----
     var translatedText by remember(paragraph.id) { mutableStateOf<String?>(null) }
@@ -185,7 +203,8 @@ fun ParagraphCard(
                             modifier = Modifier.fillMaxSize(),
                             isActive = isActive,
                             isPaused = isPaused,
-                            playbackSpeed = playbackSpeed
+                            playbackSpeed = playbackSpeed,
+                            onLoop = { loopFlashTrigger++ }
                         )
                     }
                 }
@@ -252,6 +271,13 @@ fun ParagraphCard(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Filled.PlayArrow, contentDescription = stringResource(R.string.action_resume), tint = Color.White, modifier = Modifier.size(34.dp))
+            }
+        }
+
+        // ---- End-of-video loop flash (video only) ----
+        if (isVideo && loopFlashTrigger > 0) {
+            key(loopFlashTrigger) {
+                VideoLoopFlash(modifier = Modifier.align(Alignment.Center))
             }
         }
 
@@ -387,6 +413,41 @@ fun ParagraphCard(
                     }
                 )
             }
+            // Video download: separate branch from the image one above since
+            // VIDEO paragraphs never decode to a Bitmap (see the `bitmap`
+            // comment near the top of this function) — previously that meant
+            // no download action showed up for videos at all. Saves the raw
+            // MP4 bytes as-is: WatermarkUtil's frame-by-frame stamping isn't
+            // wired up yet (see its doc + README roadmap), so this is
+            // intentionally unwatermarked rather than silently failing.
+            if (isVideo && hasMedia) {
+                RailAction(
+                    icon = Icons.Filled.Download,
+                    tint = Color.White,
+                    count = null,
+                    contentDescription = stringResource(R.string.action_download_video),
+                    onClick = {
+                        val downloadingLabel = context.getString(R.string.downloading_video_label)
+                        TaskProgressManager.launch(
+                            id = "download_video_${paragraph.id}_${System.currentTimeMillis()}",
+                            type = BackgroundTaskType.DOWNLOAD,
+                            label = downloadingLabel
+                        ) { updateProgress ->
+                            updateProgress(0.1f)
+                            val videoBytes = withContext(Dispatchers.Default) {
+                                android.util.Base64.decode(paragraph.mediaBase64, android.util.Base64.NO_WRAP)
+                            }
+                            updateProgress(0.5f)
+                            val ok = withContext(Dispatchers.Default) {
+                                DownloadUtil.saveVideoToGallery(context, videoBytes, "yeex_${paragraph.id}")
+                            }
+                            updateProgress(0.95f)
+                            if (!ok) error(failedMessage)
+                            videoSavedMessage
+                        }
+                    }
+                )
+            }
             // PDF export: works for any paragraph. IMAGE reuses the same
             // decoded bitmap as the gallery download above; TEXT (which has
             // no bitmap at all) is rendered onto a card first via
@@ -442,7 +503,10 @@ fun ParagraphCard(
             )
         }
 
-        // ---- Top-start (visually left in RTL): playback speed chip (video only) ----
+        // ---- Top-start (visually the RIGHT edge in RTL, since Start follows
+        // reading direction): playback speed chip (video only). Sits below
+        // YeexTopBar's 52dp band instead of inside it, so it doesn't land on
+        // top of the "yeex" wordmark that also lives on the Start side. ----
         if (isVideo) {
             Surface(
                 onClick = {
@@ -452,7 +516,7 @@ fun ParagraphCard(
                 },
                 shape = RoundedCornerShape(50),
                 color = Color.Black.copy(alpha = 0.4f),
-                modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(start = 14.dp, top = 12.dp)
+                modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(start = 14.dp, top = TopOverlayClearance)
             ) {
                 Text(
                     speedLabel(playbackSpeed),
@@ -464,11 +528,14 @@ fun ParagraphCard(
             }
         }
 
-        // ---- Top-end (visually right in RTL): overflow menu only — the
-        // author avatar and expiry timer now live at the bottom, smaller,
-        // alongside the caption instead of crowding the top of the screen. ----
+        // ---- Top-end (visually the LEFT edge in RTL): overflow menu only —
+        // the author avatar and expiry timer now live at the bottom, smaller,
+        // alongside the caption instead of crowding the top of the screen.
+        // Same below-topbar clearance as the speed chip, so it doesn't land
+        // on top of YeexTopBar's search/rooms icons (which also sit on the
+        // End side in RTL). ----
         Box(
-            modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(end = 14.dp, top = 12.dp)
+            modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(end = 14.dp, top = TopOverlayClearance)
         ) {
             IconButton(
                 onClick = { showMenu = true },
@@ -621,6 +688,42 @@ private fun DoubleTapHeartBurst(offsetPx: Offset, onFinished: () -> Unit) {
                 translationY = offsetPx.y - size.height / 2f
             }
     )
+}
+
+/** Brief, centered "looped" glyph — TikTok's cue that a video just finished
+ * and seamlessly restarted, so the jump back to frame 0 reads as a beat
+ * instead of a glitch. Purely decorative, self-dismissing, no pointer input
+ * (matches [DoubleTapHeartBurst]'s shape): scales/fades in, holds briefly,
+ * fades out, then removes itself from composition via [key] in the caller. */
+@Composable
+private fun VideoLoopFlash(modifier: Modifier = Modifier) {
+    val scale = remember { Animatable(0.6f) }
+    val alpha = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        alpha.animateTo(1f, animationSpec = tween(150))
+        scale.animateTo(1f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
+        kotlinx.coroutines.delay(200)
+        alpha.animateTo(0f, animationSpec = tween(220))
+    }
+    Box(
+        modifier = modifier
+            .size(56.dp)
+            .graphicsLayer {
+                scaleX = scale.value
+                scaleY = scale.value
+                this.alpha = alpha.value
+            }
+            .clip(CircleShape)
+            .background(Color.Black.copy(alpha = 0.4f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            Icons.Filled.Replay,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(28.dp)
+        )
+    }
 }
 
 /** Extracts "#لحظة"-style hashtags (Arabic/Latin word chars + digits/underscore)
