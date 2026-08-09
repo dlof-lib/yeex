@@ -6,11 +6,13 @@ import android.graphics.Bitmap
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import java.io.File
+import java.io.FileOutputStream
 
 /**
- * Saves a (watermarked) bitmap into the device's public gallery, in a
- * dedicated "yeex" album, so downloaded paragraphs are easy to find and
- * never overwrite the app's private cache.
+ * Saves a (watermarked) bitmap, or a raw video file, into the device's
+ * public gallery, in a dedicated "yeex" album, so downloaded paragraphs are
+ * easy to find and never overwrite the app's private cache.
  */
 object DownloadUtil {
 
@@ -39,6 +41,51 @@ object DownloadUtil {
                     context.contentResolver, bitmap, displayName, "yeex paragraph download"
                 )
                 url != null
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Saves a paragraph's raw MP4 bytes into the device's public "Movies/yeex"
+     * album. Unlike [saveToGallery], this writes the source bytes as-is (see
+     * [com.yeex.dlof.util.WatermarkUtil]'s doc: stamping every frame of a
+     * video needs a re-encode step that isn't wired up yet), so the saved
+     * file is the original clip without a burned-in watermark.
+     */
+    fun saveVideoToGallery(context: Context, videoBytes: ByteArray, displayName: String): Boolean {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val resolver = context.contentResolver
+                val values = ContentValues().apply {
+                    put(MediaStore.Video.Media.DISPLAY_NAME, "$displayName.mp4")
+                    put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
+                    put(MediaStore.Video.Media.RELATIVE_PATH, "${Environment.DIRECTORY_MOVIES}/yeex")
+                    put(MediaStore.Video.Media.IS_PENDING, 1)
+                }
+                val uri = resolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
+                    ?: return false
+                resolver.openOutputStream(uri)?.use { out ->
+                    out.write(videoBytes)
+                } ?: return false
+                values.clear()
+                values.put(MediaStore.Video.Media.IS_PENDING, 0)
+                resolver.update(uri, values, null, null)
+                true
+            } else {
+                // Pre-Q: no scoped-storage IS_PENDING dance — write straight into
+                // the public Movies/yeex folder and ask the media scanner to
+                // pick it up, same fallback shape as the pre-Q image path above.
+                @Suppress("DEPRECATION")
+                val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "yeex")
+                if (!dir.exists() && !dir.mkdirs()) return false
+                val file = File(dir, "$displayName.mp4")
+                FileOutputStream(file).use { it.write(videoBytes) }
+                android.media.MediaScannerConnection.scanFile(
+                    context, arrayOf(file.absolutePath), arrayOf("video/mp4"), null
+                )
+                true
             }
         } catch (e: Exception) {
             false
