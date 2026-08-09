@@ -47,7 +47,13 @@ fun VideoPlayer(
     // start itself with playWhenReady = true unconditionally — two videos'
     // audio would overlap for the length of the swipe gesture, and a video
     // kept playing (and using CPU/battery) even after being swiped away.
-    isActive: Boolean = true
+    isActive: Boolean = true,
+    // A tap-to-pause request from the person, independent of [isActive] —
+    // ANDed together below so leaving the page always wins over a manual
+    // pause, and manual pause is remembered while the page stays active.
+    isPaused: Boolean = false,
+    // 0.5x/1x/1.5x/2x from the speed-cycle chip in ParagraphCard.
+    playbackSpeed: Float = 1f
 ) {
     val context = LocalContext.current
 
@@ -68,26 +74,30 @@ fun VideoPlayer(
             volume = if (muted) 0f else 1f
             // Only autoplay if this page is already the active/settled one —
             // see isActive doc above.
-            playWhenReady = isActive
+            playWhenReady = isActive && !isPaused
             prepare()
         }
     }
 
-    // Pause/resume as the pager settles on or away from this page, instead
-    // of leaving every composed page's player running simultaneously.
-    LaunchedEffect(isActive) {
-        exoPlayer.playWhenReady = isActive
+    // Pause/resume as the pager settles on or away from this page, or as the
+    // person taps the video to pause/resume it themselves.
+    LaunchedEffect(isActive, isPaused) {
+        exoPlayer.playWhenReady = isActive && !isPaused
         if (!isActive) exoPlayer.seekTo(0)
+    }
+
+    LaunchedEffect(playbackSpeed) {
+        exoPlayer.setPlaybackSpeed(playbackSpeed)
     }
 
     // Also stop playback while the app itself is backgrounded, so audio
     // doesn't keep running behind other apps or the lock screen.
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner, isActive) {
+    DisposableEffect(lifecycleOwner, isActive, isPaused) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             when (event) {
                 androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> exoPlayer.playWhenReady = false
-                androidx.lifecycle.Lifecycle.Event.ON_RESUME -> exoPlayer.playWhenReady = isActive
+                androidx.lifecycle.Lifecycle.Event.ON_RESUME -> exoPlayer.playWhenReady = isActive && !isPaused
                 else -> {}
             }
         }
