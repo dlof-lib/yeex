@@ -135,6 +135,24 @@
     <string name="business_email_label">Business email</string>
     <string name="business_links_label">Links (comma-separated)</string>
 
+    <!-- Change identifier -->
+    <string name="change_identifier">Change identifier</string>
+    <string name="new_identifier_label">New identifier</string>
+    <string name="current_password_label">Current password</string>
+    <string name="confirm_change">Confirm change</string>
+    <string name="identifier_change_hint">Your current password is required to confirm</string>
+
+    <!-- Account glance -->
+    <string name="account_glance">Glance</string>
+    <string name="account_glance_title">Account at a glance</string>
+    <string name="account_info_identifier">Identifier</string>
+    <string name="account_info_created">Created on</string>
+    <string name="account_info_account_type">Account type</string>
+    <string name="account_type_personal">Personal</string>
+    <string name="account_type_business">Business</string>
+    <string name="account_info_verified">Verification status</string>
+    <string name="account_info_not_verified">Not verified</string>
+
     <!-- Room type / live stream -->
     <string name="room_type_label">Room type</string>
     <string name="room_type_general">General</string>
