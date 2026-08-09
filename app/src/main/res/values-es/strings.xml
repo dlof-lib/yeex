@@ -69,8 +69,10 @@
     <string name="search_trending_posts">Publicaciones en tendencia</string>
     <string name="watermark_text">yeex</string>
     <string name="action_download">Descargar</string>
+    <string name="action_download_video">Descargar video</string>
     <string name="action_download_pdf">Descargar PDF</string>
     <string name="download_saved">Guardado con marca de agua</string>
+    <string name="download_saved_video">Video guardado</string>
     <string name="download_failed">No se pudo guardar</string>
 
     <!-- Video controls / translation / double-tap like -->
@@ -179,6 +181,7 @@
     <string name="image_selected">Imagen seleccionada</string>
     <string name="remove_media">Quitar</string>
     <string name="downloading_image_label">Descargando imagen…</string>
+    <string name="downloading_video_label">Descargando video…</string>
     <string name="downloading_pdf_label">Descargando PDF…</string>
     <string name="publishing_label">Publicando párrafo…</string>
     <string name="publish_success">Publicado con éxito</string>
