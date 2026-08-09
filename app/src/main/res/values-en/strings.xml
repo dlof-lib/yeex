@@ -255,6 +255,7 @@
     <string name="rule_lowercase">Lowercase letters only</string>
     <string name="rule_forbidden_chars">No _ - ~ or spaces</string>
     <string name="rule_dots">Dots can\'t start, end, or repeat</string>
+    <string name="rule_allowed_chars">Letters, numbers, or dots only</string>
     <string name="password_strength_weak">Weak password</string>
     <string name="password_strength_medium">Medium password</string>
     <string name="password_strength_strong">Strong password</string>
