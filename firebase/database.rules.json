@@ -6,7 +6,7 @@
     "identifiers": {
       ".read": true,
       "$identifier": {
-        ".write": "!data.exists() && newData.isString() && newData.val() === auth.uid",
+        ".write": "newData.isString() ? (!data.exists() && newData.val() === auth.uid) : (auth != null && data.exists() && data.val() === auth.uid)",
         ".validate": "newData.isString() && newData.val().length > 0 && $identifier.length >= 3 && $identifier.length <= 24 && !$identifier.matches(/[_\\-~ A-Z]/) && !$identifier.matches(/\\.\\./) && !$identifier.beginsWith('.') && !$identifier.endsWith('.')"
       }
     },
