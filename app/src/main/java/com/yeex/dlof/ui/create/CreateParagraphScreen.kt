@@ -261,6 +261,7 @@ fun CreateParagraphScreen(
                         VideoUriPreview(uri = uri, modifier = Modifier.fillMaxSize())
                     }
                     ComposerType.TEXT -> {}
+                    ComposerType.MOMENT -> {}
                 }
 
                 IconButton(
