@@ -10,8 +10,12 @@ package com.yeex.dlof.util
  */
 object UsernameValidator {
 
-    // Anything that is a lowercase letter in Unicode, OR a digit (western/arabic-indic), OR a dot.
-    private val ALLOWED_REGEX = Regex("^[\\p{Ll}0-9\u0660-\u0669.]+$")
+    // Anything that is a letter in Unicode (\p{L} covers both cased letters like Latin/Cyrillic
+    // AND caseless scripts like Arabic/CJK/Hebrew — Arabic letters are category Lo, never Ll, so
+    // matching only \p{Ll} here silently rejected every Arabic identifier), OR a digit
+    // (western/arabic-indic), OR a dot. Actual uppercase letters are already rejected above by
+    // the explicit isUpperCase() check, so widening this to \p{L} does not let uppercase through.
+    private val ALLOWED_REGEX = Regex("^[\\p{L}0-9\u0660-\u0669.]+$")
     private val FORBIDDEN_CHARS = setOf('_', '-', '~', ' ')
 
     const val MIN_LENGTH = 3
@@ -55,7 +59,7 @@ object UsernameValidator {
      */
     fun sanitizeForAuto(raw: String): String {
         val cleaned = raw.lowercase()
-            .replace(Regex("[^\\p{Ll}0-9\u0660-\u0669.]"), "")
+            .replace(Regex("[^\\p{L}0-9\u0660-\u0669.]"), "")
             .replace(Regex("\\.{2,}"), ".")
             .trim('.')
             .take(MAX_LENGTH)
