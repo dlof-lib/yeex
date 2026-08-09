@@ -53,7 +53,12 @@ fun VideoPlayer(
     // pause, and manual pause is remembered while the page stays active.
     isPaused: Boolean = false,
     // 0.5x/1x/1.5x/2x from the speed-cycle chip in ParagraphCard.
-    playbackSpeed: Float = 1f
+    playbackSpeed: Float = 1f,
+    // Fired every time playback reaches the end and seamlessly restarts
+    // (REPEAT_MODE_ONE) — lets the caller flash a brief TikTok-style
+    // "looped" indicator instead of the video just silently jumping back
+    // to frame 0 with no feedback.
+    onLoop: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -103,6 +108,23 @@ fun VideoPlayer(
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Keeps the listener below reacting to the latest onLoop lambda without
+    // having to re-register it (and without needing onLoop as a `remember`
+    // key, which would tear down/rebuild the whole player on every
+    // recomposition where the caller passes a fresh lambda instance).
+    val currentOnLoop by androidx.compose.runtime.rememberUpdatedState(onLoop)
+    DisposableEffect(exoPlayer) {
+        val listener = object : Player.Listener {
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT) {
+                    currentOnLoop()
+                }
+            }
+        }
+        exoPlayer.addListener(listener)
+        onDispose { exoPlayer.removeListener(listener) }
     }
 
     DisposableEffect(paragraphId) {
