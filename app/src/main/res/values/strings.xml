@@ -227,7 +227,8 @@
     <string name="error_video_too_large">حجم الفيديو كبير جدًا</string>
     <string name="error_unknown">خطأ غير معروف</string>
     <string name="moment_steps_title">مراحل اللحظة</string>
-    <string name="moment_steps_hint">أضف مرحلة لكل حدث، واسحب من المقبض ⠿ لإعادة الترتيب</string>
+    <string name="moment_steps_hint_prefix">أضف مرحلة لكل حدث، واسحب من المقبض</string>
+    <string name="moment_steps_hint_suffix">لإعادة الترتيب</string>
     <string name="moment_add_step">إضافة مرحلة</string>
     <string name="moment_step_label">المرحلة %1$d</string>
     <string name="moment_step_time_label">الوقت</string>
