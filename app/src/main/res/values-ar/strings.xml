@@ -235,4 +235,17 @@
     <string name="feed_tab_containers">حاويات</string>
     <string name="replying_to">الرد على @%1$s</string>
     <string name="action_reply">رد</string>
+
+    <!-- Gallery picker (custom in-app photo gallery, replaces raw system picker) -->
+    <string name="close">إغلاق</string>
+    <string name="gallery_picker_title">معرض yeex</string>
+    <string name="gallery_picker_subtitle">اختر صورة من معرضك</string>
+    <string name="gallery_picker_browse_files">تصفّح الملفات</string>
+    <string name="gallery_picker_permission_title">إذن الوصول للصور</string>
+    <string name="gallery_picker_permission_message">للتصفّح واختيار صورة من معرضك، امنح yeex إذن الوصول إلى الصور</string>
+    <string name="gallery_picker_grant_access">منح الإذن</string>
+    <string name="gallery_picker_empty_title">لا توجد صور</string>
+    <string name="gallery_picker_empty_message">لم يتم العثور على صور في معرضك بعد</string>
+    <string name="gallery_picker_one_selected">تم اختيار صورة واحدة</string>
+    <string name="gallery_picker_confirm">استخدام الصورة</string>
 </resources>
