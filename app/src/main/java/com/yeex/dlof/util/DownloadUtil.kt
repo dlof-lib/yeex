@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
 
 /**
@@ -48,11 +49,54 @@ object DownloadUtil {
     }
 
     /**
+     * Same destination/behavior as [saveVideoToGallery] but streams an
+     * existing file on disk instead of taking the whole clip as a
+     * [ByteArray] — used for [com.yeex.dlof.util.VideoWatermarkUtil]'s
+     * output, which can be sizable once re-encoded, so it's copied in
+     * chunks rather than held fully in memory.
+     */
+    fun saveVideoFileToGallery(context: Context, sourceFile: File, displayName: String): Boolean {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val resolver = context.contentResolver
+                val values = ContentValues().apply {
+                    put(MediaStore.Video.Media.DISPLAY_NAME, "$displayName.mp4")
+                    put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
+                    put(MediaStore.Video.Media.RELATIVE_PATH, "${Environment.DIRECTORY_MOVIES}/yeex")
+                    put(MediaStore.Video.Media.IS_PENDING, 1)
+                }
+                val uri = resolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
+                    ?: return false
+                resolver.openOutputStream(uri)?.use { out ->
+                    FileInputStream(sourceFile).use { input -> input.copyTo(out) }
+                } ?: return false
+                values.clear()
+                values.put(MediaStore.Video.Media.IS_PENDING, 0)
+                resolver.update(uri, values, null, null)
+                true
+            } else {
+                @Suppress("DEPRECATION")
+                val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "yeex")
+                if (!dir.exists() && !dir.mkdirs()) return false
+                val file = File(dir, "$displayName.mp4")
+                FileInputStream(sourceFile).use { input -> file.outputStream().use { out -> input.copyTo(out) } }
+                android.media.MediaScannerConnection.scanFile(
+                    context, arrayOf(file.absolutePath), arrayOf("video/mp4"), null
+                )
+                true
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
      * Saves a paragraph's raw MP4 bytes into the device's public "Movies/yeex"
-     * album. Unlike [saveToGallery], this writes the source bytes as-is (see
-     * [com.yeex.dlof.util.WatermarkUtil]'s doc: stamping every frame of a
-     * video needs a re-encode step that isn't wired up yet), so the saved
-     * file is the original clip without a burned-in watermark.
+     * album, unwatermarked. Kept as the fallback path for when
+     * [com.yeex.dlof.util.VideoWatermarkUtil]'s re-encode fails (bad codec,
+     * OOM on a low-end device, etc.) — see the `ParagraphCard` download
+     * action, which tries the watermarked export first and only drops to
+     * this on failure so a download never silently fails outright.
      */
     fun saveVideoToGallery(context: Context, videoBytes: ByteArray, displayName: String): Boolean {
         return try {
