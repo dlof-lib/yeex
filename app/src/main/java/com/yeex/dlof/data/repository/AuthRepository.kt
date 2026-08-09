@@ -46,6 +46,7 @@ class AuthRepository(
         "uid" to uid,
         "identifier" to identifier,
         "displayName" to displayName,
+        "displayNameLower" to displayNameLower,
         "bio" to bio,
         "profileIconUrl" to profileIconUrl,
         "externalFollowerCounts" to externalFollowerCounts,
@@ -106,10 +107,12 @@ class AuthRepository(
             val authResult = auth.createUserWithEmailAndPassword(pseudoEmail, password).await()
             val uid = authResult.user?.uid ?: return AuthResult.Failure("unknown")
 
+            val resolvedDisplayName = displayName.ifBlank { identifier }
             val user = User(
                 uid = uid,
                 identifier = identifier,
-                displayName = displayName.ifBlank { identifier },
+                displayName = resolvedDisplayName,
+                displayNameLower = resolvedDisplayName.lowercase(),
                 createdAt = System.currentTimeMillis(),
                 language = language
             )
