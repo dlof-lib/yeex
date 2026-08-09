@@ -3,6 +3,7 @@ package com.yeex.dlof.ui.profile
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.yeex.dlof.ui.gallery.YeexGalleryPickerSheet
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -773,6 +774,32 @@ private fun EditAccountSheet(
         }
     }
 
+    // yeex's branded gallery replaces the raw system photo picker for the
+    // avatar/banner flows; "browse files" inside it still falls back to the
+    // system GetContent launchers above for anything outside the photo index.
+    var showIconGallery by remember { mutableStateOf(false) }
+    var showBannerGallery by remember { mutableStateOf(false) }
+    YeexGalleryPickerSheet(
+        visible = showIconGallery,
+        onDismiss = { showIconGallery = false },
+        onImagePicked = { uri ->
+            pendingIconBase64 = runCatching { MediaBase64.encodeAvatar(context.contentResolver, uri) }.getOrNull()
+            showIconGallery = false
+        },
+        title = stringResource(R.string.change_icon),
+        onOpenSystemPicker = { showIconGallery = false; pickIcon.launch("image/*") }
+    )
+    YeexGalleryPickerSheet(
+        visible = showBannerGallery,
+        onDismiss = { showBannerGallery = false },
+        onImagePicked = { uri ->
+            pendingBannerBase64 = runCatching { MediaBase64.encodeBanner(context.contentResolver, uri) }.getOrNull()
+            showBannerGallery = false
+        },
+        title = stringResource(R.string.change_banner),
+        onOpenSystemPicker = { showBannerGallery = false; pickBanner.launch("image/*") }
+    )
+
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
             Modifier
@@ -787,7 +814,7 @@ private fun EditAccountSheet(
             Box(contentAlignment = Alignment.BottomEnd) {
                 UserAvatar(iconBase64 = pendingIconBase64 ?: user?.profileIconUrl ?: "", size = 88.dp)
                 IconButton(
-                    onClick = { pickIcon.launch("image/*") },
+                    onClick = { showIconGallery = true },
                     modifier = Modifier
                         .size(32.dp)
                         .clip(CircleShape)
@@ -801,7 +828,7 @@ private fun EditAccountSheet(
                     )
                 }
             }
-            TextButton(onClick = { pickIcon.launch("image/*") }) {
+            TextButton(onClick = { showIconGallery = true }) {
                 Text(stringResource(R.string.change_icon))
             }
             Text(
@@ -928,7 +955,7 @@ private fun EditAccountSheet(
                             if (bannerBitmap == null) Brush.horizontalGradient(listOf(YeexNavyLight, YeexAccent, YeexPink))
                             else Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent))
                         )
-                        .clickable { pickBanner.launch("image/*") },
+                        .clickable { showBannerGallery = true },
                     contentAlignment = Alignment.Center
                 ) {
                     if (bannerBitmap != null) {
