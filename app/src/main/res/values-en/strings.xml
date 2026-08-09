@@ -69,8 +69,10 @@
     <string name="search_trending_posts">Trending posts</string>
     <string name="watermark_text">yeex</string>
     <string name="action_download">Download</string>
+    <string name="action_download_video">Download video</string>
     <string name="action_download_pdf">Download PDF</string>
     <string name="download_saved">Saved with watermark</string>
+    <string name="download_saved_video">Video saved</string>
     <string name="download_failed">Couldn\'t save</string>
 
     <!-- Video controls / translation / double-tap like -->
@@ -179,6 +181,7 @@
     <string name="image_selected">Image selected</string>
     <string name="remove_media">Remove</string>
     <string name="downloading_image_label">Downloading image…</string>
+    <string name="downloading_video_label">Downloading video…</string>
     <string name="downloading_pdf_label">Downloading PDF…</string>
     <string name="publishing_label">Publishing paragraph…</string>
     <string name="publish_success">Published successfully</string>
