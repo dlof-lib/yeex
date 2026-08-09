@@ -55,6 +55,28 @@ class UserRepository(
     }
 
     /**
+     * Prefix search over /users ordered by [User.displayNameLower], so
+     * typing part of someone's actual name (not their @identifier) also
+     * surfaces them in [com.yeex.dlof.ui.search.SearchScreen] — previously
+     * only an exact identifier prefix returned any results at all. Case is
+     * normalized on both sides ([updateProfile] writes the lowercase
+     * mirror, this lowercases the query) since RTDB range queries are
+     * case-sensitive. Accounts created/edited before this field existed
+     * simply won't match here until they next save their profile — the
+     * identifier search above still covers them in the meantime.
+     */
+    suspend fun searchByDisplayNamePrefix(prefix: String, limit: Int = 20): List<User> {
+        val clean = prefix.trim().lowercase()
+        if (clean.isEmpty()) return emptyList()
+        val snapshot = usersRef.orderByChild("displayNameLower")
+            .startAt(clean)
+            .endAt(clean + "\uf8ff")
+            .limitToFirst(limit)
+            .get().await()
+        return snapshot.children.mapNotNull { it.getValue(User::class.java) }
+    }
+
+    /**
      * Live version of [getUser] — pushes updates whenever /users/{uid} changes,
      * including tekingCount/tekerCount right after [toggleTek] writes them.
      * ProfileScreen uses this instead of a one-shot read so the Tek/Teker
@@ -80,9 +102,13 @@ class UserRepository(
     /**
      * Updates the editable profile fields (display name + bio) from the
      * "edit account" bottom sheet in [com.yeex.dlof.ui.profile.ProfileScreen].
+     * Also refreshes [User.displayNameLower] so
+     * [searchByDisplayNamePrefix] keeps finding this account by its current
+     * name.
      */
     suspend fun updateProfile(uid: String, displayName: String, bio: String) {
         usersRef.child(uid).child("displayName").setValue(displayName).await()
+        usersRef.child(uid).child("displayNameLower").setValue(displayName.lowercase()).await()
         usersRef.child(uid).child("bio").setValue(bio).await()
     }
 
