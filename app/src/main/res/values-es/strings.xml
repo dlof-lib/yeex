@@ -196,7 +196,8 @@
     <string name="error_video_too_large">El archivo de video es demasiado grande</string>
     <string name="error_unknown">Error desconocido</string>
     <string name="moment_steps_title">Etapas del momento</string>
-    <string name="moment_steps_hint">Añade una etapa por cada evento y arrastra el asa ⠿ para reordenar</string>
+    <string name="moment_steps_hint_prefix">Añade una etapa por cada evento y arrastra el asa</string>
+    <string name="moment_steps_hint_suffix">para reordenar</string>
     <string name="moment_add_step">Añadir etapa</string>
     <string name="moment_step_label">Etapa %1$d</string>
     <string name="moment_step_time_label">Hora</string>
