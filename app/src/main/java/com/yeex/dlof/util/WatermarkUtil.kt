@@ -5,9 +5,11 @@ import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
+import java.util.Locale
 import kotlin.math.hypot
 import kotlin.math.min
 
@@ -19,8 +21,11 @@ import kotlin.math.min
  *  1. A diagonal tile of the "yeex" mark repeated across the whole image, so
  *     cropping out a single corner still leaves the mark visible.
  *  2. An author badge (bottom-right) — avatar (or initial fallback),
- *     display name, and "@identifier" — so a re-shared download is
- *     traceable to who posted it, not just to the app.
+ *     display name, "@identifier", and a like/view stats row (heart +
+ *     eye glyphs drawn as vector paths so they render identically on every
+ *     device font) — so a re-shared download is traceable to who posted it
+ *     and shows the same social-proof numbers the post had in-app, not just
+ *     the app's name.
  *  3. A small standalone brand tag (bottom-left) so "yeex" itself stays
  *     legible even if the author badge is cropped or covered.
  *
@@ -52,13 +57,22 @@ object WatermarkUtil {
      *   [authorIdentifier] if blank.
      * @param authorAvatar the poster's decoded profile icon, or null to draw
      *   an initial-letter fallback circle instead.
+     * @param authorVerified when true, draws a small verified checkmark next
+     *   to the display name, matching the in-app profile badge.
+     * @param likeCount the paragraph's like count at download time, shown
+     *   next to a heart glyph in the stats row.
+     * @param viewCount the paragraph's view count at download time, shown
+     *   next to an eye glyph in the stats row.
      */
     fun applyWatermark(
         source: Bitmap,
         appLabel: String = "yeex",
         authorIdentifier: String = "",
         authorDisplayName: String = "",
-        authorAvatar: Bitmap? = null
+        authorAvatar: Bitmap? = null,
+        authorVerified: Boolean = false,
+        likeCount: Long = 0,
+        viewCount: Long = 0
     ): Bitmap {
         val output = source.copy(Bitmap.Config.ARGB_8888, true)
         val canvas = Canvas(output)
@@ -67,7 +81,15 @@ object WatermarkUtil {
 
         drawDiagonalTile(canvas, w, h, appLabel)
         if (authorIdentifier.isNotBlank()) {
-            drawAuthorBadge(canvas, w, h, authorIdentifier, authorDisplayName.ifBlank { authorIdentifier }, authorAvatar)
+            drawAuthorBadge(
+                canvas, w, h,
+                identifier = authorIdentifier,
+                displayName = authorDisplayName.ifBlank { authorIdentifier },
+                avatar = authorAvatar,
+                verified = authorVerified,
+                likeCount = likeCount,
+                viewCount = viewCount
+            )
             drawBrandTag(canvas, w, h, appLabel)
         } else {
             // No author context available (e.g. legacy call site) — keep the
@@ -76,6 +98,16 @@ object WatermarkUtil {
         }
 
         return output
+    }
+
+    /** "1234" -> "1.2K", "2500000" -> "2.5M" — compact, locale-neutral counters matching in-app RailAction formatting. */
+    private fun formatCount(count: Long): String {
+        fun trimZero(s: String) = if (s.endsWith(".0K") || s.endsWith(".0M")) s.dropLast(2) + s.last() else s
+        return when {
+            count < 1_000 -> count.toString()
+            count < 1_000_000 -> trimZero(String.format(Locale.US, "%.1fK", count / 1_000.0))
+            else -> trimZero(String.format(Locale.US, "%.1fM", count / 1_000_000.0))
+        }
     }
 
     /** Repeating mark across the whole frame, rotated -30°. Bigger + a touch bolder than before so it survives re-compression. */
@@ -107,8 +139,11 @@ object WatermarkUtil {
 
     /**
      * Large, legible author badge in the bottom-right corner: circular
-     * avatar + display name + "@identifier", on a solid rounded pill so it
-     * reads clearly even over busy photos/thumbnails.
+     * avatar (account icon) + display name (with an optional verified
+     * checkmark) + "@identifier" + a like/view stats row, on a solid
+     * rounded pill so it reads clearly even over busy photos/thumbnails —
+     * the same "saved with proof" mark other social apps stamp on
+     * downloaded media, but yeex-branded.
      */
     private fun drawAuthorBadge(
         canvas: Canvas,
@@ -116,26 +151,47 @@ object WatermarkUtil {
         h: Int,
         identifier: String,
         displayName: String,
-        avatar: Bitmap?
+        avatar: Bitmap?,
+        verified: Boolean,
+        likeCount: Long,
+        viewCount: Long
     ) {
         val margin = w * 0.035f
-        val avatarSize = w * 0.13f
-        val pad = avatarSize * 0.22f
+        val avatarSize = w * 0.15f
+        val pad = avatarSize * 0.2f
 
         val namePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
-            textSize = w * 0.05f
+            textSize = w * 0.048f
             typeface = Typeface.create(Typeface.DEFAULT_BOLD, Typeface.BOLD)
         }
         val handlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
-            alpha = 210
-            textSize = w * 0.038f
+            alpha = 205
+            textSize = w * 0.036f
             typeface = Typeface.DEFAULT
+        }
+        val statsPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            alpha = 235
+            textSize = w * 0.036f
+            typeface = Typeface.create(Typeface.DEFAULT_BOLD, Typeface.BOLD)
         }
 
         val handle = "@$identifier"
-        val textWidth = maxOf(namePaint.measureText(displayName), handlePaint.measureText(handle))
+        val likeLabel = formatCount(likeCount)
+        val viewLabel = formatCount(viewCount)
+        val iconSize = statsPaint.textSize * 0.85f
+        val iconTextGap = iconSize * 0.28f
+        val statsGroupGap = iconSize * 1.1f
+        val verifiedBadgeSize = namePaint.textSize * 0.8f
+        val verifiedGap = if (verified) verifiedBadgeSize * 0.4f else 0f
+
+        val statsRowWidth = iconSize + iconTextGap + statsPaint.measureText(likeLabel) +
+            statsGroupGap + iconSize + iconTextGap + statsPaint.measureText(viewLabel)
+        val nameRowWidth = namePaint.measureText(displayName) + verifiedGap + (if (verified) verifiedBadgeSize else 0f)
+        val textWidth = maxOf(nameRowWidth, handlePaint.measureText(handle), statsRowWidth)
+
         val badgeHeight = avatarSize + pad * 2
         val badgeWidth = pad + avatarSize + pad + textWidth + pad
 
@@ -146,10 +202,10 @@ object WatermarkUtil {
 
         val badgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.BLACK
-            alpha = 150
+            alpha = 160
         }
         val badgeRect = RectF(badgeLeft, badgeTop, badgeRight, badgeBottom)
-        val corner = badgeHeight * 0.5f
+        val corner = badgeHeight * 0.32f
         canvas.drawRoundRect(badgeRect, corner, corner, badgePaint)
 
         val avatarLeft = badgeLeft + pad
@@ -180,14 +236,81 @@ object WatermarkUtil {
         }
         canvas.drawOval(avatarRect, ringPaint)
 
+        // Three stacked rows: name(+verified), handle, like/view stats —
+        // vertically centered as a block against the avatar.
         val textLeft = avatarRect.right + pad
-        val lineGap = handlePaint.textSize * 0.35f
-        val blockHeight = namePaint.textSize + lineGap + handlePaint.textSize
+        val rowGap = handlePaint.textSize * 0.32f
+        val blockHeight = namePaint.textSize + rowGap + handlePaint.textSize + rowGap + statsPaint.textSize
         val blockTop = badgeRect.centerY() - blockHeight / 2f
+
         val nameBaseline = blockTop + namePaint.textSize - (namePaint.fontMetrics.descent * 0.3f)
-        val handleBaseline = nameBaseline + lineGap + handlePaint.textSize
         canvas.drawText(displayName, textLeft, nameBaseline, namePaint)
+        if (verified) {
+            val badgeCx = textLeft + namePaint.measureText(displayName) + verifiedGap + verifiedBadgeSize / 2f
+            val badgeCy = nameBaseline - namePaint.textSize * 0.32f
+            drawVerifiedBadge(canvas, badgeCx, badgeCy, verifiedBadgeSize / 2f)
+        }
+
+        val handleBaseline = nameBaseline + rowGap + handlePaint.textSize
         canvas.drawText(handle, textLeft, handleBaseline, handlePaint)
+
+        val statsBaseline = handleBaseline + rowGap + statsPaint.textSize
+        val statsIconTop = statsBaseline - iconSize * 0.85f
+        val heartPaint = Paint(statsPaint).apply { color = 0xFFFF3B5C.toInt(); alpha = 255 }
+        drawHeartIcon(canvas, textLeft, statsIconTop, iconSize, heartPaint)
+        var cursor = textLeft + iconSize + iconTextGap
+        canvas.drawText(likeLabel, cursor, statsBaseline, statsPaint)
+        cursor += statsPaint.measureText(likeLabel) + statsGroupGap
+        drawEyeIcon(canvas, cursor, statsIconTop, iconSize, statsPaint)
+        cursor += iconSize + iconTextGap
+        canvas.drawText(viewLabel, cursor, statsBaseline, statsPaint)
+    }
+
+    /** Small filled heart glyph, drawn as a vector path so it looks identical on every device (no emoji-font dependency). */
+    private fun drawHeartIcon(canvas: Canvas, left: Float, top: Float, size: Float, paint: Paint) {
+        val path = Path()
+        val cx = left + size / 2f
+        path.moveTo(cx, top + size * 0.92f)
+        path.cubicTo(left - size * 0.08f, top + size * 0.55f, left + size * 0.06f, top - size * 0.05f, cx, top + size * 0.28f)
+        path.cubicTo(left + size * 0.94f, top - size * 0.05f, left + size * 1.08f, top + size * 0.55f, cx, top + size * 0.92f)
+        path.close()
+        canvas.drawPath(path, paint)
+    }
+
+    /** Small open-eye glyph (almond outline + pupil), drawn as a vector path — the "views" counterpart to [drawHeartIcon]. */
+    private fun drawEyeIcon(canvas: Canvas, left: Float, top: Float, size: Float, paint: Paint) {
+        val h = size * 0.62f
+        val midY = top + h / 2f
+        val path = Path()
+        path.moveTo(left, midY)
+        path.quadTo(left + size / 2f, top - h * 0.18f, left + size, midY)
+        path.quadTo(left + size / 2f, top + h * 1.18f, left, midY)
+        path.close()
+        val outlinePaint = Paint(paint).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = size * 0.09f
+        }
+        canvas.drawPath(path, outlinePaint)
+        val pupilPaint = Paint(paint).apply { style = Paint.Style.FILL }
+        canvas.drawCircle(left + size / 2f, midY, h * 0.24f, pupilPaint)
+    }
+
+    /** Small filled circle + checkmark, matching the in-app "verified" badge next to a display name. */
+    private fun drawVerifiedBadge(canvas: Canvas, cx: Float, cy: Float, radius: Float) {
+        val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF3897F0.toInt() }
+        canvas.drawCircle(cx, cy, radius, circlePaint)
+        val checkPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            style = Paint.Style.STROKE
+            strokeWidth = radius * 0.32f
+            strokeCap = Paint.Cap.ROUND
+            strokeJoin = Paint.Join.ROUND
+        }
+        val path = Path()
+        path.moveTo(cx - radius * 0.5f, cy)
+        path.lineTo(cx - radius * 0.12f, cy + radius * 0.4f)
+        path.lineTo(cx + radius * 0.5f, cy - radius * 0.35f)
+        canvas.drawPath(path, checkPaint)
     }
 
     /** Small standalone "yeex" tag, bottom-left, so the app mark survives even if the author badge is cropped/covered. */
