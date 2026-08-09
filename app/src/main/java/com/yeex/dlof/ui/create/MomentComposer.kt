@@ -32,7 +32,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.yeex.dlof.R
@@ -40,12 +39,6 @@ import com.yeex.dlof.ui.theme.YeexAccent
 import com.yeex.dlof.ui.theme.YeexDarkCard
 import com.yeex.dlof.ui.theme.yeexBrandGradient
 import java.util.UUID
-
-/** Emoji presets covering the two reference use-cases (a trip, a match) plus common statuses. */
-val MOMENT_ICON_PALETTE = listOf(
-    "📍", "🚗", "✈️", "☕", "🍽️", "🌅", "🏠", "⚽", "🟨", "🟥",
-    "🔄", "🎯", "🎉", "📅", "⏰", "✅", "❌", "💬", "📸", "🏆"
-)
 
 /** "" is treated as "use the default brand gradient" rather than a fixed color. */
 val MOMENT_COLOR_PALETTE = listOf("", "#9B5CF6", "#EE2A8B", "#FF3B30", "#FF9500", "#FFD60A", "#34C759", "#0A84FF")
@@ -60,7 +53,7 @@ class MomentStepState(
     val id: String = UUID.randomUUID().toString(),
     title: String = "",
     time: String = "",
-    icon: String = MOMENT_ICON_PALETTE.first(),
+    icon: String = MOMENT_ICON_PALETTE.first().key,
     text: String = "",
     imageUri: Uri? = null,
     colorHex: String = ""
@@ -102,11 +95,24 @@ fun MomentComposer(
             fontWeight = FontWeight.SemiBold
         )
         Spacer(Modifier.height(4.dp))
-        Text(
-            stringResource(R.string.moment_steps_hint),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.moment_steps_hint_prefix),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Icon(
+                Icons.Filled.DragHandle,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 3.dp).size(14.dp)
+            )
+            Text(
+                stringResource(R.string.moment_steps_hint_suffix),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         Spacer(Modifier.height(12.dp))
 
         steps.forEachIndexed { index, step ->
@@ -248,14 +254,14 @@ private fun MomentStepCard(
 
             Spacer(Modifier.height(10.dp))
 
-            // ---- Emoji icon palette ----
+            // ---- Icon category palette (real vector icons — see MomentIcons.kt) ----
             Row(
                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                MOMENT_ICON_PALETTE.forEach { emoji ->
-                    val selected = step.icon == emoji
+                MOMENT_ICON_PALETTE.forEach { option ->
+                    val selected = step.icon == option.key
                     Box(
                         modifier = Modifier
                             .size(32.dp)
@@ -265,11 +271,16 @@ private fun MomentStepCard(
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
-                                onClick = { step.icon = emoji }
+                                onClick = { step.icon = option.key }
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(emoji, fontSize = 15.sp)
+                        Icon(
+                            option.icon,
+                            contentDescription = null,
+                            tint = if (selected) accent else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(17.dp)
+                        )
                     }
                 }
             }
