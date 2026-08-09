@@ -141,6 +141,8 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
             composable(Routes.FEED) {
                 FeedScreen(
                     onOpenProfile = { uid -> navController.navigate(Routes.profile(uid)) },
+                    onOpenRooms = { navController.navigate(Routes.ROOMS) },
+                    onOpenSearch = { navController.navigate(Routes.SEARCH) },
                     onRepost = { paragraphId -> navController.navigate(Routes.repost(paragraphId)) }
                 )
             }
