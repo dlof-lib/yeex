@@ -89,8 +89,10 @@
 
     <!-- Download / watermark action -->
     <string name="action_download">تنزيل</string>
+    <string name="action_download_video">تنزيل الفيديو</string>
     <string name="action_download_pdf">تنزيل PDF</string>
     <string name="download_saved">تم الحفظ مع العلامة المائية</string>
+    <string name="download_saved_video">تم حفظ الفيديو</string>
     <string name="download_failed">تعذّر الحفظ</string>
 
     <!-- Video controls / translation / double-tap like -->
@@ -210,6 +212,7 @@
     <string name="image_selected">تم اختيار صورة</string>
     <string name="remove_media">إزالة</string>
     <string name="downloading_image_label">جاري تنزيل الصورة…</string>
+    <string name="downloading_video_label">جاري تنزيل الفيديو…</string>
     <string name="downloading_pdf_label">جاري تنزيل PDF…</string>
     <string name="publishing_label">جاري نشر الفقرة…</string>
     <string name="publish_success">تم النشر بنجاح</string>
