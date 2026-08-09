@@ -135,6 +135,18 @@ fun ProfileScreen(
                 )
             },
             actions = {
+                // ---- "لمحة" (glance) is a standalone icon, visible on ANY
+                // profile — your own or someone else's — since none of its
+                // fields (identifier, bio, verification, business contact
+                // info, Teking/Teker counts, join date) are any more private
+                // than what's already shown on the profile page itself.
+                // Own-profile-only actions (edit, switch account, logout)
+                // stay grouped under the overflow menu next to it. ----
+                if (user != null) {
+                    IconButton(onClick = { showGlanceSheet = true }) {
+                        Icon(Icons.Filled.Info, contentDescription = stringResource(R.string.account_glance))
+                    }
+                }
                 // ---- Single tidy overflow menu instead of two separate icons:
                 // "Edit profile", "Switch account" and "Logout" all live under
                 // one MoreVert button so the bar stays clean regardless of how
@@ -154,14 +166,6 @@ fun ProfileScreen(
                                 onClick = {
                                     showMenu = false
                                     showEditSheet = true
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.account_glance)) },
-                                leadingIcon = { Icon(Icons.Filled.Info, contentDescription = null) },
-                                onClick = {
-                                    showMenu = false
-                                    showGlanceSheet = true
                                 }
                             )
                             DropdownMenuItem(
