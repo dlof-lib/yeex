@@ -221,6 +221,7 @@
     <string name="publish_success">تم النشر بنجاح</string>
     <string name="video_selected">تم اختيار فيديو (سيتم اقتطاعه لأول 10 ثوانٍ إذا كان أطول)</string>
     <string name="error_login_required">يجب تسجيل الدخول</string>
+    <string name="error_publish_failed">تعذر نشر المحتوى، تحقق من الاتصال وحاول مرة أخرى</string>
     <string name="error_video_too_short">يجب أن تكون مدة الفيديو 5 ثوانٍ على الأقل</string>
     <string name="error_trim_failed">تعذر اقتطاع الفيديو</string>
     <string name="error_video_too_large">حجم الفيديو كبير جدًا</string>
@@ -229,8 +230,11 @@
     <string name="moment_steps_hint">أضف مرحلة لكل حدث، واسحب من المقبض ⠿ لإعادة الترتيب</string>
     <string name="moment_add_step">إضافة مرحلة</string>
     <string name="moment_step_label">المرحلة %1$d</string>
-    <string name="moment_step_time_hint">الوقت (مثال: 08:00)</string>
+    <string name="moment_step_time_label">الوقت</string>
+    <string name="moment_step_time_hint">مثال: 08:00</string>
+    <string name="moment_step_title_label">العنوان</string>
     <string name="moment_step_title_hint">عنوان المرحلة</string>
+    <string name="moment_step_text_label">الوصف</string>
     <string name="moment_step_text_hint">وصف قصير (اختياري)</string>
     <string name="moment_step_remove">حذف المرحلة</string>
     <string name="moment_step_add_photo">إضافة صورة</string>
