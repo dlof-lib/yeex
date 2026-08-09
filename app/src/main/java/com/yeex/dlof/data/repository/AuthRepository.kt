@@ -201,4 +201,56 @@ class AuthRepository(
 
     /** Removes an account from the on-device switcher entirely (not the account itself). */
     fun forgetAccount(context: Context, uid: String) = LocalAccountStore.forget(context, uid)
+
+    /**
+     * Changes the signed-in user's "معرف" (identifier) — the "تغيير المعرف"
+     * action in [com.yeex.dlof.ui.profile.ProfileScreen]'s edit sheet.
+     *
+     * The identifier drives two other things that must move with it:
+     *  1. FirebaseAuth's email (our free-tier pseudo-email, see
+     *     [UsernameValidator.toPseudoEmail]) — changing it needs a *recent*
+     *     sign-in, which the person may not have, so this re-authenticates
+     *     with their current password first rather than surfacing a raw
+     *     "requires-recent-login" failure.
+     *  2. The /identifiers uniqueness map — the new handle is reserved
+     *     BEFORE the old one is released (see database.rules.json: freeing
+     *     an /identifiers entry is only allowed to whoever currently owns
+     *     it), so an interruption partway through never leaves the account
+     *     with no reserved identifier at all — worst case it temporarily
+     *     holds both.
+     */
+    suspend fun changeIdentifier(context: Context, newIdentifier: String, currentPassword: String): AuthResult {
+        val validation = UsernameValidator.validate(newIdentifier)
+        if (!validation.isValid) return AuthResult.Failure(validation.errorKey ?: "invalid")
+
+        val firebaseUser = auth.currentUser ?: return AuthResult.Failure("unknown")
+        val uid = firebaseUser.uid
+
+        return try {
+            val snapshot = usersRef.child(uid).get().await()
+            val current = snapshot.getValue(User::class.java) ?: return AuthResult.Failure("profile_missing")
+            val oldIdentifier = current.identifier
+            if (newIdentifier == oldIdentifier) return AuthResult.Success(current)
+
+            val existing = identifiersRef.child(newIdentifier).get().await()
+            if (existing.exists()) return AuthResult.Failure("identifier_taken")
+
+            val oldPseudoEmail = UsernameValidator.toPseudoEmail(oldIdentifier)
+            val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(oldPseudoEmail, currentPassword)
+            firebaseUser.reauthenticate(credential).await()
+
+            val newPseudoEmail = UsernameValidator.toPseudoEmail(newIdentifier)
+            firebaseUser.updateEmail(newPseudoEmail).await()
+
+            identifiersRef.child(newIdentifier).setValue(uid).await()
+            usersRef.child(uid).child("identifier").setValue(newIdentifier).await()
+            identifiersRef.child(oldIdentifier).removeValue().await()
+
+            val updated = current.copy(identifier = newIdentifier)
+            rememberLocally(context, updated, currentPassword)
+            AuthResult.Success(updated)
+        } catch (e: Exception) {
+            AuthResult.Failure(mapAuthException("changeIdentifier", e))
+        }
+    }
 }
