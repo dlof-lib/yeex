@@ -83,5 +83,13 @@ dependencies {
     // between them instantly without retyping a password each time.
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
+    // On-device caption translation (ترجمة) for the paragraph rail's Translate
+    // action — no API key; the first use of a given language pair downloads
+    // a small model (a few MB) and every translation after that works fully
+    // offline. Language ID auto-detects the caption's source language so the
+    // person never has to pick one manually.
+    implementation("com.google.mlkit:translate:17.0.3")
+    implementation("com.google.mlkit:language-id:17.0.6")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
