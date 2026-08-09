@@ -230,4 +230,17 @@
     <string name="feed_tab_containers">Containers</string>
     <string name="replying_to">Replying to @%1$s</string>
     <string name="action_reply">Reply</string>
+
+    <!-- Gallery picker (custom in-app photo gallery, replaces raw system picker) -->
+    <string name="close">Close</string>
+    <string name="gallery_picker_title">yeex Gallery</string>
+    <string name="gallery_picker_subtitle">Choose a photo from your gallery</string>
+    <string name="gallery_picker_browse_files">Browse files</string>
+    <string name="gallery_picker_permission_title">Photo access needed</string>
+    <string name="gallery_picker_permission_message">To browse and pick a photo from your gallery, grant yeex access to your photos</string>
+    <string name="gallery_picker_grant_access">Grant access</string>
+    <string name="gallery_picker_empty_title">No photos found</string>
+    <string name="gallery_picker_empty_message">We couldn\'t find any photos in your gallery yet</string>
+    <string name="gallery_picker_one_selected">1 photo selected</string>
+    <string name="gallery_picker_confirm">Use photo</string>
 </resources>
