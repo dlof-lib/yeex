@@ -1,11 +1,15 @@
 package com.yeex.dlof.ui.search
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -32,6 +36,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -42,6 +48,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.yeex.dlof.R
 import com.yeex.dlof.data.model.Container
@@ -56,8 +63,9 @@ import com.yeex.dlof.data.repository.UserRepository
 import com.yeex.dlof.ui.components.ShimmerBox
 import com.yeex.dlof.ui.components.UserAvatar
 import com.yeex.dlof.ui.theme.YeexAccent
+import com.yeex.dlof.ui.theme.YeexBrandGradient
 import com.yeex.dlof.ui.theme.YeexCrimson
-import com.yeex.dlof.ui.theme.YeexNavy
+import com.yeex.dlof.ui.theme.YeexPink
 import com.yeex.dlof.util.FeedRanking
 import com.yeex.dlof.util.RoomRanking
 import com.yeex.dlof.util.RoomType
@@ -237,12 +245,44 @@ fun SearchScreen(
 
     Column(Modifier.fillMaxSize()) {
         // ---- Search bar ----
-        Surface(shadowElevation = 1.dp) {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+        // A soft frosted surface instead of a flat divider bar, with a
+        // subtle brand-gradient hairline underneath it so the header reads
+        // as part of Yeex's purple → pink identity rather than a generic
+        // Material app bar.
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 3.dp
+        ) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(YeexAccent.copy(alpha = 0.05f), Color.Transparent)
+                        )
+                    )
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    // The pill glows with a faint brand-gradient outline while
+                    // there's an active query, giving quiet feedback that a
+                    // search is "live" without needing extra chrome.
+                    val fieldGlow by animateFloatAsState(
+                        targetValue = if (query.isNotEmpty()) 1f else 0f,
+                        label = "searchFieldGlow"
+                    )
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                        shape = RoundedCornerShape(18.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                        border = BorderStroke(
+                            width = 1.dp,
+                            brush = Brush.linearGradient(
+                                listOf(
+                                    YeexAccent.copy(alpha = 0.15f + 0.45f * fieldGlow),
+                                    YeexPink.copy(alpha = 0.10f + 0.35f * fieldGlow)
+                                )
+                            )
+                        ),
                         modifier = Modifier.weight(1f)
                     ) {
                         Row(
@@ -252,7 +292,7 @@ fun SearchScreen(
                             Icon(
                                 Icons.Filled.Search,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = if (query.isNotEmpty()) YeexAccent else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(Modifier.width(8.dp))
@@ -264,19 +304,43 @@ fun SearchScreen(
                             )
                             AnimatedVisibility(visible = query.isNotEmpty(), enter = fadeIn(), exit = fadeOut()) {
                                 IconButton(onClick = { query = "" }, modifier = Modifier.size(32.dp)) {
-                                    Icon(
-                                        Icons.Filled.Clear,
-                                        contentDescription = stringResource(R.string.clear_search),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(18.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.14f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Filled.Clear,
+                                            contentDescription = stringResource(R.string.clear_search),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                     Spacer(Modifier.width(8.dp))
-                    FilledTonalIconButton(onClick = onOpenRooms, shape = RoundedCornerShape(16.dp)) {
-                        Icon(Icons.Filled.Groups, contentDescription = stringResource(R.string.browse_rooms))
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(YeexBrandGradient)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = androidx.compose.material.ripple.rememberRipple(color = Color.White),
+                                onClick = onOpenRooms
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Filled.Groups,
+                            contentDescription = stringResource(R.string.browse_rooms),
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
 
@@ -387,18 +451,40 @@ private fun BasicSearchField(
     )
 }
 
+/** A pill-shaped filter tab. The selected state fills with the brand's
+ * purple → pink gradient (matching [YeexBrandGradient] used for avatar
+ * rings and primary actions elsewhere) instead of a flat accent color, so
+ * the active filter reads as unmistakably "on brand" rather than generic
+ * Material selection. */
 @Composable
 private fun FilterPill(label: String, selected: Boolean, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(50),
-        color = if (selected) YeexAccent else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-        contentColor = if (selected) androidx.compose.ui.graphics.Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .then(
+                if (selected) {
+                    Modifier.background(YeexBrandGradient)
+                } else {
+                    Modifier
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(50)
+                        )
+                }
+            )
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = androidx.compose.material.ripple.rememberRipple(),
+                onClick = onClick
+            )
     ) {
         Text(
             label,
             style = MaterialTheme.typography.labelLarge,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 7.dp)
         )
     }
@@ -406,13 +492,24 @@ private fun FilterPill(label: String, selected: Boolean, onClick: () -> Unit) {
 
 @Composable
 private fun SectionHeader(title: String) {
-    Text(
-        title,
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(top = 10.dp, bottom = 6.dp)
-    )
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 3.dp, height = 14.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(YeexBrandGradient)
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            title,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
 }
 
 /**
@@ -463,12 +560,7 @@ private fun SearchIdleState(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(
-                Icons.Outlined.TravelExplore,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(56.dp)
-            )
+            StateIcon(Icons.Outlined.TravelExplore)
             Spacer(Modifier.height(14.dp))
             Text(
                 stringResource(R.string.search_idle_title),
@@ -607,7 +699,8 @@ private fun RecentSearchChip(query: String, onClick: () -> Unit, onRemove: () ->
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(50),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.10f))
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -645,12 +738,21 @@ private fun TrendingRoomChip(room: Room, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.10f)),
         modifier = Modifier.width(160.dp)
     ) {
         Column(Modifier.padding(12.dp)) {
-            Icon(Icons.Filled.Groups, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(6.dp))
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(Brush.linearGradient(listOf(YeexAccent.copy(alpha = 0.18f), YeexPink.copy(alpha = 0.18f)))),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.Groups, contentDescription = null, modifier = Modifier.size(14.dp), tint = YeexAccent)
+            }
+            Spacer(Modifier.height(8.dp))
             Text(
                 room.name,
                 style = MaterialTheme.typography.bodyMedium,
@@ -724,17 +826,16 @@ private fun SearchErrorState(onRetry: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(
-            Icons.Outlined.TravelExplore,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(56.dp)
-        )
+        StateIcon(Icons.Outlined.TravelExplore)
         Spacer(Modifier.height(14.dp))
         Text(stringResource(R.string.search_failed), style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(16.dp))
-        Button(onClick = onRetry) {
-            Text(stringResource(R.string.retry))
+        Button(
+            onClick = onRetry,
+            shape = RoundedCornerShape(50),
+            colors = ButtonDefaults.buttonColors(containerColor = YeexAccent, contentColor = Color.White)
+        ) {
+            Text(stringResource(R.string.retry), fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -746,56 +847,110 @@ private fun SearchEmptyState() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(
-            Icons.Outlined.SearchOff,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(56.dp)
-        )
+        StateIcon(Icons.Outlined.SearchOff)
         Spacer(Modifier.height(14.dp))
         Text(stringResource(R.string.search_no_results), style = MaterialTheme.typography.titleMedium)
     }
 }
 
+/** Shared full-screen-state icon treatment (idle/error/empty): a large soft
+ * brand-gradient disc behind the glyph instead of a bare gray icon floating
+ * in white space, so these "nothing here yet" moments still feel branded. */
+@Composable
+private fun StateIcon(icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Box(
+        modifier = Modifier
+            .size(88.dp)
+            .clip(CircleShape)
+            .background(
+                Brush.radialGradient(
+                    listOf(YeexAccent.copy(alpha = 0.14f), YeexPink.copy(alpha = 0.06f))
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = null, tint = YeexAccent, modifier = Modifier.size(40.dp))
+    }
+}
+
 @Composable
 private fun ContainerResultCard(container: Container, onClick: () -> Unit) {
+    ResultCardShell(onClick = onClick) {
+        GradientIconBadge(icon = Icons.Filled.Groups)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                "${stringResource(R.string.container_label)}: ${container.name}",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                "${container.roomIds.size} rooms · ${container.memberIds.size} members",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        ResultChevron()
+    }
+}
+
+/** Shared "row card" chrome for every search result type (container/user/
+ * room): a soft elevated surface with a faint outline instead of the old
+ * flat `surfaceVariant` fill, plus a gentle press-down scale so tapping a
+ * result feels responsive rather than static. */
+@Composable
+private fun ResultCardShell(onClick: () -> Unit, content: @Composable RowScope.() -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.98f else 1f, label = "resultCardPress")
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+        interactionSource = interactionSource,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.10f)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(YeexNavy.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Filled.Groups, contentDescription = null, tint = YeexNavy, modifier = Modifier.size(22.dp))
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    "${stringResource(R.string.container_label)}: ${container.name}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    "${container.roomIds.size} rooms · ${container.memberIds.size} members",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+            verticalAlignment = Alignment.CenterVertically,
+            content = content
+        )
     }
+}
+
+/** A circular badge with a faint brand-gradient wash behind the icon —
+ * used across all result-card leading icons so containers/rooms share one
+ * consistent "on-brand" treatment instead of separate flat tint colors. */
+@Composable
+private fun GradientIconBadge(icon: androidx.compose.ui.graphics.vector.ImageVector, size: Dp = 44.dp) {
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(
+                Brush.linearGradient(
+                    listOf(YeexAccent.copy(alpha = 0.16f), YeexPink.copy(alpha = 0.16f))
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = null, tint = YeexAccent, modifier = Modifier.size(size * 0.5f))
+    }
+}
+
+@Composable
+private fun ResultChevron() {
+    Icon(
+        Icons.Filled.ChevronRight,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+    )
 }
 
 /**
@@ -809,58 +964,44 @@ private fun ContainerResultCard(container: Container, onClick: () -> Unit) {
  */
 @Composable
 private fun UserResultCard(user: User, query: String = "", onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            UserAvatar(iconBase64 = user.profileIconUrl, size = 44.dp)
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        highlightedAnnotatedString(user.displayName.ifBlank { user.identifier }, query),
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                    if (user.verified) {
-                        Spacer(Modifier.width(4.dp))
-                        Icon(
-                            Icons.Filled.Verified,
-                            contentDescription = stringResource(R.string.verified_badge),
-                            tint = YeexCrimson,
-                            modifier = Modifier.size(15.dp)
-                        )
-                    }
-                }
+    ResultCardShell(onClick = onClick) {
+        UserAvatar(iconBase64 = user.profileIconUrl, size = 44.dp)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    highlightedAnnotatedString("@${user.identifier}", query),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    highlightedAnnotatedString(user.displayName.ifBlank { user.identifier }, query),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    stringResource(R.string.search_user_stats, user.tekingCount, user.tekerCount),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (user.verified) {
+                    Spacer(Modifier.width(4.dp))
+                    Icon(
+                        Icons.Filled.Verified,
+                        contentDescription = stringResource(R.string.verified_badge),
+                        tint = YeexCrimson,
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
             }
-            Icon(
-                Icons.Filled.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            Text(
+                highlightedAnnotatedString("@${user.identifier}", query),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                stringResource(R.string.search_user_stats, user.tekingCount, user.tekerCount),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+        ResultChevron()
     }
 }
 
@@ -868,47 +1009,24 @@ private fun UserResultCard(user: User, query: String = "", onClick: () -> Unit) 
  * see [UserResultCard] for the [query] highlighting behavior. */
 @Composable
 private fun RoomResultCard(room: Room, query: String = "", onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(YeexAccent.copy(alpha = 0.14f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    if (room.isPublic) Icons.Filled.Public else Icons.Filled.Lock,
-                    contentDescription = null,
-                    tint = YeexAccent,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    highlightedAnnotatedString(room.name, query),
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    stringResource(R.string.room_members_count, room.memberCount.toString()),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    ResultCardShell(onClick = onClick) {
+        GradientIconBadge(icon = if (room.isPublic) Icons.Filled.Public else Icons.Filled.Lock)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                highlightedAnnotatedString(room.name, query),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                stringResource(R.string.room_members_count, room.memberCount.toString()),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
+        ResultChevron()
     }
 }
 
