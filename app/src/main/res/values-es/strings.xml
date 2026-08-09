@@ -70,6 +70,8 @@
     <string name="search_recent_searches">Búsquedas recientes</string>
     <string name="clear_all">Borrar todo</string>
     <string name="remove_recent_search">Quitar</string>
+    <string name="more_options">Más opciones</string>
+    <string name="clear_search_history">Borrar historial de búsqueda</string>
     <string name="watermark_text">yeex</string>
     <string name="action_download">Descargar</string>
     <string name="action_download_video">Descargar video</string>
