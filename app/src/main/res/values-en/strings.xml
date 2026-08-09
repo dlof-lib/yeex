@@ -73,6 +73,12 @@
     <string name="download_saved">Saved with watermark</string>
     <string name="download_failed">Couldn\'t save</string>
 
+    <!-- Video controls / translation / double-tap like -->
+    <string name="action_resume">Resume</string>
+    <string name="action_translate">Translate</string>
+    <string name="translate_failed">Couldn\'t translate</string>
+    <string name="translated_label">Translated</string>
+
     <!-- Auth errors -->
     <string name="auth_error_invalid_credentials">Incorrect identifier or password</string>
     <string name="auth_error_identifier_taken">This identifier is already taken</string>
@@ -168,6 +174,7 @@
     <string name="type_text">Text</string>
     <string name="type_image">Image</string>
     <string name="type_video">Video</string>
+    <string name="type_moment">Moment</string>
     <string name="media_length_hint">Video 5-10 seconds</string>
     <string name="image_selected">Image selected</string>
     <string name="remove_media">Remove</string>
@@ -181,6 +188,18 @@
     <string name="error_trim_failed">Couldn\'t trim the video</string>
     <string name="error_video_too_large">Video file is too large</string>
     <string name="error_unknown">Unknown error</string>
+    <string name="moment_steps_title">Moment stages</string>
+    <string name="moment_steps_hint">Add a stage for each event, and drag the ⠿ handle to reorder</string>
+    <string name="moment_add_step">Add stage</string>
+    <string name="moment_step_label">Stage %1$d</string>
+    <string name="moment_step_time_hint">Time (e.g. 08:00)</string>
+    <string name="moment_step_title_hint">Stage title</string>
+    <string name="moment_step_text_hint">Short description (optional)</string>
+    <string name="moment_step_remove">Remove stage</string>
+    <string name="moment_step_add_photo">Add photo</string>
+    <string name="moment_drag_handle">Drag to reorder</string>
+    <string name="moment_min_steps_error">Add at least two stages to a Moment</string>
+    <string name="moment_step_needs_title_error">Enter a title for every stage</string>
     <string name="repost_title">Repost paragraph</string>
     <string name="repost_comment_hint">Add a comment (optional)...</string>
     <string name="repost_where">Where do you want to post?</string>
