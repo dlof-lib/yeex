@@ -76,7 +76,10 @@ import com.yeex.dlof.util.MediaBase64
 import com.yeex.dlof.util.PdfExportUtil
 import com.yeex.dlof.util.TaskProgressManager
 import com.yeex.dlof.util.TranslationUtil
+import com.yeex.dlof.util.VideoWatermarkUtil
 import com.yeex.dlof.util.WatermarkUtil
+import android.net.Uri
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -103,6 +106,7 @@ import java.util.Locale
  */
 private val TopOverlayClearance = 64.dp
 
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun ParagraphCard(
     paragraph: Paragraph,
@@ -440,10 +444,13 @@ fun ParagraphCard(
             // Video download: separate branch from the image one above since
             // VIDEO paragraphs never decode to a Bitmap (see the `bitmap`
             // comment near the top of this function) — previously that meant
-            // no download action showed up for videos at all. Saves the raw
-            // MP4 bytes as-is: WatermarkUtil's frame-by-frame stamping isn't
-            // wired up yet (see its doc + README roadmap), so this is
-            // intentionally unwatermarked rather than silently failing.
+            // no download action showed up for videos at all. Now runs the
+            // clip through VideoWatermarkUtil first (burns the same
+            // author-badge stamp into every frame + a bouncing avatar
+            // bubble, see that file's doc / README roadmap item), and only
+            // falls back to saving the original unwatermarked bytes if the
+            // re-encode itself fails — a download should never come up
+            // empty just because the watermark pass had trouble.
             if (isVideo && hasMedia) {
                 RailAction(
                     icon = Icons.Filled.Download,
@@ -457,13 +464,47 @@ fun ParagraphCard(
                             type = BackgroundTaskType.DOWNLOAD,
                             label = downloadingLabel
                         ) { updateProgress ->
-                            updateProgress(0.1f)
+                            updateProgress(0.05f)
                             val videoBytes = withContext(Dispatchers.Default) {
                                 android.util.Base64.decode(paragraph.mediaBase64, android.util.Base64.NO_WRAP)
                             }
-                            updateProgress(0.5f)
+                            updateProgress(0.15f)
+                            val author = runCatching { userRepo.getUser(paragraph.authorId) }.getOrNull()
+                            val authorAvatar = author?.profileIconUrl
+                                ?.takeIf { it.isNotBlank() }
+                                ?.let { MediaBase64.decodeToBitmap(it) }
+                            updateProgress(0.25f)
+
                             val ok = withContext(Dispatchers.Default) {
-                                DownloadUtil.saveVideoToGallery(context, videoBytes, "yeex_${paragraph.id}")
+                                val sourceFile = File.createTempFile("yeex_dl_src_${paragraph.id}", ".mp4", context.cacheDir)
+                                val outputFile = File.createTempFile("yeex_dl_out_${paragraph.id}", ".mp4", context.cacheDir)
+                                try {
+                                    sourceFile.outputStream().use { it.write(videoBytes) }
+                                    updateProgress(0.4f)
+                                    val watermarked = VideoWatermarkUtil.applyWatermark(
+                                        context = context,
+                                        sourceUri = Uri.fromFile(sourceFile),
+                                        outputFile = outputFile,
+                                        appLabel = watermarkLabel,
+                                        authorIdentifier = paragraph.authorIdentifier,
+                                        authorDisplayName = author?.displayName ?: paragraph.authorIdentifier,
+                                        authorAvatar = authorAvatar,
+                                        authorVerified = paragraph.authorVerified,
+                                        likeCount = paragraph.likeCount,
+                                        viewCount = paragraph.viewCount
+                                    )
+                                    updateProgress(0.85f)
+                                    if (watermarked) {
+                                        DownloadUtil.saveVideoFileToGallery(context, outputFile, "yeex_${paragraph.id}")
+                                    } else {
+                                        // Re-encode failed (unsupported codec, low-memory device, etc.) —
+                                        // still deliver the clip rather than a bare error.
+                                        DownloadUtil.saveVideoToGallery(context, videoBytes, "yeex_${paragraph.id}")
+                                    }
+                                } finally {
+                                    sourceFile.delete()
+                                    outputFile.delete()
+                                }
                             }
                             updateProgress(0.95f)
                             if (!ok) error(failedMessage)
