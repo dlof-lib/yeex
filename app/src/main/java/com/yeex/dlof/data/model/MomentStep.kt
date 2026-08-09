@@ -22,7 +22,7 @@ data class MomentStep(
     val order: Int = 0,
     val title: String = "",
     val time: String = "",          // free text: "08:00", "12'", a date, etc. — not parsed/validated
-    val icon: String = "📍",         // a single emoji, picked from a preset palette or typed freely
+    val icon: String = "location",  // a key from MOMENT_ICON_PALETTE (ui/create/MomentIcons.kt) — see momentIconFor() for legacy-emoji fallback
     val text: String = "",          // short supporting description
     val imageBase64: String = "",   // "" when this stage has no photo
     val colorHex: String = ""       // "" = default brand color; otherwise "#RRGGBB" status color
