@@ -12,6 +12,7 @@ import android.graphics.pdf.PdfDocument
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import com.yeex.dlof.data.model.MomentStep
 
 /**
  * Exports a paragraph as a single-page, watermarked PDF — the "pdf" branch
@@ -64,6 +65,94 @@ object PdfExportUtil {
         }
 
         canvas.drawText(authorLine, margin, size - margin * 0.6f, authorPaint)
+        return bitmap
+    }
+
+    /**
+     * Renders a MOMENT paragraph's timeline into a tall card bitmap for PDF
+     * export — mirrors [renderTextCard]'s look (dark brand background,
+     * bold author line at the bottom) but stacks each stage's time/icon/title
+     * and short text top to bottom instead of centering one block of text.
+     * Height grows with the number of stages instead of being fixed square,
+     * since a Moment can have anywhere from 2 to many stages.
+     */
+    fun renderMomentCard(
+        title: String,
+        authorLine: String,
+        steps: List<MomentStep>,
+        width: Int = 1080
+    ): Bitmap {
+        val margin = width * 0.08f
+        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textSize = width * 0.06f
+            typeface = Typeface.create(Typeface.DEFAULT_BOLD, Typeface.BOLD)
+        }
+        val stepHeaderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textSize = width * 0.036f
+            typeface = Typeface.create(Typeface.DEFAULT_BOLD, Typeface.BOLD)
+        }
+        val stepTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.parseColor("#D8D8E4")
+            textSize = width * 0.03f
+        }
+        val authorPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.parseColor("#C81D3D")
+            textSize = width * 0.045f
+            typeface = Typeface.create(Typeface.DEFAULT_BOLD, Typeface.BOLD)
+        }
+
+        val maxWidth = width - margin * 2 - 34f
+        val ordered = steps.sortedBy { it.order }
+        val titleLines = if (title.isNotBlank()) wrapText(title, titlePaint, width - margin * 2) else emptyList()
+        val blocks = ordered.map { step ->
+            val header = listOfNotNull(
+                step.time.takeIf { it.isNotBlank() },
+                step.icon.takeIf { it.isNotBlank() },
+                step.title.takeIf { it.isNotBlank() }
+            ).joinToString(" ")
+            val bodyLines = if (step.text.isNotBlank()) wrapText(step.text, stepTextPaint, maxWidth) else emptyList()
+            header to bodyLines
+        }
+
+        val titleBlockHeight = if (titleLines.isEmpty()) 0f else titleLines.size * titlePaint.textSize * 1.35f + margin * 0.5f
+        val stepBlockHeights = blocks.map { (_, bodyLines) ->
+            stepHeaderPaint.textSize * 1.5f + bodyLines.size * (stepTextPaint.textSize * 1.35f) + margin * 0.35f
+        }
+        val totalHeight = (margin * 2.4f + titleBlockHeight + stepBlockHeights.sum())
+            .toInt()
+            .coerceAtLeast(width)
+
+        val bitmap = Bitmap.createBitmap(width, totalHeight, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        canvas.drawColor(Color.parseColor("#12185A"))
+
+        var y = margin + titlePaint.textSize
+        for (line in titleLines) {
+            canvas.drawText(line, margin, y, titlePaint)
+            y += titlePaint.textSize * 1.35f
+        }
+        if (titleLines.isNotEmpty()) y += margin * 0.3f
+
+        val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+        for ((index, block) in blocks.withIndex()) {
+            val (header, bodyLines) = block
+            val step = ordered[index]
+            dotPaint.color = step.colorHex.takeIf { it.isNotBlank() }
+                ?.let { runCatching { Color.parseColor(it) }.getOrNull() }
+                ?: Color.parseColor("#9B5CF6")
+            canvas.drawCircle(margin + 10f, y - stepHeaderPaint.textSize * 0.35f, 9f, dotPaint)
+            canvas.drawText(header, margin + 34f, y, stepHeaderPaint)
+            y += stepHeaderPaint.textSize * 1.5f
+            for (line in bodyLines) {
+                canvas.drawText(line, margin + 34f, y, stepTextPaint)
+                y += stepTextPaint.textSize * 1.35f
+            }
+            y += margin * 0.35f
+        }
+
+        canvas.drawText(authorLine, margin, totalHeight - margin * 0.6f, authorPaint)
         return bitmap
     }
 
