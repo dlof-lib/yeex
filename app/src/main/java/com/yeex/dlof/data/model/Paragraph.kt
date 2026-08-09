@@ -1,6 +1,6 @@
 package com.yeex.dlof.data.model
 
-enum class ParagraphType { TEXT, IMAGE, VIDEO }
+enum class ParagraphType { TEXT, IMAGE, VIDEO, MOMENT }
 
 /**
  * A "فقرة" (paragraph) — the core post unit. Square aspect ratio in the UI,
@@ -31,5 +31,10 @@ data class Paragraph(
     val repostOfId: String = "",    // set when this is a repost into a room
     val repostComment: String = "",
     val viewCount: Long = 0,        // bumped once per viewer via ParagraphRepository.incrementView
-    val engagementScore: Double = 0.0 // maintained by FeedRanking, used to sort the feed
+    val engagementScore: Double = 0.0, // maintained by FeedRanking, used to sort the feed
+    // YEEX MOMENT ("لحظة") — only populated when type == MOMENT.name. An ordered
+    // sequence of stages (see MomentStep) rendered as a connected timeline
+    // instead of a single flat text/image/video. [text] above is still used
+    // as the moment's overall title/intro line (e.g. "📍 رحلتي إلى بيروت").
+    val momentSteps: List<MomentStep> = emptyList()
 )
