@@ -16,7 +16,7 @@ import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.Transformer
 import com.google.common.collect.ImmutableList
-import kotlinx.coroutines.resume
+import kotlinx.coroutines.resumeWith
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.File
 
@@ -152,7 +152,7 @@ object VideoWatermarkUtil {
             val overlayEffect = OverlayEffect(ImmutableList.of(frameOverlay, bubbleOverlay))
 
             val editedMediaItem = EditedMediaItem.Builder(MediaItem.fromUri(sourceUri))
-                .setEffects(Effects(ImmutableList.of(), ImmutableList.of(overlayEffect)))
+                .setEffects(Effects(emptyList(), listOf(overlayEffect)))
                 .build()
 
             if (outputFile.exists()) outputFile.delete()
@@ -160,7 +160,7 @@ object VideoWatermarkUtil {
             val transformer = Transformer.Builder(context)
                 .addListener(object : Transformer.Listener {
                     override fun onCompleted(composition: Composition, exportResult: ExportResult) {
-                        if (cont.isActive) cont.resume(true)
+                        if (cont.isActive) cont.resumeWith(Result.success(true))
                     }
 
                     override fun onError(
@@ -169,7 +169,7 @@ object VideoWatermarkUtil {
                         exportException: ExportException
                     ) {
                         outputFile.delete()
-                        if (cont.isActive) cont.resume(false)
+                        if (cont.isActive) cont.resumeWith(Result.success(false))
                     }
                 })
                 .build()
@@ -182,7 +182,7 @@ object VideoWatermarkUtil {
             }
         } catch (e: Exception) {
             outputFile.delete()
-            if (cont.isActive) cont.resume(false)
+            if (cont.isActive) cont.resumeWith(Result.success(false))
         }
     }
 
