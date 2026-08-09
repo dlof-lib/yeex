@@ -243,4 +243,20 @@
     <string name="gallery_picker_empty_message">Aún no encontramos fotos en tu galería</string>
     <string name="gallery_picker_one_selected">1 foto seleccionada</string>
     <string name="gallery_picker_confirm">Usar foto</string>
+
+    <!-- Auth screen redesign: tagline, password fields, live rule checklist, strength meter -->
+    <string name="login_tagline">Inicia sesión para continuar en yeex</string>
+    <string name="register_tagline">Crea tu cuenta y empieza a compartir</string>
+    <string name="show_password">Mostrar contraseña</string>
+    <string name="hide_password">Ocultar contraseña</string>
+    <string name="rule_length">De %1$d a %2$d caracteres</string>
+    <string name="rule_lowercase">Solo minúsculas</string>
+    <string name="rule_forbidden_chars">Sin _ - ~ ni espacios</string>
+    <string name="rule_dots">Los puntos no pueden ir al inicio, final o repetirse</string>
+    <string name="password_strength_weak">Contraseña débil</string>
+    <string name="password_strength_medium">Contraseña media</string>
+    <string name="password_strength_strong">Contraseña fuerte</string>
+    <string name="field_confirm_password">Confirmar contraseña</string>
+    <string name="error_password_mismatch">Las contraseñas no coinciden</string>
+    <string name="terms_agreement">Acepto los Términos de uso y la Política de privacidad de %1$s</string>
 </resources>
