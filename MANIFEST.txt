@@ -1,77 +1,55 @@
-كل الملفات المعدّلة/المُنشأة عبر كامل المحادثة — النسخة النهائية المدمجة
-(كل ملف بأحدث نسخة منه فقط، بمساراته الأصلية).
+ملفات هذه الدفعة فقط: شريط تقدّم الفيديو (Scrub Bar) + تحسين وتطوير صفحة البحث
+(كل ملف بمساره الأصلي داخل app/ — انسخه فوق نفس المسار في مشروعك)
 
 ── ملفات جديدة ──────────────────────────────────────────────
-app/src/main/java/com/yeex/dlof/data/local/LocalAccountStore.kt
-    تخزين محلي مشفّر (Android Keystore) لكل الحسابات التي سجّلت دخولها على
-    الجهاز — البقاء مسجّلاً حتى بعد حذف التطبيق وإعادة تثبيته + تبديل الحسابات.
-app/src/main/java/com/yeex/dlof/ui/comments/CommentsSheet.kt
-    صفحة التعليقات، تُستضاف كـ ModalBottomSheet منبثقة (يحلّ محل
-    CommentsScreen.kt المحذوف).
-app/src/main/java/com/yeex/dlof/util/FeedRanking.kt *
-    (كان موجودًا مسبقًا بصيغة بسيطة، أُعيدت كتابته بالكامل هنا)
-app/src/main/java/com/yeex/dlof/util/SearchRanking.kt
-    خوارزمية ترتيب نتائج البحث (حسابات/غرف) بالصلة الفعلية.
-app/src/main/java/com/yeex/dlof/util/RoomRanking.kt
-    خوارزمية "الغرف الرائجة" لتبويب استكشاف.
-app/src/main/java/com/yeex/dlof/util/RecommendationRanking.kt
-    منطق ترتيب اقتراحات الحسابات "قد تعرفهم" (صديق الصديق).
+app/src/main/java/com/yeex/dlof/ui/components/VideoProgressBar.kt
+    شريط تقدّم فيديو بأسلوب TikTok: خط رفيع شبه شفاف أثناء التشغيل العادي،
+    يتحول لشريط سحب (scrub) سهل اللمس فور لمسه، مع فقاعة وقت عائمة
+    (00:07 / 01:23) فوق مؤشر السحب. يعمل دائمًا من اليسار لليمين (LTR) بغض
+    النظر عن لغة الواجهة، لأن هذا هو التقليد المتّبع في كل تطبيقات الفيديو
+    القصير (TikTok/Instagram/YouTube Shorts) حتى في واجهاتها العربية.
+
+app/src/main/java/com/yeex/dlof/util/SearchHistoryStore.kt
+    تخزين محلي بسيط (SharedPreferences عادي، غير مشفّر — لا داعي لتشفير
+    Keystore لعبارات بحث عادية) لآخر عمليات البحث، لعرضها كرقائق قابلة
+    لإعادة الاستخدام في الحالة الابتدائية لصفحة البحث.
 
 ── ملفات مُعدَّلة ────────────────────────────────────────────
-app/build.gradle.kts
-    إزالة اعتماديات Google/GitHub Sign-In، إضافة androidx.security:security-crypto.
-app/src/main/java/com/yeex/dlof/data/repository/AuthRepository.kt
-    إزالة تسجيل الدخول بجوجل/جيت هب بالكامل. الدخول بالمعرف/كلمة السر فقط،
-    مع حفظ محلي للحسابات وتبديل بينها (switchAccount/forgetAccount).
-app/src/main/java/com/yeex/dlof/data/repository/UserRepository.kt
-    إضافة followingUids(uid) و suggestedAccounts(currentUid) لخوارزمية
-    "قد تعرفهم".
-app/src/main/java/com/yeex/dlof/ui/auth/AuthViewModel.kt
-    مطابقة لإزالة جوجل/جيت هب (تسجيل دخول/تسجيل بالمعرف فقط).
-app/src/main/java/com/yeex/dlof/ui/auth/LoginScreen.kt
-    إزالة أزرار "المتابعة عبر Google/GitHub"، دعم prefillIdentifier
-    (تبديل حساب بدون كلمة سر محفوظة).
-app/src/main/java/com/yeex/dlof/ui/auth/RegisterScreen.kt
-    مطابقة لإزالة جوجل/جيت هب.
+app/src/main/java/com/yeex/dlof/ui/components/VideoPlayer.kt
+    إضافة VideoPlayerState + rememberVideoPlayerState(key): يحمل
+    positionMs/durationMs (تُحدَّث كل ~200ms أثناء التشغيل) ودالة seekTo()
+    تُنفّذ القفز الفعلي على ExoPlayer وتعكس الموضع الجديد محليًا فورًا حتى
+    لا ينتظر السحب دورة تحديث كاملة ليلحق بإصبع المستخدم. بارامتر state
+    اختياري (افتراضي null) — لا يغيّر أي سلوك سابق لأي استدعاء موجود.
+
 app/src/main/java/com/yeex/dlof/ui/components/ParagraphCard.kt
-    إضافة onOpenProfile — صف المؤلف (الأفاتار + @المعرف) قابل للنقر الآن
-    لتصفح حساب الكاتب. (زر Tek لم يكن موجودًا أصلاً في الفقرات المنشورة).
-app/src/main/java/com/yeex/dlof/ui/feed/FeedScreen.kt
-    التعليقات تُفتح كـ ModalBottomSheet فعلي (CommentsSheet) بدل التنقّل
-    لصفحة منفصلة. تمرير onOpenProfile.
-app/src/main/java/com/yeex/dlof/ui/feed/FeedViewModel.kt
-    يجلب قائمة الحسابات المتابَعة (tek) ويمررها لـ FeedRanking لتفعيل دفعة
-    التخصيص في الخلاصة.
-app/src/main/java/com/yeex/dlof/ui/profile/ProfileScreen.kt
-    إضافة "تبديل الحساب" (SwitchAccountSheet) منبثقة: عرض الحسابات
-    المحفوظة، تبديل فوري، توجيه لتسجيل الدخول عند الحاجة لكلمة سر،
-    نسيان حساب، إضافة حساب جديد.
-app/src/main/java/com/yeex/dlof/ui/room/BrowseRoomsScreen.kt
-    تبويب "استكشاف" يستخدم RoomRanking.rankTrending بدل ترتيب Firebase الخام.
-app/src/main/java/com/yeex/dlof/ui/room/RoomScreen.kt
-    تمرير onOpenProfile بدل onOpenComments القديم (يفوّض لـ FeedScreen).
+    إنشاء VideoPlayerState لكل فقرة فيديو (rememberVideoPlayerState(paragraph.id))
+    وتمريره لـ VideoPlayer، ورسم VideoProgressBar في أسفل الشاشة (مع
+    navigationBarsPadding) لفقرات الفيديو فقط.
+
+app/src/main/java/com/yeex/dlof/ui/components/SkeletonLoader.kt
+    إضافة ShimmerBox: نفس تأثير الوميض (shimmer) المستخدم في ParagraphSkeleton
+    لكن كمكوّن عام قابل لإعادة الاستخدام في أي مكان آخر (استُخدم هنا في
+    هيكل تحميل نتائج البحث الجديد).
+
 app/src/main/java/com/yeex/dlof/ui/search/SearchScreen.kt
-    إعادة تصميم احترافية كاملة: بحث فوري (debounced)، فلاتر
-    (الكل/الحسابات/الغرف)، نتائج مرتّبة عبر SearchRanking، قسم "قد تعرفهم"
-    في الحالة الابتدائية، حالات تحميل/فراغ/بداية، بطاقات نتائج موحّدة.
-app/src/main/java/com/yeex/dlof/navigation/NavGraph.kt
-    حذف مسار Routes.COMMENTS نهائيًا (التعليقات منبثقة الآن). ربط
-    onOpenProfile من Feed/Room للبروفايل. إضافة مسارات تبديل الحساب.
+    تطوير إضافي فوق التصميم الاحترافي الموجود:
+    • "عمليات بحث سابقة" — صف رقائق في الحالة الابتدائية (SearchHistoryStore)،
+      نقرة لإعادة البحث، إزالة عنصر واحد، وزر "مسح الكل".
+    • تمييز الجزء المطابق من الاسم/المعرّف في نتائج الحسابات والغرف
+      (لون العلامة التجارية + Bold) بدل قراءة كل سطر بالكامل لمعرفة سبب
+      ظهوره في النتائج.
+    • حالة التحميل الآن هيكل وميض (shimmer skeleton) بشكل بطاقات النتائج
+      الحقيقية بدل مؤشر دوّار مركزي بسيط.
+    • حالة الخطأ الآن فيها زر "إعادة المحاولة" فعلي بدل ترك المستخدم بلا
+      طريقة للتعافي إلا بإعادة كتابة النص.
+    • مفتاح الإدخال في الكيبورد أصبح "بحث" (ImeAction.Search) ويُخفي
+      لوحة المفاتيح عند الإرسال بدل مفتاح "تم" العام.
+
 app/src/main/res/values/strings.xml
 app/src/main/res/values-ar/strings.xml
 app/src/main/res/values-en/strings.xml
 app/src/main/res/values-es/strings.xml
-    حذف جميع نصوص Google/GitHub (أزرار الدخول، رسائل الأخطاء،
-    default_web_client_id، or_divider). إضافة نصوص: switch_account_hint،
-    add_account، forget_account، search_tab_all/users/rooms،
-    search_idle_title/hint، clear_search، search_suggested_accounts.
-
-── ملفات مَحذوفة (غير مُرفقة هنا، للعلم فقط) ─────────────────
-app/src/main/java/com/yeex/dlof/ui/comments/CommentsScreen.kt
-    (استُبدلت بـ CommentsSheet.kt أعلاه — احذفها يدويًا من مشروعك إن كانت
-    ما زالت موجودة).
-
-* FeedRanking.kt كان ملفًا موجودًا مسبقًا في قاعدة الكود (بصيغة hot-score
-  بسيطة)، وأُعيدت كتابته هنا بالكامل ضمن خطوة "الخوارزميات الاحترافية"،
-  لذا أُدرج ضمن "ملفات جديدة" من حيث محتواه الحالي رغم أن اسم الملف موجود
-  مسبقًا في المشروع الأصلي.
+    إضافة: search_recent_searches، clear_all، remove_recent_search.
+    (retry كانت موجودة مسبقًا في الأربع ملفات، أُعيد استخدامها لزر إعادة
+    المحاولة في حالة خطأ البحث دون تكرارها).
