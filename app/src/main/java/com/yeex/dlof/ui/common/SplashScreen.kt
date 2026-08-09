@@ -66,16 +66,18 @@ fun SplashScreen(
         ) {
             Box(
                 modifier = Modifier
-                    .size(88.dp)
+                    .size(96.dp)
                     .clip(CircleShape)
-                    .background(YeexAccent),
+                    .background(Brush.linearGradient(listOf(YeexNavy, YeexAccent)))
+                    .padding(4.dp)
+                    .clip(CircleShape)
+                    .background(Color.White),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    "y",
-                    color = Color.White,
-                    fontSize = 44.sp,
-                    fontWeight = FontWeight.Bold
+                androidx.compose.foundation.Image(
+                    painter = androidx.compose.ui.res.painterResource(R.drawable.ic_yeex_logo),
+                    contentDescription = stringResource(R.string.app_name),
+                    modifier = Modifier.size(60.dp)
                 )
             }
             Spacer(Modifier.height(18.dp))
