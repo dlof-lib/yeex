@@ -433,19 +433,27 @@ fun CreateParagraphScreen(
                         // so ParagraphCard and the feed never need a per-post user lookup.
                         val me = userRepo.getUser(uid)
                         updateProgress(0.75f)
-                        repo.publish(
-                            Paragraph(
-                                authorId = uid,
-                                authorIdentifier = me?.identifier ?: "",
-                                authorVerified = me?.verified ?: false,
-                                type = type,
-                                text = capturedText,
-                                mediaBase64 = mediaBase64,
-                                mediaMimeType = mime,
-                                roomId = capturedRoomId ?: "",
-                                momentSteps = momentStepsToSave
+                        try {
+                            repo.publish(
+                                Paragraph(
+                                    authorId = uid,
+                                    authorIdentifier = me?.identifier ?: "",
+                                    authorVerified = me?.verified ?: false,
+                                    type = type,
+                                    text = capturedText,
+                                    mediaBase64 = mediaBase64,
+                                    mediaMimeType = mime,
+                                    roomId = capturedRoomId ?: "",
+                                    momentSteps = momentStepsToSave
+                                )
                             )
-                        )
+                        } catch (e: Exception) {
+                            // Surfaces a translated, human message instead of the raw
+                            // Firebase exception text (e.g. a bare "Permission denied")
+                            // in the progress overlay — see TaskProgressManager, which
+                            // shows whatever this throws as the failure message.
+                            throw IllegalStateException(appContext.getString(R.string.error_publish_failed), e)
+                        }
                         updateProgress(0.95f)
                         publishSuccessMessage
                     }
