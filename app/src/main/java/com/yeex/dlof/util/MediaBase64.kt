@@ -98,6 +98,24 @@ object MediaBase64 {
         return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
     }
 
+    // A single Moment paragraph can carry several per-step photos inside the
+    // same paragraph node, so each one is downscaled well below the regular
+    // per-paragraph MAX_IMAGE_DIMENSION to keep the combined payload under
+    // database.rules.json's node size limits.
+    private const val MOMENT_STEP_IMAGE_DIMENSION = 640
+    private const val MOMENT_STEP_JPEG_QUALITY = 70
+
+    /** Encodes a photo attached to a single [com.yeex.dlof.data.model.MomentStep]. */
+    fun encodeMomentStepImage(resolver: ContentResolver, uri: Uri): String {
+        val input = resolver.openInputStream(uri) ?: error("cannot open image")
+        val original = BitmapFactory.decodeStream(input)
+        input.close()
+        val scaled = downscale(original, MOMENT_STEP_IMAGE_DIMENSION)
+        val out = ByteArrayOutputStream()
+        scaled.compress(Bitmap.CompressFormat.JPEG, MOMENT_STEP_JPEG_QUALITY, out)
+        return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
+    }
+
     /**
      * Returns null (instead of crashing) if [base64] can't be decoded as an
      * image — e.g. it's actually VIDEO bytes (raw MP4), or the string is
