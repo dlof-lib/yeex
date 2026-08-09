@@ -255,7 +255,6 @@
     <string name="repost_public_hint">يمكن للجميع رؤيتها</string>
     <string name="repost_publish">نشر إعادة الفقرة</string>
     <string name="coming_soon">قريبًا</string>
-    <string name="more_options">خيارات إضافية</string>
     <string name="action_report">إبلاغ</string>
     <string name="view_count">%1$s مشاهدة</string>
     <string name="expires_in_label">ساعة تنتهي بعد</string>
