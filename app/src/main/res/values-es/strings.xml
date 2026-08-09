@@ -255,6 +255,7 @@
     <string name="rule_lowercase">Solo minúsculas</string>
     <string name="rule_forbidden_chars">Sin _ - ~ ni espacios</string>
     <string name="rule_dots">Los puntos no pueden ir al inicio, final o repetirse</string>
+    <string name="rule_allowed_chars">Solo letras, números o puntos</string>
     <string name="password_strength_weak">Contraseña débil</string>
     <string name="password_strength_medium">Contraseña media</string>
     <string name="password_strength_strong">Contraseña fuerte</string>
