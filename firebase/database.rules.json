@@ -75,7 +75,7 @@
         "authorId": { ".validate": "newData.isString() && newData.val() === auth.uid" },
         "authorIdentifier": { ".validate": "newData.isString()" },
         "authorVerified": { ".validate": "newData.isBoolean()" },
-        "type": { ".validate": "newData.isString() && (newData.val() === 'TEXT' || newData.val() === 'IMAGE' || newData.val() === 'VIDEO')" },
+        "type": { ".validate": "newData.isString() && (newData.val() === 'TEXT' || newData.val() === 'IMAGE' || newData.val() === 'VIDEO' || newData.val() === 'MOMENT')" },
         "text": { ".validate": "newData.isString() && newData.val().length <= 2000" },
         "mediaBase64": { ".validate": "newData.isString() && newData.val().length <= 8500000" },
         "mediaMimeType": { ".validate": "newData.isString() && newData.val().length <= 100" },
@@ -85,6 +85,21 @@
         "repostOfId": { ".validate": "newData.isString()" },
         "repostComment": { ".validate": "newData.isString() && newData.val().length <= 2000" },
         "engagementScore": { ".validate": "newData.isNumber()" },
+
+        "momentSteps": {
+          ".validate": "newData.hasChildren() || newData.val() === null",
+          "$stepIndex": {
+            ".validate": "newData.hasChildren(['id','order','title'])",
+            "id": { ".validate": "newData.isString()" },
+            "order": { ".validate": "newData.isNumber()" },
+            "title": { ".validate": "newData.isString() && newData.val().length <= 60" },
+            "time": { ".validate": "newData.isString() && newData.val().length <= 20" },
+            "icon": { ".validate": "newData.isString() && newData.val().length <= 8" },
+            "text": { ".validate": "newData.isString() && newData.val().length <= 160" },
+            "imageBase64": { ".validate": "newData.isString() && newData.val().length <= 1500000" },
+            "colorHex": { ".validate": "newData.isString() && newData.val().length <= 9" }
+          }
+        },
 
         "likeCount": {
           ".write": "auth != null",
