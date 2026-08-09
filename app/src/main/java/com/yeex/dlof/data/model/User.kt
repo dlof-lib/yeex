@@ -12,6 +12,12 @@ data class User(
     val uid: String = "",
     val identifier: String = "",
     val displayName: String = "",
+    // Lowercased mirror of [displayName], kept in sync by
+    // [com.yeex.dlof.data.repository.UserRepository.updateProfile] — lets
+    // [com.yeex.dlof.data.repository.UserRepository.searchByDisplayNamePrefix]
+    // run a case-insensitive orderByChild prefix query, since Realtime
+    // Database range queries are always case-sensitive on the raw field.
+    val displayNameLower: String = "",
     val bio: String = "",
     val profileIconUrl: String = "",
     // ---- Profile banner: either a fixed-size cropped image OR a link to an
