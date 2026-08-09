@@ -59,8 +59,11 @@ private enum class SearchFilter { ALL, USERS, ROOMS }
  * Priority order, per spec ("للبحث عن حاوية تخصيص اولا اكتب @container.name[].me"):
  *  1. "@container.<name>[].me" → container lookup ([ContainerRepository]).
  *  2. Anything else → identifier search (accounts, "@handle" or bare) via
- *     [UserRepository.searchByIdentifierPrefix] AND public room-name search
- *     via [RoomRepository.searchByName], shown as two filterable sections.
+ *     [UserRepository.searchByIdentifierPrefix], PLUS a display-name prefix
+ *     search via [UserRepository.searchByDisplayNamePrefix] (merged and
+ *     de-duplicated) so a typed name matches too — AND public room-name
+ *     search via [RoomRepository.searchByName], shown as two filterable
+ *     sections.
  *
  * Search now runs as-you-type (debounced) instead of requiring a separate
  * "بحث" button tap, with a filter row (الكل / الحسابات / الغرف), a loading
@@ -150,7 +153,16 @@ fun SearchScreen(
                 // SearchRanking re-sorts the (already-narrow) results by actual
                 // relevance: exact/prefix match strength, verified status, and
                 // popularity. See SearchRanking's doc comment.
-                userResults = SearchRanking.rankUsers(trimmed, userRepo.searchByIdentifierPrefix(trimmed))
+                //
+                // Two separate prefix queries are merged here: identifier
+                // (@handle) AND display name, so typing someone's actual
+                // name finds them too, not only their exact handle prefix —
+                // previously only the identifier query ran, so a name search
+                // silently returned nothing.
+                val byIdentifier = userRepo.searchByIdentifierPrefix(trimmed)
+                val byDisplayName = userRepo.searchByDisplayNamePrefix(trimmed)
+                val mergedUsers = (byIdentifier + byDisplayName).distinctBy { it.uid }
+                userResults = SearchRanking.rankUsers(trimmed, mergedUsers)
                 roomResults = SearchRanking.rankRooms(trimmed, roomRepo.searchByName(trimmed))
             }
         }.onFailure {
