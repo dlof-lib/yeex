@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.*
@@ -533,6 +534,24 @@ private fun ParagraphThumbCard(p: Paragraph) {
                 ) {
                     Icon(Icons.Filled.Videocam, contentDescription = null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(30.dp))
                 }
+                p.type == ParagraphType.MOMENT.name -> Box(
+                    modifier = Modifier.fillMaxSize().background(yeexBrandGradient()),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Filled.Timeline, contentDescription = null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(26.dp))
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            p.text.ifBlank { "" },
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 10.dp)
+                        )
+                    }
+                }
                 else -> Box(
                     modifier = Modifier.fillMaxSize().background(
                         Brush.verticalGradient(listOf(YeexAccent.copy(alpha = 0.55f), YeexDarkCard))
@@ -582,7 +601,12 @@ private fun ParagraphThumbCard(p: Paragraph) {
                 modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
             ) {
                 Icon(
-                    if (p.type == ParagraphType.VIDEO.name) Icons.Filled.Videocam else if (p.type == ParagraphType.IMAGE.name) Icons.Filled.ImageIcon else Icons.Filled.TextFields,
+                    when (p.type) {
+                        ParagraphType.VIDEO.name -> Icons.Filled.Videocam
+                        ParagraphType.IMAGE.name -> Icons.Filled.ImageIcon
+                        ParagraphType.MOMENT.name -> Icons.Filled.Timeline
+                        else -> Icons.Filled.TextFields
+                    },
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.padding(4.dp).size(14.dp)
