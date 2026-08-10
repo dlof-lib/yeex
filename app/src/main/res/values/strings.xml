@@ -36,6 +36,7 @@
     <string name="action_dislike">لم يعجبني</string>
     <string name="action_comment">تعليق</string>
     <string name="action_repost">إعادة نشر</string>
+    <string name="action_more">المزيد</string>
     <string name="repost_no_rooms">لا تملك أي غرفة بعد لإعادة النشر فيها. أنشئ غرفة أولاً.</string>
     <string name="repost_pick_room">اختر غرفة لإعادة النشر فيها</string>
 
