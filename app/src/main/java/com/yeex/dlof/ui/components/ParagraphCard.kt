@@ -34,6 +34,8 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Report
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Translate
@@ -71,6 +73,7 @@ import com.yeex.dlof.data.repository.ReportRepository
 import com.yeex.dlof.ui.theme.YeexAccent
 import com.yeex.dlof.ui.theme.YeexCrimson
 import com.yeex.dlof.ui.theme.YeexDislike
+import com.yeex.dlof.ui.theme.YeexGold
 import com.yeex.dlof.ui.theme.YeexLike
 import com.yeex.dlof.ui.theme.YeexLikeGlow
 import com.yeex.dlof.data.repository.ParagraphRepository
@@ -181,16 +184,28 @@ fun ParagraphCard(
     var translatedText by remember(paragraph.id) { mutableStateOf<String?>(null) }
     var isTranslating by remember(paragraph.id) { mutableStateOf(false) }
 
-    // One view bump per paragraph, only once it's the page the user has
-    // actually settled on (not every card mid-swipe-through).
+    var showMenu by remember { mutableStateOf(false) }
+    val myUid = remember { authRepo.currentUid() }
+
+    // One real, unique-per-viewer view bump per paragraph, only once it's
+    // the page the user has actually settled on (not every card
+    // mid-swipe-through) — see ParagraphRepository.incrementView.
     LaunchedEffect(paragraph.id, isActive) {
-        if (isActive && paragraph.id.isNotBlank()) {
-            runCatching { paragraphRepo.incrementView(paragraph.id) }
+        if (isActive && paragraph.id.isNotBlank() && !myUid.isNullOrBlank()) {
+            runCatching { paragraphRepo.incrementView(paragraph.id, myUid, paragraph.authorId) }
         }
     }
 
-    var showMenu by remember { mutableStateOf(false) }
-    val myUid = remember { authRepo.currentUid() }
+    // ---- "شعبية" (popularity star) state — self-contained like the
+    // translate toggle below, since threading a star callback through every
+    // ParagraphCard caller (feed/room/repost/profile) would touch a lot of
+    // call sites for a single extra reaction. ----
+    var hasStarred by remember(paragraph.id) { mutableStateOf(false) }
+    LaunchedEffect(paragraph.id, myUid) {
+        if (!myUid.isNullOrBlank()) {
+            hasStarred = runCatching { paragraphRepo.getStarredByMe(paragraph.id, myUid) }.getOrDefault(false)
+        }
+    }
     var showReportDialog by remember { mutableStateOf(false) }
     var showBlockConfirm by remember { mutableStateOf(false) }
     val reportSentMessage = stringResource(R.string.report_sent)
@@ -375,6 +390,26 @@ fun ParagraphCard(
                 count = paragraph.dislikeCount,
                 contentDescription = stringResource(R.string.action_dislike),
                 onClick = onDislike
+            )
+            ReactionButton(
+                isActive = hasStarred,
+                activeIcon = Icons.Filled.Star,
+                inactiveIcon = Icons.Filled.StarBorder,
+                activeColor = YeexGold,
+                glowColor = YeexGold,
+                count = paragraph.starCount,
+                contentDescription = stringResource(R.string.action_star),
+                onClick = {
+                    if (myUid != null) {
+                        val optimistic = !hasStarred
+                        hasStarred = optimistic
+                        scope.launch {
+                            runCatching { paragraphRepo.toggleStar(paragraph.id, myUid, paragraph.authorId) }
+                                .onSuccess { hasStarred = it }
+                                .onFailure { hasStarred = !optimistic }
+                        }
+                    }
+                }
             )
             RailAction(
                 icon = Icons.Filled.ChatBubble,
