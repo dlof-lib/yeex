@@ -179,7 +179,7 @@
 
     "rooms": {
       ".read": true,
-      ".indexOn": ["isPublic"],
+      ".indexOn": ["isPublic", "category"],
       "$roomId": {
         ".write": "auth != null && (!data.exists() || data.child('ownerId').val() === auth.uid || root.child('admins').child(auth.uid).exists())",
         ".validate": "newData.hasChildren(['name','ownerId'])",
@@ -196,6 +196,10 @@
 
         "roomType": { ".validate": "newData.isString() && (newData.val() === 'GENERAL' || newData.val() === 'TV_CHANNEL')" },
         "liveStreamUrl": { ".validate": "newData.isString() && newData.val().length <= 2000" },
+
+        "category": { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "coverUrl": { ".validate": "newData.isString() && newData.val().length <= 2000" },
+        "rules": { ".validate": "newData.isString() && newData.val().length <= 1000" },
 
         "memberCount": {
           ".write": "auth != null",
