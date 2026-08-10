@@ -47,6 +47,10 @@ fun RoomScreen(
         isLoading = false
     }
     LaunchedEffect(roomId) { reload() }
+    LaunchedEffect(roomId, myUid) {
+        // Real, unique-per-viewer room view — see RoomRepository.incrementView.
+        if (myUid != null) runCatching { repo.incrementView(roomId, myUid) }
+    }
 
     Column(Modifier.fillMaxSize()) {
         // "طور التحميل الهيكلي" — shimmer placeholder shaped like the real
@@ -112,6 +116,11 @@ fun RoomScreen(
                 }
                 if (r.phone.isNotBlank()) Text(r.phone, style = MaterialTheme.typography.labelSmall)
                 Text(stringResource(R.string.room_members_count, r.memberCount.toString()), style = MaterialTheme.typography.labelSmall)
+                Text(
+                    stringResource(R.string.profile_views_label) + ": " + com.yeex.dlof.util.ViewMilestones.formatCount(r.viewCount),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
                 // "قوانين الغرفة" — owner-authored community guidelines.
                 // Shown to members when set; owners also get an edit affordance
