@@ -42,9 +42,38 @@ class RoomRepository(
         roomsRef.child(roomId).child("liveStreamUrl").setValue(url).await()
     }
 
+    /**
+     * Sets/clears the room's "قوانين الغرفة" community guidelines — owner-only
+     * to set per the same room-level `.write` rule as [updateLiveStream].
+     */
+    suspend fun updateRules(roomId: String, rules: String) {
+        roomsRef.child(roomId).child("rules").setValue(rules).await()
+    }
+
+    /** Sets/clears the room's cover banner — owner-only, see [updateLiveStream]. */
+    suspend fun updateCover(roomId: String, coverUrl: String) {
+        roomsRef.child(roomId).child("coverUrl").setValue(coverUrl).await()
+    }
+
+    /** Sets the room's topical category (see [com.yeex.dlof.util.RoomCategory]) — owner-only. */
+    suspend fun updateCategory(roomId: String, category: String) {
+        roomsRef.child(roomId).child("category").setValue(category).await()
+    }
+
     suspend fun listPublicRooms(): List<Room> =
         roomsRef.orderByChild("isPublic").equalTo(true).get().await()
             .children.mapNotNull { it.getValue(Room::class.java) }
+
+    /**
+     * Public rooms in a single [com.yeex.dlof.util.RoomCategory] — used by
+     * BrowseRoomsScreen's category filter chips. Filters client-side after a
+     * `.indexOn` category query since Realtime Database can't combine two
+     * `orderByChild` equality filters (isPublic + category) server-side.
+     */
+    suspend fun listPublicRoomsByCategory(category: String): List<Room> =
+        roomsRef.orderByChild("category").equalTo(category).get().await()
+            .children.mapNotNull { it.getValue(Room::class.java) }
+            .filter { it.isPublic }
 
     /** Rooms the given user owns or has joined — used by the repost-into-room picker. */
     suspend fun listMyRooms(uid: String): List<Room> {
