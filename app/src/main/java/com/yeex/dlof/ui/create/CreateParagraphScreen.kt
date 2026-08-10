@@ -121,6 +121,7 @@ fun CreateParagraphScreen(
     // images and Moment step images; "browse files" inside it falls back to
     // the system GetContent launchers above.
     var showPostImageGallery by remember { mutableStateOf(false) }
+    var showPostVideoGallery by remember { mutableStateOf(false) }
     var showMomentImageGallery by remember { mutableStateOf(false) }
     YeexGalleryPickerSheet(
         visible = showPostImageGallery,
@@ -130,6 +131,20 @@ fun CreateParagraphScreen(
             showPostImageGallery = false
         },
         onOpenSystemPicker = { showPostImageGallery = false; pickImage.launch("image/*") }
+    )
+    // Real gallery, videos tab only — replaces the raw system video picker
+    // so publishing a video post uses the same branded flow as an image one.
+    YeexGalleryPickerSheet(
+        visible = showPostVideoGallery,
+        onDismiss = { showPostVideoGallery = false },
+        onImagePicked = { },
+        onVideoPicked = { uri ->
+            videoUri = uri; imageUri = null; momentMode = false
+            showPostVideoGallery = false
+        },
+        forceVideoOnly = true,
+        title = stringResource(R.string.gallery_tab_videos),
+        onOpenSystemPicker = { showPostVideoGallery = false; pickVideo.launch("video/*") }
     )
     YeexGalleryPickerSheet(
         visible = showMomentImageGallery,
@@ -229,7 +244,7 @@ fun CreateParagraphScreen(
                 label = stringResource(R.string.type_video),
                 selected = composerType == ComposerType.VIDEO,
                 modifier = Modifier.weight(1f)
-            ) { pickVideo.launch("video/*") }
+            ) { showPostVideoGallery = true }
             TypeChip(
                 icon = Icons.Filled.Timeline,
                 label = stringResource(R.string.type_moment),
