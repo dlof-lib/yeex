@@ -1,6 +1,7 @@
 package com.yeex.dlof.data.repository
 
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ServerValue
 import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -27,6 +28,10 @@ class UserRepository(
     private val tekersRef get() = db.getReference("tekers")
     private val tekedByRef get() = db.getReference("tekedBy")
     private val verificationRequestsRef get() = db.getReference("verificationRequests")
+    // One presence node per (profileUid, viewerUid) — real unique-viewer
+    // count for a profile page, same idea as ParagraphRepository's
+    // paragraphViews. See [incrementProfileView].
+    private val profileViewsRef get() = db.getReference("profileViews")
 
     suspend fun getUser(uid: String): User? =
         usersRef.child(uid).get().await().getValue(User::class.java)
@@ -97,6 +102,23 @@ class UserRepository(
     /** Cross-device sync for LocaleUtil's in-app language switcher. */
     suspend fun updateLanguage(uid: String, languageCode: String) {
         usersRef.child(uid).child("language").setValue(languageCode).await()
+    }
+
+    /**
+     * Bumps [User.profileViewCount] once per (profile, real signed-in
+     * visitor) — a presence node stops the same visitor's repeat opens from
+     * inflating the number, matching the "مشاهدات حقيقية" requirement. A
+     * no-op when the viewer is the profile owner themself (viewing your own
+     * profile shouldn't count as a view of it).
+     */
+    suspend fun incrementProfileView(profileUid: String, viewerUid: String) {
+        if (profileUid.isBlank() || viewerUid.isBlank() || profileUid == viewerUid) return
+        runCatching {
+            val ref = profileViewsRef.child(profileUid).child(viewerUid)
+            if (ref.get().await().exists()) return@runCatching
+            ref.setValue(true).await()
+            usersRef.child(profileUid).child("profileViewCount").setValue(ServerValue.increment(1)).await()
+        }
     }
 
     /** "حساب خاص" toggle in the Settings & Privacy screen. */
