@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Comment
+import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
@@ -90,6 +91,7 @@ fun SettingsScreen(
 
     var user by remember { mutableStateOf<User?>(null) }
     var showChangePassword by remember { mutableStateOf(false) }
+    var showLinkCard by remember { mutableStateOf(false) }
     var showBlockedAccounts by remember { mutableStateOf(false) }
     var showCommentPrivacy by remember { mutableStateOf(false) }
     var showMutedWords by remember { mutableStateOf(false) }
@@ -152,6 +154,14 @@ fun SettingsScreen(
                 title = stringResource(R.string.settings_change_password),
                 subtitle = stringResource(R.string.settings_change_password_desc),
                 onClick = { showChangePassword = true }
+            )
+            SettingsRow(
+                icon = Icons.Filled.CreditCard,
+                title = stringResource(R.string.subscription_manage_card),
+                subtitle = if (user?.linkedCardLast4?.isNotBlank() == true)
+                    "${user?.linkedCardBrand} •••• ${user?.linkedCardLast4}"
+                else stringResource(R.string.subscription_card_none),
+                onClick = { showLinkCard = true }
             )
 
             // ---- Privacy ----
@@ -368,6 +378,14 @@ fun SettingsScreen(
 
     if (showChangePassword) {
         ChangePasswordSheet(authRepo = authRepo, onDismiss = { showChangePassword = false })
+    }
+    if (showLinkCard && myUid != null) {
+        com.yeex.dlof.ui.subscription.LinkCardSheet(
+            visible = true,
+            uid = myUid,
+            onDismiss = { showLinkCard = false },
+            onLinked = { showLinkCard = false }
+        )
     }
 
     if (showBlockedAccounts && myUid != null) {
