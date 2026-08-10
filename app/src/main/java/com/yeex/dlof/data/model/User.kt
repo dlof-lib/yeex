@@ -38,5 +38,15 @@ data class User(
     val businessCategory: String = "",      // one of BusinessCategory.ALL; meaningful only when accountType == "BUSINESS"
     val businessPhone: String = "",
     val businessEmail: String = "",
-    val businessLinks: Map<String, String> = emptyMap() // label -> url, e.g. "website" -> "https://..."
+    val businessLinks: Map<String, String> = emptyMap(), // label -> url, e.g. "website" -> "https://..."
+    // ---- Privacy (Settings & Privacy screen) ----
+    // Toggled from Settings; not yet enforced anywhere else in the app (no
+    // follow-request gate on the profile/feed) — stored here as the flag a
+    // future visibility-gating pass would read, and useful today as a
+    // simple self-reported "حساب خاص" signal.
+    val isPrivateAccount: Boolean = false,
+    // "everyone" | "tekers" | "no_one" — who may comment on this user's
+    // paragraphs. Also not yet enforced client-side; see BlockRepository's
+    // doc comment for the same caveat on blocking.
+    val commentPrivacy: String = "everyone"
 )
