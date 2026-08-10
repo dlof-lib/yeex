@@ -812,7 +812,7 @@ private fun TrendingRoomChip(room: Room, onClick: () -> Unit) {
                     .background(Brush.linearGradient(listOf(YeexAccent.copy(alpha = 0.18f), YeexPink.copy(alpha = 0.18f)))),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Filled.Groups, contentDescription = null, modifier = Modifier.size(14.dp), tint = YeexAccent)
+                Icon(com.yeex.dlof.util.RoomCategory.icon(room.category), contentDescription = null, modifier = Modifier.size(14.dp), tint = YeexAccent)
             }
             Spacer(Modifier.height(8.dp))
             Text(
