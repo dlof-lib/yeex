@@ -253,4 +253,61 @@ class AuthRepository(
             AuthResult.Failure(mapAuthException("changeIdentifier", e))
         }
     }
+
+    /**
+     * Changes the signed-in user's password from the "تغيير كلمة المرور"
+     * action in the Settings & Privacy screen. Like [changeIdentifier],
+     * FirebaseAuth requires a *recent* sign-in for this, so the current
+     * password is re-checked first rather than surfacing a raw
+     * "requires-recent-login" failure.
+     */
+    suspend fun changePassword(currentPassword: String, newPassword: String): AuthResult {
+        val firebaseUser = auth.currentUser ?: return AuthResult.Failure("unknown")
+        return try {
+            val snapshot = usersRef.child(firebaseUser.uid).get().await()
+            val current = snapshot.getValue(User::class.java) ?: return AuthResult.Failure("profile_missing")
+            val pseudoEmail = UsernameValidator.toPseudoEmail(current.identifier)
+            val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(pseudoEmail, currentPassword)
+            firebaseUser.reauthenticate(credential).await()
+            firebaseUser.updatePassword(newPassword).await()
+            AuthResult.Success(current)
+        } catch (e: Exception) {
+            AuthResult.Failure(mapAuthException("changePassword", e))
+        }
+    }
+
+    /**
+     * Permanently deletes the signed-in account: the FirebaseAuth user, the
+     * /users/{uid} profile, its /identifiers reservation, and its private
+     * /blocks/{uid} list, then forgets it from this device's account
+     * switcher. Re-authenticates first for the same "requires-recent-login"
+     * reason as [changePassword]/[changeIdentifier].
+     *
+     * This does NOT clean up the person's paragraphs, comments, or room
+     * memberships elsewhere in the database — those are left as-is (still
+     * attributed to the now-deleted uid) since a full content purge is a
+     * separate, larger concern (and, per database.rules.json, paragraphs
+     * are already self-expiring after 24h regardless).
+     */
+    suspend fun deleteAccount(context: Context, currentPassword: String): AuthResult {
+        val firebaseUser = auth.currentUser ?: return AuthResult.Failure("unknown")
+        val uid = firebaseUser.uid
+        return try {
+            val snapshot = usersRef.child(uid).get().await()
+            val current = snapshot.getValue(User::class.java) ?: return AuthResult.Failure("profile_missing")
+            val pseudoEmail = UsernameValidator.toPseudoEmail(current.identifier)
+            val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(pseudoEmail, currentPassword)
+            firebaseUser.reauthenticate(credential).await()
+
+            db.getReference("blocks").child(uid).removeValue().await()
+            identifiersRef.child(current.identifier).removeValue().await()
+            usersRef.child(uid).removeValue().await()
+            firebaseUser.delete().await()
+
+            forgetAccount(context, uid)
+            AuthResult.Success(current)
+        } catch (e: Exception) {
+            AuthResult.Failure(mapAuthException("deleteAccount", e))
+        }
+    }
 }
