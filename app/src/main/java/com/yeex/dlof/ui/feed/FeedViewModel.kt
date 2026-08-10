@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yeex.dlof.data.model.Paragraph
 import com.yeex.dlof.data.repository.AuthRepository
+import com.yeex.dlof.data.repository.BlockRepository
 import com.yeex.dlof.data.repository.ParagraphRepository
 import com.yeex.dlof.data.repository.Reaction
 import com.yeex.dlof.data.repository.RoomRepository
@@ -23,6 +24,7 @@ class FeedViewModel(
     private val authRepo: AuthRepository = AuthRepository(),
     private val userRepo: UserRepository = UserRepository(),
     private val roomRepo: RoomRepository = RoomRepository(),
+    private val blockRepo: BlockRepository = BlockRepository(),
     private val roomId: String? = null // null = global feed
 ) : ViewModel() {
 
@@ -47,7 +49,6 @@ class FeedViewModel(
         FeedTab.FOLLOWING -> all.filter { it.authorId in followingUids }
         FeedTab.CONTAINERS -> all.filter { it.roomId.isNotBlank() && it.roomId in joinedRoomIds }
     }
-
     // True until the first Firebase snapshot arrives, so FeedScreen can show
     // a skeleton placeholder instead of prematurely claiming the feed is empty.
     private val _isLoading = MutableStateFlow(true)
@@ -69,21 +70,47 @@ class FeedViewModel(
     // one-shot-fetch trade-off as followingUids above.
     private var joinedRoomIds: Set<String> = emptySet()
 
+    // Authors the viewer has blocked (see BlockRepository) — same one-shot
+    // trade-off as followingUids/joinedRoomIds, EXCEPT this one is also kept
+    // up to date in-memory the instant [blockAuthor] runs (see there), so a
+    // block made from this very session takes effect immediately without
+    // waiting for a re-fetch.
+    private var blockedUids: Set<String> = emptySet()
+
     init {
         viewModelScope.launch {
             authRepo.currentUid()?.let { uid ->
                 followingUids = runCatching { userRepo.followingUids(uid) }.getOrDefault(emptySet())
                 joinedRoomIds = runCatching { roomRepo.listMyRooms(uid) }.getOrDefault(emptyList())
                     .map { it.id }.toSet()
+                blockedUids = runCatching { blockRepo.blockedUidSet(uid) }.getOrDefault(emptySet())
             }
             repo.observeParagraphs(roomId).collect { raw ->
-                val ranked = FeedRanking.rankForFeed(raw, System.currentTimeMillis(), followingUids)
+                val visible = raw.filter { it.authorId !in blockedUids }
+                val ranked = FeedRanking.rankForFeed(visible, System.currentTimeMillis(), followingUids)
                 _allParagraphs.value = ranked
                 _paragraphs.value = filterForTab(ranked, _selectedTab.value)
                 _isLoading.value = false
-                loadReactionsFor(raw)
+                loadReactionsFor(visible)
             }
         }
+    }
+
+    /**
+     * "حظر @handle" from [com.yeex.dlof.ui.components.ParagraphCard]'s
+     * overflow menu. Removes every paragraph by [authorId] from the feed
+     * immediately (in-memory, before the Firebase round-trip even starts —
+     * ParagraphCard already persists the block itself via BlockRepository,
+     * this just keeps the feed in sync so the person doesn't keep scrolling
+     * past someone they just blocked), and remembers the block for the rest
+     * of this ViewModel's lifetime so it survives switching feed tabs.
+     */
+    fun blockAuthor(authorId: String) {
+        if (authorId.isBlank()) return
+        blockedUids = blockedUids + authorId
+        val strip: (List<Paragraph>) -> List<Paragraph> = { list -> list.filter { it.authorId != authorId } }
+        _allParagraphs.value = strip(_allParagraphs.value)
+        _paragraphs.value = strip(_paragraphs.value)
     }
 
     private fun loadReactionsFor(items: List<Paragraph>) {
