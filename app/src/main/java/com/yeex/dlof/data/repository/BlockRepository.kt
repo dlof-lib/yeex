@@ -43,6 +43,19 @@ class BlockRepository(
     suspend fun isBlocked(myUid: String, targetUid: String): Boolean =
         blocksRef(myUid).child(targetUid).get().await().exists()
 
+    /**
+     * One-shot fetch of every uid [myUid] has blocked, used by
+     * [com.yeex.dlof.ui.feed.FeedViewModel] and
+     * [com.yeex.dlof.ui.comments.CommentsSheet] to filter blocked authors'
+     * content out of the feed/comments — same one-shot-per-session trade-off
+     * FeedViewModel already makes for the follow graph (see its
+     * followingUids doc comment): blocking rarely changes mid-session, and a
+     * live listener here would add a permanent extra connection to every
+     * feed/comments load for a list that's usually empty.
+     */
+    suspend fun blockedUidSet(myUid: String): Set<String> =
+        blocksRef(myUid).get().await().children.mapNotNull { it.key }.toSet()
+
     /** Every uid currently blocked by [myUid]. */
     private fun observeBlockedUids(myUid: String): Flow<List<String>> = callbackFlow {
         val listener = object : ValueEventListener {
