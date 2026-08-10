@@ -48,6 +48,10 @@ android {
 
     buildFeatures {
         compose = true
+        // Needed for BuildConfig.VERSION_NAME/VERSION_CODE, used by
+        // DataExportUtil's "الإبلاغ عن مشكلة" diagnostics block in Settings
+        // & Privacy — AGP 8+ no longer generates BuildConfig by default.
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
