@@ -32,6 +32,13 @@ class ParagraphRepository(
     private val commentsRef get() = db.getReference("comments")
     private val likesRef get() = db.getReference("paragraphLikes")
     private val commentLikesRef get() = db.getReference("commentLikes")
+    // One presence node per (paragraphId, viewerUid) — same pattern as
+    // [likesRef] — so a view only ever counts once per real account instead
+    // of once per app session, per the "مشاهدات حقيقية" requirement.
+    private val viewsRef get() = db.getReference("paragraphViews")
+    // "شعبية" (popularity star) presence node — separate metric from
+    // like/dislike, see [toggleStar].
+    private val starsRef get() = db.getReference("paragraphStars")
 
     suspend fun publish(paragraph: Paragraph): String {
         val id = paragraphsRef.push().key ?: error("no id")
@@ -273,13 +280,60 @@ class ParagraphRepository(
     }
 
     /**
-     * Bumps [Paragraph.viewCount] by one. Called once per viewer per app
-     * session from ParagraphCard (when the page becomes the pager's active
-     * page), not on every recomposition — see the LaunchedEffect there.
+     * Bumps [Paragraph.viewCount] by one — but only the *first* time this
+     * particular signed-in account ([viewerUid]) is recorded against this
+     * paragraph, via a presence node at /paragraphViews/{paragraphId}/{uid}
+     * (same idea as [likesRef]). This makes the counter a real unique-viewer
+     * count instead of counting every re-open/app-relaunch, matching the
+     * "مشاهدات حقيقية" requirement. Also bumps [authorId]'s
+     * [com.yeex.dlof.data.model.User.totalViewCount] in the same multi-path
+     * write, which [com.yeex.dlof.util.ViewMilestones] reads for the
+     * profile's view-reward badge.
+     *
+     * Called once per (paragraph, viewer) from ParagraphCard when the page
+     * becomes the pager's active page — see the LaunchedEffect there.
      */
-    suspend fun incrementView(paragraphId: String) {
-        runCatching { bump(paragraphId, "viewCount", 1) }
+    suspend fun incrementView(paragraphId: String, viewerUid: String, authorId: String = "") {
+        if (paragraphId.isBlank() || viewerUid.isBlank()) return
+        runCatching {
+            val ref = viewsRef.child(paragraphId).child(viewerUid)
+            if (ref.get().await().exists()) return@runCatching // already counted for this account
+            ref.setValue(true).await()
+            val updates = mutableMapOf<String, Any>(
+                "paragraphs/$paragraphId/viewCount" to ServerValue.increment(1)
+            )
+            if (authorId.isNotBlank()) {
+                updates["users/$authorId/totalViewCount"] = ServerValue.increment(1)
+            }
+            db.reference.updateChildren(updates).await()
+        }
     }
+
+    /**
+     * Toggles this viewer's "شعبية" (popularity star) on a paragraph — a
+     * third reaction, independent of like/dislike, meant to specifically
+     * signal "this raised my opinion of the account". Starring bumps both
+     * [Paragraph.starCount] and the author's
+     * [com.yeex.dlof.data.model.User.popularityCount] together; unstarring
+     * reverses both. Returns the new starred state.
+     */
+    suspend fun toggleStar(paragraphId: String, uid: String, authorId: String): Boolean {
+        val ref = starsRef.child(paragraphId).child(uid)
+        val alreadyStarred = ref.get().await().exists()
+        val delta = if (alreadyStarred) -1L else 1L
+        if (alreadyStarred) ref.removeValue().await() else ref.setValue(true).await()
+        val updates = mutableMapOf<String, Any>(
+            "paragraphs/$paragraphId/starCount" to ServerValue.increment(delta)
+        )
+        if (authorId.isNotBlank()) {
+            updates["users/$authorId/popularityCount"] = ServerValue.increment(delta)
+        }
+        db.reference.updateChildren(updates).await()
+        return !alreadyStarred
+    }
+
+    suspend fun getStarredByMe(paragraphId: String, uid: String): Boolean =
+        starsRef.child(paragraphId).child(uid).get().await().exists()
 
     /**
      * Best-effort distributed cleanup: since the free (Spark) Firebase plan has
