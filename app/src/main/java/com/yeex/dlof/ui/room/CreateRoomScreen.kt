@@ -1,6 +1,8 @@
 package com.yeex.dlof.ui.room
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -10,6 +12,7 @@ import com.yeex.dlof.R
 import com.yeex.dlof.data.model.Room
 import com.yeex.dlof.data.repository.AuthRepository
 import com.yeex.dlof.data.repository.RoomRepository
+import com.yeex.dlof.util.RoomCategory
 import com.yeex.dlof.util.RoomType
 import kotlinx.coroutines.launch
 
@@ -26,6 +29,9 @@ fun CreateRoomScreen(
     var socialLink by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var roomType by remember { mutableStateOf(RoomType.GENERAL) }
+    var category by remember { mutableStateOf(RoomCategory.GENERAL) }
+    var rules by remember { mutableStateOf("") }
+    var categoryMenuExpanded by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -53,6 +59,51 @@ fun CreateRoomScreen(
             Text(if (isPublic) stringResource(R.string.room_public) else stringResource(R.string.room_private))
             Switch(checked = isPublic, onCheckedChange = { isPublic = it })
         }
+
+        Spacer(Modifier.height(12.dp))
+        // "فئة الغرفة" — topical category, used for discovery filters in
+        // BrowseRoomsScreen. A dropdown rather than a chip row like room
+        // type since RoomCategory has ~20 options, too many to lay out flat.
+        Text(stringResource(R.string.room_category_label), style = MaterialTheme.typography.labelLarge)
+        Spacer(Modifier.height(6.dp))
+        ExposedDropdownMenuBox(
+            expanded = categoryMenuExpanded,
+            onExpandedChange = { categoryMenuExpanded = it }
+        ) {
+            OutlinedTextField(
+                value = RoomCategory.label(category),
+                onValueChange = {},
+                readOnly = true,
+                trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) },
+                leadingIcon = { Icon(RoomCategory.icon(category), contentDescription = null) },
+                modifier = Modifier.fillMaxWidth().menuAnchor()
+            )
+            ExposedDropdownMenu(
+                expanded = categoryMenuExpanded,
+                onDismissRequest = { categoryMenuExpanded = false }
+            ) {
+                RoomCategory.ALL.forEach { c ->
+                    DropdownMenuItem(
+                        text = { Text(RoomCategory.label(c)) },
+                        leadingIcon = { Icon(RoomCategory.icon(c), contentDescription = null) },
+                        onClick = {
+                            category = c
+                            categoryMenuExpanded = false
+                        }
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(
+            rules,
+            { rules = it },
+            label = { Text(stringResource(R.string.room_rules_label)) },
+            placeholder = { Text(stringResource(R.string.room_rules_hint)) },
+            minLines = 2,
+            modifier = Modifier.fillMaxWidth()
+        )
 
         Spacer(Modifier.height(12.dp))
         // Room type — TV_CHANNEL is the room-level counterpart of the
@@ -90,7 +141,9 @@ fun CreateRoomScreen(
                                 .filter { it.isNotEmpty() },
                             socialLinks = if (socialLink.isNotBlank()) mapOf("link" to socialLink) else emptyMap(),
                             phone = phone,
-                            roomType = roomType
+                            roomType = roomType,
+                            category = category,
+                            rules = rules
                         ),
                         uid
                     )
