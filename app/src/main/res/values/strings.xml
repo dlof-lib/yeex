@@ -235,6 +235,37 @@
     <string name="edit_live_stream">تعديل رابط البث</string>
     <string name="live_stream_save">حفظ</string>
     <string name="live_stream_remove">إزالة البث</string>
+
+    <!-- Room category / rules -->
+    <string name="room_category_label">فئة الغرفة</string>
+    <string name="room_category_all">الكل</string>
+    <string name="room_category_general">عامة</string>
+    <string name="room_category_gaming">ألعاب</string>
+    <string name="room_category_music">موسيقى</string>
+    <string name="room_category_sports">رياضة</string>
+    <string name="room_category_movies_tv">أفلام ومسلسلات</string>
+    <string name="room_category_news_politics">أخبار وسياسة</string>
+    <string name="room_category_education">تعليم</string>
+    <string name="room_category_technology">تقنية</string>
+    <string name="room_category_business_finance">أعمال ومال</string>
+    <string name="room_category_art_design">فن وتصميم</string>
+    <string name="room_category_fashion_beauty">موضة وجمال</string>
+    <string name="room_category_food_drink">طعام ومشروبات</string>
+    <string name="room_category_travel">سفر</string>
+    <string name="room_category_health_fitness">صحة ولياقة</string>
+    <string name="room_category_science">علوم</string>
+    <string name="room_category_books_literature">كتب وأدب</string>
+    <string name="room_category_family_parenting">أسرة وتربية</string>
+    <string name="room_category_comedy">كوميديا</string>
+    <string name="room_category_religion_spirituality">دين وروحانيات</string>
+    <string name="room_category_automotive">سيارات</string>
+    <string name="room_category_pets_animals">حيوانات أليفة</string>
+    <string name="room_category_relationships">علاقات</string>
+    <string name="room_category_other">أخرى</string>
+    <string name="room_rules_label">قوانين الغرفة</string>
+    <string name="room_rules_hint">اكتب القواعد والتعليمات لأعضاء الغرفة</string>
+    <string name="room_rules_edit">تعديل قوانين الغرفة</string>
+    <string name="room_trending_badge">رائجة</string>
     <string name="compose_placeholder">شارك أفكارك، لحظاتك، رأيك...</string>
     <string name="choose_paragraph_type">اختر نوع الفقرة</string>
     <string name="type_text">نص</string>
