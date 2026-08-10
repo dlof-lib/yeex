@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
@@ -64,6 +65,9 @@ import com.yeex.dlof.R
 import com.yeex.dlof.data.model.Paragraph
 import com.yeex.dlof.data.model.ParagraphType
 import com.yeex.dlof.data.repository.UserRepository
+import com.yeex.dlof.data.repository.AuthRepository
+import com.yeex.dlof.data.repository.BlockRepository
+import com.yeex.dlof.data.repository.ReportRepository
 import com.yeex.dlof.ui.theme.YeexAccent
 import com.yeex.dlof.ui.theme.YeexCrimson
 import com.yeex.dlof.ui.theme.YeexDislike
@@ -74,6 +78,7 @@ import com.yeex.dlof.util.BackgroundTaskType
 import com.yeex.dlof.util.DownloadUtil
 import com.yeex.dlof.util.MediaBase64
 import com.yeex.dlof.util.PdfExportUtil
+import com.yeex.dlof.util.SettingsPrefsStore
 import com.yeex.dlof.util.TaskProgressManager
 import com.yeex.dlof.util.TranslationUtil
 import com.yeex.dlof.util.VideoWatermarkUtil
@@ -117,9 +122,17 @@ fun ParagraphCard(
     onComment: () -> Unit,
     onRepost: () -> Unit,
     onOpenProfile: (String) -> Unit = {},
+    // Optimistically hides every paragraph from this author out of the
+    // *current* feed instance the instant the person confirms "حظر" — see
+    // FeedViewModel.blockAuthor. A no-op default so RepostScreen's read-only
+    // preview (which also renders a ParagraphCard) doesn't need to wire it.
+    onBlockAuthor: (String) -> Unit = {},
     modifier: Modifier = Modifier,
     userRepo: UserRepository = UserRepository(),
     paragraphRepo: ParagraphRepository = ParagraphRepository(),
+    authRepo: AuthRepository = AuthRepository(),
+    blockRepo: BlockRepository = BlockRepository(),
+    reportRepo: ReportRepository = ReportRepository(),
     // Whether this card is the page the pager has actually settled on — see
     // VideoPlayer's isActive doc. Only forwarded to VideoPlayer; irrelevant
     // for image/text paragraphs.
@@ -143,7 +156,11 @@ fun ParagraphCard(
     val (captionText, hashtags) = remember(paragraph.text) { extractHashtags(paragraph.text) }
 
     // ---- Tap-to-pause (video only) + double-tap-to-like state ----
-    var isPaused by remember(paragraph.id) { mutableStateOf(false) }
+    // Starts paused when "تشغيل الفيديو تلقائيًا" (Settings & Privacy →
+    // الوسائط والبيانات) is off — same tap-to-resume gesture handles
+    // starting it either way, so turning autoplay off doesn't need any
+    // extra UI, just a different starting value here.
+    var isPaused by remember(paragraph.id) { mutableStateOf(!SettingsPrefsStore.autoplayVideos.value) }
     var playbackSpeed by remember(paragraph.id) { mutableStateOf(1f) }
     // Progress/seek handle for the bottom scrub bar (video only) — see
     // VideoPlayerState. Scoped to paragraph.id so swiping to a different
@@ -173,7 +190,12 @@ fun ParagraphCard(
     }
 
     var showMenu by remember { mutableStateOf(false) }
-    val comingSoonMessage = stringResource(R.string.coming_soon)
+    val myUid = remember { authRepo.currentUid() }
+    var showReportDialog by remember { mutableStateOf(false) }
+    var showBlockConfirm by remember { mutableStateOf(false) }
+    val reportSentMessage = stringResource(R.string.report_sent)
+    val reportFailedMessage = stringResource(R.string.report_failed)
+    val blockedMessage = stringResource(R.string.block_success_toast, paragraph.authorIdentifier)
 
     Box(
         modifier = modifier
@@ -617,10 +639,70 @@ fun ParagraphCard(
                     leadingIcon = { Icon(Icons.Filled.Report, contentDescription = null) },
                     onClick = {
                         showMenu = false
-                        Toast.makeText(context, comingSoonMessage, Toast.LENGTH_SHORT).show()
+                        showReportDialog = true
                     }
                 )
+                // Only offered on someone else's paragraph — never shown for
+                // the person's own posts, and hidden entirely for a signed-out
+                // preview (myUid == null).
+                if (myUid != null && paragraph.authorId.isNotBlank() && paragraph.authorId != myUid) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.action_block_author, paragraph.authorIdentifier)) },
+                        leadingIcon = { Icon(Icons.Filled.Block, contentDescription = null, tint = YeexCrimson) },
+                        onClick = {
+                            showMenu = false
+                            showBlockConfirm = true
+                        }
+                    )
+                }
             }
+        }
+
+        if (showReportDialog) {
+            ReportParagraphDialog(
+                onDismiss = { showReportDialog = false },
+                onSubmit = { reason ->
+                    showReportDialog = false
+                    val uid = myUid
+                    if (uid == null) {
+                        Toast.makeText(context, reportFailedMessage, Toast.LENGTH_SHORT).show()
+                    } else {
+                        scope.launch {
+                            val me = runCatching { userRepo.getUser(uid) }.getOrNull()
+                            val ok = runCatching {
+                                reportRepo.submitReport(
+                                    reporterId = uid,
+                                    reporterIdentifier = me?.identifier ?: "",
+                                    targetType = "paragraph",
+                                    targetId = paragraph.id,
+                                    reason = reason
+                                )
+                            }.isSuccess
+                            Toast.makeText(context, if (ok) reportSentMessage else reportFailedMessage, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            )
+        }
+
+        if (showBlockConfirm) {
+            AlertDialog(
+                onDismissRequest = { showBlockConfirm = false },
+                title = { Text(stringResource(R.string.block_confirm_title, paragraph.authorIdentifier)) },
+                text = { Text(stringResource(R.string.block_confirm_body)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showBlockConfirm = false
+                        val uid = myUid ?: return@TextButton
+                        onBlockAuthor(paragraph.authorId)
+                        Toast.makeText(context, blockedMessage, Toast.LENGTH_SHORT).show()
+                        scope.launch { runCatching { blockRepo.blockUser(uid, paragraph.authorId) } }
+                    }) { Text(stringResource(R.string.btn_block), color = YeexCrimson) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showBlockConfirm = false }) { Text(stringResource(R.string.cancel)) }
+                }
+            )
         }
 
         // ---- Bottom-start overlay: compact author row + expiry timer, caption, hashtags, view count ----
@@ -725,6 +807,58 @@ fun ParagraphCard(
 private fun speedLabel(speed: Float): String {
     val trimmed = if (speed == speed.toLong().toFloat()) speed.toLong().toString() else speed.toString()
     return "${trimmed}x"
+}
+
+/**
+ * The "الإبلاغ" reason picker — replaces the old "قريبًا" stub. Submits to
+ * [com.yeex.dlof.data.repository.ReportRepository], which writes to the
+ * /reports node database.rules.json already validates for exactly this
+ * shape (see that repository's doc comment).
+ */
+@Composable
+private fun ReportParagraphDialog(onDismiss: () -> Unit, onSubmit: (reason: String) -> Unit) {
+    val reasons = listOf(
+        "spam" to stringResource(R.string.report_reason_spam),
+        "harassment" to stringResource(R.string.report_reason_harassment),
+        "nudity" to stringResource(R.string.report_reason_nudity),
+        "violence" to stringResource(R.string.report_reason_violence),
+        "misinformation" to stringResource(R.string.report_reason_misinformation),
+        "other" to stringResource(R.string.report_reason_other)
+    )
+    var selected by remember { mutableStateOf<String?>(null) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.action_report)) },
+        text = {
+            Column {
+                reasons.forEach { (key, label) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = LocalIndication.current
+                            ) { selected = key }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(selected = selected == key, onClick = { selected = key })
+                        Spacer(Modifier.width(8.dp))
+                        Text(label, style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { selected?.let(onSubmit) },
+                enabled = selected != null
+            ) { Text(stringResource(R.string.action_report), color = YeexCrimson) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        }
+    )
 }
 
 /** Fading, scaling heart that bursts outward from a double-tap point — the
