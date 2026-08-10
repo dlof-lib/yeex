@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.PlayArrow
@@ -115,6 +116,7 @@ import java.util.Locale
 private val TopOverlayClearance = 64.dp
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ParagraphCard(
     paragraph: Paragraph,
@@ -208,6 +210,11 @@ fun ParagraphCard(
     }
     var showReportDialog by remember { mutableStateOf(false) }
     var showBlockConfirm by remember { mutableStateOf(false) }
+    // Backing state for the "More" rail button's bottom sheet — bundles the
+    // lower-frequency utility actions (translate / download / PDF export)
+    // that used to sit as their own always-visible rail icons, so the rail
+    // itself stays short and each remaining icon can be sized up.
+    var showActionsSheet by remember { mutableStateOf(false) }
     val reportSentMessage = stringResource(R.string.report_sent)
     val reportFailedMessage = stringResource(R.string.report_failed)
     val blockedMessage = stringResource(R.string.block_success_toast, paragraph.authorIdentifier)
@@ -363,13 +370,18 @@ fun ParagraphCard(
             )
         }
 
-        // ---- Right-side vertical action rail (TikTok-style) ----
+        // ---- Right-side vertical action rail (TikTok-style) — compact & tidy ----
+        // Kept short on purpose: only the core, always-relevant actions get
+        // their own icon (bigger + easier to tap than before). Everything
+        // situational — translate, download, PDF export — lives one tap away
+        // behind the trailing "More" icon's sheet instead of permanently
+        // stretching the rail toward the top of the screen.
         Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 12.dp, bottom = 100.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             ReactionButton(
                 isActive = hasLiked,
@@ -411,6 +423,10 @@ fun ParagraphCard(
                     }
                 }
             )
+            // Small breathing room between the reaction cluster (like /
+            // dislike / star) and the action cluster below — reads as two
+            // organized groups instead of one long undifferentiated stack.
+            Spacer(Modifier.height(6.dp))
             RailAction(
                 icon = Icons.Filled.ChatBubble,
                 tint = Color.White,
@@ -418,33 +434,6 @@ fun ParagraphCard(
                 contentDescription = stringResource(R.string.action_comment),
                 onClick = onComment
             )
-            if (captionText.isNotBlank()) {
-                RailAction(
-                    icon = Icons.Filled.Translate,
-                    tint = if (translatedText != null) YeexAccent else Color.White,
-                    count = null,
-                    contentDescription = stringResource(R.string.action_translate),
-                    loading = isTranslating,
-                    onClick = {
-                        if (translatedText != null) {
-                            // Toggle back to the original caption instead of
-                            // re-translating — a second tap always means
-                            // "show me what I had before", not "translate again".
-                            translatedText = null
-                        } else if (!isTranslating) {
-                            scope.launch {
-                                isTranslating = true
-                                val targetTag = TranslateLanguage.fromLanguageTag(Locale.getDefault().language)
-                                    ?: TranslateLanguage.ENGLISH
-                                val result = TranslationUtil.translate(captionText, targetTag)
-                                isTranslating = false
-                                result.onSuccess { translated -> translatedText = translated }
-                                    .onFailure { Toast.makeText(context, translateFailedMessage, Toast.LENGTH_SHORT).show() }
-                            }
-                        }
-                    }
-                )
-            }
             RailAction(
                 icon = Icons.Filled.Repeat,
                 tint = Color.White,
@@ -452,32 +441,122 @@ fun ParagraphCard(
                 contentDescription = stringResource(R.string.action_repost),
                 onClick = onRepost
             )
-            if (bitmap != null) {
-                RailAction(
-                    icon = Icons.Filled.Download,
-                    tint = Color.White,
-                    count = null,
-                    contentDescription = stringResource(R.string.action_download),
-                    onClick = {
-                        val downloadingLabel = context.getString(R.string.downloading_image_label)
-                        TaskProgressManager.launch(
-                            id = "download_${paragraph.id}_${System.currentTimeMillis()}",
-                            type = BackgroundTaskType.DOWNLOAD,
-                            label = downloadingLabel
-                        ) { updateProgress ->
-                            updateProgress(0.1f)
-                            // Author name/avatar aren't denormalized onto the paragraph
-                            // (see the comment on authorIdentifier above) — fetched
-                            // here, once, only when a download is actually requested.
-                            val author = runCatching { userRepo.getUser(paragraph.authorId) }.getOrNull()
-                            updateProgress(0.35f)
-                            val authorAvatar = author?.profileIconUrl
-                                ?.takeIf { it.isNotBlank() }
-                                ?.let { MediaBase64.decodeToBitmap(it) }
-                            updateProgress(0.55f)
-                            val watermarked = withContext(Dispatchers.Default) {
-                                WatermarkUtil.applyWatermark(
-                                    source = bitmap,
+            // Everything below used to be its own always-visible rail icon
+            // (translate, image download, video download, PDF export) —
+            // popping in/out based on media type and stacking the rail up to
+            // 8 items deep. They now live behind this single "More" icon's
+            // sheet; see the ModalBottomSheet right after this Column.
+            RailAction(
+                icon = Icons.Filled.MoreHoriz,
+                tint = Color.White,
+                count = null,
+                contentDescription = stringResource(R.string.action_more),
+                onClick = { showActionsSheet = true }
+            )
+        }
+
+        if (showActionsSheet) {
+            ParagraphActionsSheet(
+                onDismiss = { showActionsSheet = false },
+                showTranslate = captionText.isNotBlank(),
+                isTranslating = isTranslating,
+                isTranslated = translatedText != null,
+                showDownloadImage = bitmap != null,
+                showDownloadVideo = isVideo && hasMedia,
+                onTranslate = {
+                    if (translatedText != null) {
+                        // Toggle back to the original caption instead of
+                        // re-translating — a second tap always means
+                        // "show me what I had before", not "translate again".
+                        translatedText = null
+                    } else if (!isTranslating) {
+                        scope.launch {
+                            isTranslating = true
+                            val targetTag = TranslateLanguage.fromLanguageTag(Locale.getDefault().language)
+                                ?: TranslateLanguage.ENGLISH
+                            val result = TranslationUtil.translate(captionText, targetTag)
+                            isTranslating = false
+                            result.onSuccess { translated -> translatedText = translated }
+                                .onFailure { Toast.makeText(context, translateFailedMessage, Toast.LENGTH_SHORT).show() }
+                        }
+                    }
+                },
+                onDownloadImage = {
+                    val downloadingLabel = context.getString(R.string.downloading_image_label)
+                    TaskProgressManager.launch(
+                        id = "download_${paragraph.id}_${System.currentTimeMillis()}",
+                        type = BackgroundTaskType.DOWNLOAD,
+                        label = downloadingLabel
+                    ) { updateProgress ->
+                        updateProgress(0.1f)
+                        // Author name/avatar aren't denormalized onto the paragraph
+                        // (see the comment on authorIdentifier above) — fetched
+                        // here, once, only when a download is actually requested.
+                        val author = runCatching { userRepo.getUser(paragraph.authorId) }.getOrNull()
+                        updateProgress(0.35f)
+                        val authorAvatar = author?.profileIconUrl
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { MediaBase64.decodeToBitmap(it) }
+                        updateProgress(0.55f)
+                        val watermarked = withContext(Dispatchers.Default) {
+                            WatermarkUtil.applyWatermark(
+                                source = bitmap!!,
+                                appLabel = watermarkLabel,
+                                authorIdentifier = paragraph.authorIdentifier,
+                                authorDisplayName = author?.displayName ?: paragraph.authorIdentifier,
+                                authorAvatar = authorAvatar,
+                                authorVerified = paragraph.authorVerified,
+                                likeCount = paragraph.likeCount,
+                                viewCount = paragraph.viewCount
+                            )
+                        }
+                        updateProgress(0.8f)
+                        val ok = withContext(Dispatchers.Default) {
+                            DownloadUtil.saveToGallery(context, watermarked, "yeex_${paragraph.id}")
+                        }
+                        updateProgress(0.95f)
+                        if (!ok) error(failedMessage)
+                        savedMessage
+                    }
+                },
+                // Video download: separate branch from the image one above since
+                // VIDEO paragraphs never decode to a Bitmap (see the `bitmap`
+                // comment near the top of this function) — previously that meant
+                // no download action showed up for videos at all. Now runs the
+                // clip through VideoWatermarkUtil first (burns the same
+                // author-badge stamp into every frame + a bouncing avatar
+                // bubble, see that file's doc / README roadmap item), and only
+                // falls back to saving the original unwatermarked bytes if the
+                // re-encode itself fails — a download should never come up
+                // empty just because the watermark pass had trouble.
+                onDownloadVideo = {
+                    val downloadingLabel = context.getString(R.string.downloading_video_label)
+                    TaskProgressManager.launch(
+                        id = "download_video_${paragraph.id}_${System.currentTimeMillis()}",
+                        type = BackgroundTaskType.DOWNLOAD,
+                        label = downloadingLabel
+                    ) { updateProgress ->
+                        updateProgress(0.05f)
+                        val videoBytes = withContext(Dispatchers.Default) {
+                            android.util.Base64.decode(paragraph.mediaBase64, android.util.Base64.NO_WRAP)
+                        }
+                        updateProgress(0.15f)
+                        val author = runCatching { userRepo.getUser(paragraph.authorId) }.getOrNull()
+                        val authorAvatar = author?.profileIconUrl
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { MediaBase64.decodeToBitmap(it) }
+                        updateProgress(0.25f)
+
+                        val ok = withContext(Dispatchers.Default) {
+                            val sourceFile = File.createTempFile("yeex_dl_src_${paragraph.id}", ".mp4", context.cacheDir)
+                            val outputFile = File.createTempFile("yeex_dl_out_${paragraph.id}", ".mp4", context.cacheDir)
+                            try {
+                                sourceFile.outputStream().use { it.write(videoBytes) }
+                                updateProgress(0.4f)
+                                val watermarked = VideoWatermarkUtil.applyWatermark(
+                                    context = context,
+                                    sourceUri = Uri.fromFile(sourceFile),
+                                    outputFile = outputFile,
                                     appLabel = watermarkLabel,
                                     authorIdentifier = paragraph.authorIdentifier,
                                     authorDisplayName = author?.displayName ?: paragraph.authorIdentifier,
@@ -486,101 +565,30 @@ fun ParagraphCard(
                                     likeCount = paragraph.likeCount,
                                     viewCount = paragraph.viewCount
                                 )
-                            }
-                            updateProgress(0.8f)
-                            val ok = withContext(Dispatchers.Default) {
-                                DownloadUtil.saveToGallery(context, watermarked, "yeex_${paragraph.id}")
-                            }
-                            updateProgress(0.95f)
-                            if (!ok) error(failedMessage)
-                            savedMessage
-                        }
-                    }
-                )
-            }
-            // Video download: separate branch from the image one above since
-            // VIDEO paragraphs never decode to a Bitmap (see the `bitmap`
-            // comment near the top of this function) — previously that meant
-            // no download action showed up for videos at all. Now runs the
-            // clip through VideoWatermarkUtil first (burns the same
-            // author-badge stamp into every frame + a bouncing avatar
-            // bubble, see that file's doc / README roadmap item), and only
-            // falls back to saving the original unwatermarked bytes if the
-            // re-encode itself fails — a download should never come up
-            // empty just because the watermark pass had trouble.
-            if (isVideo && hasMedia) {
-                RailAction(
-                    icon = Icons.Filled.Download,
-                    tint = Color.White,
-                    count = null,
-                    contentDescription = stringResource(R.string.action_download_video),
-                    onClick = {
-                        val downloadingLabel = context.getString(R.string.downloading_video_label)
-                        TaskProgressManager.launch(
-                            id = "download_video_${paragraph.id}_${System.currentTimeMillis()}",
-                            type = BackgroundTaskType.DOWNLOAD,
-                            label = downloadingLabel
-                        ) { updateProgress ->
-                            updateProgress(0.05f)
-                            val videoBytes = withContext(Dispatchers.Default) {
-                                android.util.Base64.decode(paragraph.mediaBase64, android.util.Base64.NO_WRAP)
-                            }
-                            updateProgress(0.15f)
-                            val author = runCatching { userRepo.getUser(paragraph.authorId) }.getOrNull()
-                            val authorAvatar = author?.profileIconUrl
-                                ?.takeIf { it.isNotBlank() }
-                                ?.let { MediaBase64.decodeToBitmap(it) }
-                            updateProgress(0.25f)
-
-                            val ok = withContext(Dispatchers.Default) {
-                                val sourceFile = File.createTempFile("yeex_dl_src_${paragraph.id}", ".mp4", context.cacheDir)
-                                val outputFile = File.createTempFile("yeex_dl_out_${paragraph.id}", ".mp4", context.cacheDir)
-                                try {
-                                    sourceFile.outputStream().use { it.write(videoBytes) }
-                                    updateProgress(0.4f)
-                                    val watermarked = VideoWatermarkUtil.applyWatermark(
-                                        context = context,
-                                        sourceUri = Uri.fromFile(sourceFile),
-                                        outputFile = outputFile,
-                                        appLabel = watermarkLabel,
-                                        authorIdentifier = paragraph.authorIdentifier,
-                                        authorDisplayName = author?.displayName ?: paragraph.authorIdentifier,
-                                        authorAvatar = authorAvatar,
-                                        authorVerified = paragraph.authorVerified,
-                                        likeCount = paragraph.likeCount,
-                                        viewCount = paragraph.viewCount
-                                    )
-                                    updateProgress(0.85f)
-                                    if (watermarked) {
-                                        DownloadUtil.saveVideoFileToGallery(context, outputFile, "yeex_${paragraph.id}")
-                                    } else {
-                                        // Re-encode failed (unsupported codec, low-memory device, etc.) —
-                                        // still deliver the clip rather than a bare error.
-                                        DownloadUtil.saveVideoToGallery(context, videoBytes, "yeex_${paragraph.id}")
-                                    }
-                                } finally {
-                                    sourceFile.delete()
-                                    outputFile.delete()
+                                updateProgress(0.85f)
+                                if (watermarked) {
+                                    DownloadUtil.saveVideoFileToGallery(context, outputFile, "yeex_${paragraph.id}")
+                                } else {
+                                    // Re-encode failed (unsupported codec, low-memory device, etc.) —
+                                    // still deliver the clip rather than a bare error.
+                                    DownloadUtil.saveVideoToGallery(context, videoBytes, "yeex_${paragraph.id}")
                                 }
+                            } finally {
+                                sourceFile.delete()
+                                outputFile.delete()
                             }
-                            updateProgress(0.95f)
-                            if (!ok) error(failedMessage)
-                            videoSavedMessage
                         }
+                        updateProgress(0.95f)
+                        if (!ok) error(failedMessage)
+                        videoSavedMessage
                     }
-                )
-            }
-            // PDF export: works for any paragraph. IMAGE reuses the same
-            // decoded bitmap as the gallery download above; TEXT (which has
-            // no bitmap at all) is rendered onto a card first via
-            // PdfExportUtil.renderTextCard. Both paths get the same
-            // WatermarkUtil stamp before being wrapped into a one-page PDF.
-            RailAction(
-                icon = Icons.Filled.PictureAsPdf,
-                tint = Color.White,
-                count = null,
-                contentDescription = stringResource(R.string.action_download_pdf),
-                onClick = {
+                },
+                // PDF export: works for any paragraph. IMAGE reuses the same
+                // decoded bitmap as the gallery download above; TEXT (which has
+                // no bitmap at all) is rendered onto a card first via
+                // PdfExportUtil.renderTextCard. Both paths get the same
+                // WatermarkUtil stamp before being wrapped into a one-page PDF.
+                onDownloadPdf = {
                     val downloadingLabel = context.getString(R.string.downloading_pdf_label)
                     TaskProgressManager.launch(
                         id = "download_pdf_${paragraph.id}_${System.currentTimeMillis()}",
@@ -1033,14 +1041,14 @@ private fun RailAction(
             onClick = onClick,
             enabled = !loading,
             modifier = Modifier
-                .size(46.dp)
+                .size(42.dp)
                 .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.28f))
+                .background(Color.Black.copy(alpha = 0.32f))
         ) {
             if (loading) {
-                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
             } else {
-                Icon(icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(26.dp))
+                Icon(icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(22.dp))
             }
         }
         if (count != null) {
@@ -1048,7 +1056,7 @@ private fun RailAction(
                 formatCount(count),
                 color = Color.White,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 12.sp
+                fontSize = 11.sp
             )
         }
     }
@@ -1110,7 +1118,7 @@ private fun ReactionButton(
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .size(50.dp)
+                .size(44.dp)
                 .scale(pressScale.value)
                 .clickable(
                     interactionSource = interactionSource,
@@ -1143,7 +1151,7 @@ private fun ReactionButton(
             if (burst.value > 0f) {
                 Box(
                     modifier = Modifier
-                        .size(50.dp)
+                        .size(44.dp)
                         .scale(0.7f + burst.value * 0.9f)
                         .background(
                             Brush.radialGradient(
@@ -1160,10 +1168,10 @@ private fun ReactionButton(
             // Circular backdrop that shifts from neutral to brand-tinted.
             Box(
                 modifier = Modifier
-                    .size(46.dp)
+                    .size(42.dp)
                     .clip(CircleShape)
                     .background(backdropColor)
-                    .border(width = 1.2.dp, color = borderColor, shape = CircleShape)
+                    .border(width = 1.dp, color = borderColor, shape = CircleShape)
             )
 
             AnimatedContent(
@@ -1178,16 +1186,95 @@ private fun ReactionButton(
                     imageVector = if (active) activeIcon else inactiveIcon,
                     contentDescription = contentDescription,
                     tint = iconTint,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }
-        Spacer(Modifier.height(2.dp))
+        Spacer(Modifier.height(1.dp))
         Text(
             formatCount(count),
             color = if (isActive) activeColor else Color.White,
             fontWeight = FontWeight.Bold,
-            fontSize = 12.sp
+            fontSize = 11.sp
         )
+    }
+}
+
+/**
+ * Bottom sheet for the rail's trailing "More" icon — bundles translate,
+ * image/video download, and PDF export behind one tap instead of each
+ * permanently occupying its own rail slot. Rows only render for actions
+ * that actually apply to this paragraph (e.g. no "download video" row on a
+ * text post), same conditions the old inline rail icons used.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ParagraphActionsSheet(
+    onDismiss: () -> Unit,
+    showTranslate: Boolean,
+    isTranslating: Boolean,
+    isTranslated: Boolean,
+    showDownloadImage: Boolean,
+    showDownloadVideo: Boolean,
+    onTranslate: () -> Unit,
+    onDownloadImage: () -> Unit,
+    onDownloadVideo: () -> Unit,
+    onDownloadPdf: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(modifier = Modifier.navigationBarsPadding().padding(bottom = 8.dp)) {
+            if (showTranslate) {
+                ActionSheetRow(
+                    icon = Icons.Filled.Translate,
+                    label = if (isTranslated) stringResource(R.string.translated_label) else stringResource(R.string.action_translate),
+                    loading = isTranslating,
+                    onClick = { onTranslate(); onDismiss() }
+                )
+            }
+            if (showDownloadImage) {
+                ActionSheetRow(
+                    icon = Icons.Filled.Download,
+                    label = stringResource(R.string.action_download),
+                    onClick = { onDownloadImage(); onDismiss() }
+                )
+            }
+            if (showDownloadVideo) {
+                ActionSheetRow(
+                    icon = Icons.Filled.Download,
+                    label = stringResource(R.string.action_download_video),
+                    onClick = { onDownloadVideo(); onDismiss() }
+                )
+            }
+            ActionSheetRow(
+                icon = Icons.Filled.PictureAsPdf,
+                label = stringResource(R.string.action_download_pdf),
+                onClick = { onDownloadPdf(); onDismiss() }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ActionSheetRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    loading: Boolean = false,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = !loading, onClick = onClick)
+            .padding(horizontal = 24.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (loading) {
+            CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+        } else {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp))
+        }
+        Spacer(Modifier.width(20.dp))
+        Text(label, style = MaterialTheme.typography.bodyLarge)
     }
 }
