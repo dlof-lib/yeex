@@ -33,6 +33,8 @@
         "businessPhone": { ".validate": "newData.isString() && newData.val().length <= 30" },
         "businessEmail": { ".validate": "newData.isString() && newData.val().length <= 100" },
         "businessLinks": { ".validate": "newData.hasChildren() || newData.val() === null" },
+        "isPrivateAccount": { ".validate": "newData.isBoolean()" },
+        "commentPrivacy": { ".validate": "newData.isString() && (newData.val() === 'everyone' || newData.val() === 'tekers' || newData.val() === 'no_one')" },
 
         "verified": {
           ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (!data.exists() && auth.uid === $uid && newData.val() === false))",
@@ -63,6 +65,14 @@
     "admins": {
       ".read": "auth != null && root.child('admins').child(auth.uid).exists()",
       ".write": false
+    },
+
+    "blocks": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "$targetUid": { ".validate": "newData.isNumber()" }
+      }
     },
 
     "paragraphs": {
