@@ -418,4 +418,56 @@
     <string name="report_problem_placeholder">What happened?</string>
     <string name="report_problem_send">Send</string>
 
+    <!-- Popularity star + view milestones -->
+    <string name="action_star">Popularity</string>
+    <string name="profile_views_label">Profile views</string>
+    <string name="popularity_label">Popularity</string>
+    <string name="view_milestone_badge_title">View reward</string>
+    <string name="view_milestone_earned">Reached %1$s views</string>
+    <string name="view_milestone_next">Next goal: %1$s views</string>
+    <string name="view_milestone_none_yet">No view reward earned yet</string>
+    <string name="view_milestone_max_reached">Top reward reached (100M)!</string>
+
+    <!-- Subscriptions -->
+    <string name="subscription_title">Subscribe</string>
+    <string name="subscription_title_named">Subscribe to %1$s</string>
+    <string name="subscription_dev_label">Subscription (in development)</string>
+    <string name="subscription_manage">Manage subscription</string>
+    <string name="subscription_subscribe_button">Subscribe</string>
+    <string name="subscription_subscribed_label">Subscribed</string>
+    <string name="subscription_unsubscribe">Unsubscribe</string>
+    <string name="subscription_create_plan">Create a subscription plan</string>
+    <string name="subscription_plan_name_hint">Plan name (e.g. Gold)</string>
+    <string name="subscription_plan_price_hint">Price (e.g. $5 / month)</string>
+    <string name="subscription_plan_description_hint">Short plan description</string>
+    <string name="subscription_plan_features_hint">Add a subscriber perk</string>
+    <string name="subscription_add_feature">Add feature</string>
+    <string name="subscription_no_plans">No subscription plans yet</string>
+    <string name="subscription_no_plans_owner">Create a plan so your followers can subscribe and get perks you choose</string>
+    <string name="subscription_save_plan">Save plan</string>
+    <string name="subscription_delete_plan">Delete plan</string>
+    <string name="subscription_your_plans">Your plans</string>
+    <string name="subscription_choose_plan">Choose a plan</string>
+    <string name="subscription_your_subscribers">Subscribers</string>
+    <string name="subscription_subscriber_count">%1$d subscribers</string>
+    <string name="subscription_link_card_title">Link a payment card</string>
+    <string name="subscription_card_number_hint">Card number</string>
+    <string name="subscription_card_expiry_hint">MM/YY</string>
+    <string name="subscription_card_cvv_hint">CVV</string>
+    <string name="subscription_card_holder_hint">Cardholder name</string>
+    <string name="subscription_card_linked">Card on file</string>
+    <string name="subscription_card_none">No card linked</string>
+    <string name="subscription_link_card_button">Link card</string>
+    <string name="subscription_link_card_and_subscribe">Link card &amp; subscribe</string>
+    <string name="subscription_confirm_subscribe">Confirm subscription</string>
+    <string name="subscription_card_invalid">Check your card details</string>
+    <string name="subscription_disclaimer">Linking a card only stores the last 4 digits so we can show it to you; yeex doesn\'t actually charge any amount yet — real billing needs a licensed payment gateway.</string>
+    <string name="subscription_manage_card">Manage my card</string>
+    <string name="subscribed_success">Subscribed successfully</string>
+    <string name="subscription_plan_saved">Plan saved</string>
+
+    <!-- Gallery tabs -->
+    <string name="gallery_tab_photos">Photos</string>
+    <string name="gallery_tab_videos">Videos</string>
+
 </resources>
