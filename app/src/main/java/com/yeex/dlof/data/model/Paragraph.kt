@@ -30,7 +30,11 @@ data class Paragraph(
     val repostCount: Long = 0,
     val repostOfId: String = "",    // set when this is a repost into a room
     val repostComment: String = "",
-    val viewCount: Long = 0,        // bumped once per viewer via ParagraphRepository.incrementView
+    val viewCount: Long = 0,        // real, unique-per-viewer count — see ParagraphRepository.incrementView
+    // "شعبية" (popularity star) — a second, separate reaction from like/dislike;
+    // starring a paragraph also raises its author's User.popularityCount. See
+    // ParagraphRepository.toggleStar.
+    val starCount: Long = 0,
     val engagementScore: Double = 0.0, // maintained by FeedRanking, used to sort the feed
     // YEEX MOMENT ("لحظة") — only populated when type == MOMENT.name. An ordered
     // sequence of stages (see MomentStep) rendered as a connected timeline
