@@ -58,7 +58,87 @@
         "tekerCount": {
           ".write": "auth != null",
           ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "profileViewCount": {
+          ".write": "auth != null",
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "totalViewCount": {
+          ".write": "auth != null",
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "popularityCount": {
+          ".write": "auth != null",
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "hasSubscriptionPlans": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.isBoolean()"
+        },
+        "linkedCardBrand": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.isString() && newData.val().length <= 30"
+        },
+        "linkedCardLast4": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.isString() && newData.val().length <= 4"
         }
+      }
+    },
+
+    "profileViews": {
+      "$profileUid": {
+        ".read": true,
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.isBoolean() && newData.val() === true"
+        }
+      }
+    },
+
+    "subscriptionPlans": {
+      ".read": true,
+      "$ownerId": {
+        "$planId": {
+          ".write": "auth != null && auth.uid === $ownerId",
+          ".validate": "newData.hasChildren(['id','ownerId','name'])",
+          "id": { ".validate": "newData.isString() && newData.val() === $planId" },
+          "ownerId": { ".validate": "newData.isString() && newData.val() === $ownerId && newData.val() === auth.uid" },
+          "name": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40" },
+          "description": { ".validate": "newData.isString() && newData.val().length <= 150" },
+          "priceLabel": { ".validate": "newData.isString() && newData.val().length <= 30" },
+          "features": { ".validate": "newData.hasChildren() || newData.val() === null" },
+          "createdAt": { ".validate": "newData.isNumber()" },
+          "active": { ".validate": "newData.isBoolean()" }
+        }
+      }
+    },
+
+    "subscribers": {
+      "$ownerId": {
+        ".read": "auth != null && auth.uid === $ownerId",
+        "$subscriberId": {
+          ".read": "auth != null && (auth.uid === $ownerId || auth.uid === $subscriberId)",
+          ".write": "auth != null && auth.uid === $subscriberId",
+          ".validate": "newData.hasChildren(['subscriberId','planId'])",
+          "subscriberId": { ".validate": "newData.isString() && newData.val() === auth.uid" }
+        }
+      }
+    },
+
+    "subscribedTo": {
+      "$subscriberId": {
+        ".read": "auth != null && auth.uid === $subscriberId",
+        ".write": "auth != null && auth.uid === $subscriberId"
+      }
+    },
+
+    "paymentMethods": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "last4": { ".validate": "newData.isString() && newData.val().length <= 4" },
+        "brand": { ".validate": "newData.isString() && newData.val().length <= 30" }
       }
     },
 
@@ -130,6 +210,30 @@
         "viewCount": {
           ".write": "auth != null",
           ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "starCount": {
+          ".write": "auth != null",
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        }
+      }
+    },
+
+    "paragraphViews": {
+      "$paragraphId": {
+        ".read": true,
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.isBoolean() && newData.val() === true"
+        }
+      }
+    },
+
+    "paragraphStars": {
+      "$paragraphId": {
+        ".read": true,
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.isBoolean() && newData.val() === true"
         }
       }
     },
@@ -204,6 +308,20 @@
         "memberCount": {
           ".write": "auth != null",
           ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "viewCount": {
+          ".write": "auth != null",
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        }
+      }
+    },
+
+    "roomViews": {
+      "$roomId": {
+        ".read": true,
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.isBoolean() && newData.val() === true"
         }
       }
     },
