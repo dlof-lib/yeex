@@ -28,6 +28,7 @@
     <string name="action_dislike">Dislike</string>
     <string name="action_comment">Comment</string>
     <string name="action_repost">Repost</string>
+    <string name="action_more">More</string>
     <string name="repost_no_rooms">You don\'t have any room yet to repost into. Create one first.</string>
     <string name="repost_pick_room">Choose a room to repost into</string>
     <string name="room_label">Room</string>
