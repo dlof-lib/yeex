@@ -30,6 +30,28 @@ data class User(
     val externalFollowerCounts: Map<String, Long> = emptyMap(), // self-reported, reviewed by admins
     val tekingCount: Long = 0,      // followers (people "Teking" this user)
     val tekerCount: Long = 0,       // accounts this user is a "Teker" of (following)
+    // ---- Views & popularity (see com.yeex.dlof.util.ViewMilestones) ----
+    // Real, unique-viewer count of this profile page — see UserRepository.incrementProfileView.
+    val profileViewCount: Long = 0,
+    // Sum of viewCount across every paragraph this user has authored, bumped
+    // alongside Paragraph.viewCount by ParagraphRepository.incrementView.
+    // Drives the "مكافآت المشاهدات" milestone badge on the profile.
+    val totalViewCount: Long = 0,
+    // "الشعبيات" — total star reactions ("الشعبية") received across this
+    // user's paragraphs; a star is separate from a like and specifically
+    // raises the account's standing. See ParagraphRepository.toggleStar.
+    val popularityCount: Long = 0,
+    // ---- Subscriptions ("اشتراك") ----
+    // True once this account has published at least one SubscriptionPlan
+    // (see com.yeex.dlof.data.model.SubscriptionPlan) — lets ProfileScreen
+    // show/hide the "اشتراك" entry point without an extra query.
+    val hasSubscriptionPlans: Boolean = false,
+    // Masked payment-method summary only (never a full card number/CVV — see
+    // com.yeex.dlof.data.model.PaymentCard's doc comment on why raw card
+    // data is never stored here). Populated once the user links a card from
+    // Settings so they can subscribe to other accounts' paid tiers.
+    val linkedCardBrand: String = "",
+    val linkedCardLast4: String = "",
     val createdAt: Long = 0L,
     val language: String = "ar",    // ar | en | es
     val isOfficial: Boolean = false, // true only for the yeex.open account
