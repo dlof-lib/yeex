@@ -449,4 +449,56 @@
     <string name="report_problem_placeholder">ماذا حدث؟</string>
     <string name="report_problem_send">إرسال</string>
 
+    <!-- Popularity star + view milestones -->
+    <string name="action_star">شعبية</string>
+    <string name="profile_views_label">مشاهدات الحساب</string>
+    <string name="popularity_label">الشعبيات</string>
+    <string name="view_milestone_badge_title">وسام المشاهدات</string>
+    <string name="view_milestone_earned">حقق %1$s مشاهدة</string>
+    <string name="view_milestone_next">الهدف التالي: %1$s مشاهدة</string>
+    <string name="view_milestone_none_yet">لم يحقق أي وسام مشاهدات بعد</string>
+    <string name="view_milestone_max_reached">تم تحقيق أعلى وسام (١٠٠ مليون)!</string>
+
+    <!-- Subscriptions -->
+    <string name="subscription_title">اشتراك</string>
+    <string name="subscription_title_named">اشتراك في %1$s</string>
+    <string name="subscription_dev_label">الاشتراك (قيد التطوير)</string>
+    <string name="subscription_manage">إدارة الاشتراك</string>
+    <string name="subscription_subscribe_button">اشتراك</string>
+    <string name="subscription_subscribed_label">مشترك</string>
+    <string name="subscription_unsubscribe">إلغاء الاشتراك</string>
+    <string name="subscription_create_plan">إنشاء باقة اشتراك</string>
+    <string name="subscription_plan_name_hint">اسم الباقة (مثال: الذهبية)</string>
+    <string name="subscription_plan_price_hint">السعر (مثال: ٥$ / شهريًا)</string>
+    <string name="subscription_plan_description_hint">وصف مختصر للباقة</string>
+    <string name="subscription_plan_features_hint">أضف ميزة للمشتركين</string>
+    <string name="subscription_add_feature">إضافة ميزة</string>
+    <string name="subscription_no_plans">لا توجد باقات اشتراك بعد</string>
+    <string name="subscription_no_plans_owner">أنشئ باقة ليشترك بها متابعوك ويحصلوا على مزايا تختارها أنت</string>
+    <string name="subscription_save_plan">حفظ الباقة</string>
+    <string name="subscription_delete_plan">حذف الباقة</string>
+    <string name="subscription_your_plans">باقاتك</string>
+    <string name="subscription_choose_plan">اختر باقة</string>
+    <string name="subscription_your_subscribers">المشتركون</string>
+    <string name="subscription_subscriber_count">%1$d مشترك</string>
+    <string name="subscription_link_card_title">ربط بطاقة الدفع</string>
+    <string name="subscription_card_number_hint">رقم البطاقة</string>
+    <string name="subscription_card_expiry_hint">MM/YY</string>
+    <string name="subscription_card_cvv_hint">CVV</string>
+    <string name="subscription_card_holder_hint">اسم حامل البطاقة</string>
+    <string name="subscription_card_linked">بطاقة مرتبطة</string>
+    <string name="subscription_card_none">لا توجد بطاقة مرتبطة</string>
+    <string name="subscription_link_card_button">ربط بطاقة</string>
+    <string name="subscription_link_card_and_subscribe">ربط البطاقة والاشتراك</string>
+    <string name="subscription_confirm_subscribe">تأكيد الاشتراك</string>
+    <string name="subscription_card_invalid">تحقق من بيانات البطاقة</string>
+    <string name="subscription_disclaimer">ربط البطاقة يحفظ آخر ٤ أرقام فقط لإظهارها لك؛ لا يقوم yeex حاليًا بخصم أي مبالغ فعلية — تفعيل الفوترة الحقيقية يتطلب بوابة دفع معتمدة</string>
+    <string name="subscription_manage_card">إدارة بطاقتي</string>
+    <string name="subscribed_success">تم الاشتراك بنجاح</string>
+    <string name="subscription_plan_saved">تم حفظ الباقة</string>
+
+    <!-- Gallery tabs -->
+    <string name="gallery_tab_photos">الصور</string>
+    <string name="gallery_tab_videos">الفيديوهات</string>
+
 </resources>
