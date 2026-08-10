@@ -33,6 +33,9 @@ val YeexCrimson = Color(0xFFF0195A)
 val YeexLike = Color(0xFFFF2D55)
 val YeexLikeGlow = Color(0xFFFF6B8B)
 val YeexDislike = Color(0xFF8B93FF)
+// "الشعبية" (popularity star) reaction — warm gold, distinct from the like/dislike pair.
+val YeexGold = Color(0xFFFFC24B)
+val YeexGoldGlow = Color(0xFFFFE1A0)
 
 val YeexBlack = Color(0xFF0A0912)
 val YeexDarkSurface = Color(0xFF17151F)
