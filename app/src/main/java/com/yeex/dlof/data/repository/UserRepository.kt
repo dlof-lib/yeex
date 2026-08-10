@@ -99,6 +99,16 @@ class UserRepository(
         usersRef.child(uid).child("language").setValue(languageCode).await()
     }
 
+    /** "حساب خاص" toggle in the Settings & Privacy screen. */
+    suspend fun updatePrivacy(uid: String, isPrivate: Boolean) {
+        usersRef.child(uid).child("isPrivateAccount").setValue(isPrivate).await()
+    }
+
+    /** Who may comment on this user's paragraphs — "everyone" | "tekers" | "no_one". */
+    suspend fun updateCommentPrivacy(uid: String, value: String) {
+        usersRef.child(uid).child("commentPrivacy").setValue(value).await()
+    }
+
     /**
      * Updates the editable profile fields (display name + bio) from the
      * "edit account" bottom sheet in [com.yeex.dlof.ui.profile.ProfileScreen].
