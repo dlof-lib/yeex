@@ -30,6 +30,7 @@ import com.yeex.dlof.ui.room.BrowseRoomsScreen
 import com.yeex.dlof.ui.room.CreateRoomScreen
 import com.yeex.dlof.ui.room.RoomScreen
 import com.yeex.dlof.ui.search.SearchScreen
+import com.yeex.dlof.ui.settings.SettingsScreen
 import com.yeex.dlof.ui.verify.VerificationRequestScreen
 
 object Routes {
@@ -49,6 +50,7 @@ object Routes {
     const val SEARCH = "search"
     const val VERIFY = "verify"
     const val REPOST = "repost/{paragraphId}"
+    const val SETTINGS = "settings"
 
     fun login(prefill: String = "") = "login?prefill=$prefill"
     fun room(id: String) = "room/$id"
@@ -197,6 +199,23 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
                     },
                     onNeedAccountPassword = { identifier ->
                         navController.navigate(Routes.login(identifier))
+                    },
+                    onOpenSettings = { navController.navigate(Routes.SETTINGS) }
+                )
+            }
+            composable(Routes.SETTINGS) {
+                SettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onEditProfile = { navController.popBackStack() },
+                    onLogout = {
+                        navController.navigate(Routes.LOGIN) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
+                    onAccountDeleted = {
+                        navController.navigate(Routes.LOGIN) {
+                            popUpTo(0) { inclusive = true }
+                        }
                     }
                 )
             }
