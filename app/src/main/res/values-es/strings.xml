@@ -28,6 +28,7 @@
     <string name="action_dislike">No me gusta</string>
     <string name="action_comment">Comentar</string>
     <string name="action_repost">Republicar</string>
+    <string name="action_more">Más</string>
     <string name="repost_no_rooms">Aún no tienes ninguna sala para volver a publicar. Crea una primero.</string>
     <string name="repost_pick_room">Elige una sala para volver a publicar</string>
     <string name="room_label">Sala</string>
