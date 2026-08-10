@@ -19,17 +19,20 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.yeex.dlof.R
 import com.yeex.dlof.data.model.Comment
 import com.yeex.dlof.data.repository.AuthRepository
+import com.yeex.dlof.data.repository.BlockRepository
 import com.yeex.dlof.data.repository.ParagraphRepository
 import com.yeex.dlof.data.repository.UserRepository
 import com.yeex.dlof.ui.components.UserAvatar
 import com.yeex.dlof.ui.theme.YeexAccent
 import com.yeex.dlof.ui.theme.YeexLike
+import com.yeex.dlof.util.MutedWordsStore
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.catch
 
@@ -52,8 +55,10 @@ fun CommentsSheet(
     authRepo: AuthRepository = AuthRepository(),
     userRepo: UserRepository = UserRepository(),
     repo: ParagraphRepository = ParagraphRepository(),
+    blockRepo: BlockRepository = BlockRepository(),
     onOpenProfile: (String) -> Unit = {}
 ) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var comments by remember { mutableStateOf<List<Comment>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -63,6 +68,15 @@ fun CommentsSheet(
     var likedByMe by remember { mutableStateOf<Set<String>>(emptySet()) }
     var replyTarget by remember { mutableStateOf<Comment?>(null) }
     val myUid = authRepo.currentUid()
+
+    // One-shot fetch, same trade-off as FeedViewModel's blockedUids — see
+    // that field's doc comment. Re-fetched every time this sheet is opened
+    // (cheap: it's a single small read), so a block made in Settings shows
+    // up here on the very next comments sheet even without an app restart.
+    var blockedUids by remember { mutableStateOf<Set<String>>(emptySet()) }
+    LaunchedEffect(myUid) {
+        if (myUid != null) blockedUids = runCatching { blockRepo.blockedUidSet(myUid) }.getOrDefault(emptySet())
+    }
 
     LaunchedEffect(paragraphId) {
         // .catch prevents a Firebase listener error (offline/cancelled) from
@@ -92,8 +106,16 @@ fun CommentsSheet(
         }
     }
 
-    val topLevel = comments.filter { it.parentId.isBlank() }.sortedByDescending { it.createdAt }
-    val repliesByParent = comments.filter { it.parentId.isNotBlank() }.groupBy { it.parentId }
+    // "الكلمات المكتومة" + blocked authors — both filtered client-side, for
+    // this viewer only, same as MutedWordsStore/BlockRepository's doc
+    // comments describe. A comment hidden this way still exists and still
+    // counts toward [comments.size] in the header — this only hides it from
+    // the list, it doesn't moderate it for anyone else.
+    fun isVisible(c: Comment): Boolean =
+        c.authorId !in blockedUids && !MutedWordsStore.matches(context, c.text)
+
+    val topLevel = comments.filter { it.parentId.isBlank() && isVisible(it) }.sortedByDescending { it.createdAt }
+    val repliesByParent = comments.filter { it.parentId.isNotBlank() && isVisible(it) }.groupBy { it.parentId }
 
     fun toggleLike(comment: Comment) {
         val uid = myUid ?: return
