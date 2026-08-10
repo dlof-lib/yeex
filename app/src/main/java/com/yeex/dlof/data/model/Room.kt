@@ -16,6 +16,8 @@ data class Room(
     val phone: String = "",            // optional
     val iconUrl: String = "",
     val memberCount: Long = 0,
+    // Real, unique-per-viewer view count — see RoomRepository.incrementView.
+    val viewCount: Long = 0,
     val createdAt: Long = 0L,
     // "GENERAL" | "TV_CHANNEL" — see com.yeex.dlof.util.RoomType. A
     // TV-channel room is the room-level counterpart of a TV-channel
