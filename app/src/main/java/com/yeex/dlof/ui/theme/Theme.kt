@@ -2,11 +2,16 @@ package com.yeex.dlof.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.TextUnitType
 
 // ---- Brand identity — deep violet/black base with a purple → pink signature
 // gradient (avatar rings, primary buttons, active tab, "جديد" accents). ----
@@ -69,9 +74,43 @@ private val LightColors = lightColorScheme(
 )
 
 @Composable
-fun YeexTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+fun YeexTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    // "حجم الخط" (Settings & Privacy → إمكانية الوصول) — 1f is the
+    // unmodified Material3 default scale; see SettingsPrefsStore.textScale.
+    fontScale: Float = 1f,
+    content: @Composable () -> Unit
+) {
+    val typography = remember(fontScale) {
+        if (fontScale == 1f) Typography() else Typography().scaled(fontScale)
+    }
     MaterialTheme(
         colorScheme = if (darkTheme) DarkColors else LightColors,
+        typography = typography,
         content = content
     )
 }
+
+/** Scales every style's font size (and, where set, line height) by [factor], leaving weight/family/letterSpacing untouched. */
+private fun Typography.scaled(factor: Float): Typography = Typography(
+    displayLarge = displayLarge.scaled(factor),
+    displayMedium = displayMedium.scaled(factor),
+    displaySmall = displaySmall.scaled(factor),
+    headlineLarge = headlineLarge.scaled(factor),
+    headlineMedium = headlineMedium.scaled(factor),
+    headlineSmall = headlineSmall.scaled(factor),
+    titleLarge = titleLarge.scaled(factor),
+    titleMedium = titleMedium.scaled(factor),
+    titleSmall = titleSmall.scaled(factor),
+    bodyLarge = bodyLarge.scaled(factor),
+    bodyMedium = bodyMedium.scaled(factor),
+    bodySmall = bodySmall.scaled(factor),
+    labelLarge = labelLarge.scaled(factor),
+    labelMedium = labelMedium.scaled(factor),
+    labelSmall = labelSmall.scaled(factor)
+)
+
+private fun TextStyle.scaled(factor: Float): TextStyle = copy(
+    fontSize = if (fontSize.type == TextUnitType.Sp) TextUnit(fontSize.value * factor, TextUnitType.Sp) else fontSize,
+    lineHeight = if (lineHeight.type == TextUnitType.Sp) TextUnit(lineHeight.value * factor, TextUnitType.Sp) else lineHeight
+)
