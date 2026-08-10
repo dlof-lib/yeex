@@ -204,6 +204,37 @@
     <string name="edit_live_stream">Edit stream link</string>
     <string name="live_stream_save">Save</string>
     <string name="live_stream_remove">Remove stream</string>
+
+    <!-- Room category / rules -->
+    <string name="room_category_label">Room category</string>
+    <string name="room_category_all">All</string>
+    <string name="room_category_general">General</string>
+    <string name="room_category_gaming">Gaming</string>
+    <string name="room_category_music">Music</string>
+    <string name="room_category_sports">Sports</string>
+    <string name="room_category_movies_tv">Movies &amp; TV</string>
+    <string name="room_category_news_politics">News &amp; Politics</string>
+    <string name="room_category_education">Education</string>
+    <string name="room_category_technology">Technology</string>
+    <string name="room_category_business_finance">Business &amp; Finance</string>
+    <string name="room_category_art_design">Art &amp; Design</string>
+    <string name="room_category_fashion_beauty">Fashion &amp; Beauty</string>
+    <string name="room_category_food_drink">Food &amp; Drink</string>
+    <string name="room_category_travel">Travel</string>
+    <string name="room_category_health_fitness">Health &amp; Fitness</string>
+    <string name="room_category_science">Science</string>
+    <string name="room_category_books_literature">Books &amp; Literature</string>
+    <string name="room_category_family_parenting">Family &amp; Parenting</string>
+    <string name="room_category_comedy">Comedy</string>
+    <string name="room_category_religion_spirituality">Religion &amp; Spirituality</string>
+    <string name="room_category_automotive">Automotive</string>
+    <string name="room_category_pets_animals">Pets &amp; Animals</string>
+    <string name="room_category_relationships">Relationships</string>
+    <string name="room_category_other">Other</string>
+    <string name="room_rules_label">Room rules</string>
+    <string name="room_rules_hint">Write the rules and guidelines for room members</string>
+    <string name="room_rules_edit">Edit room rules</string>
+    <string name="room_trending_badge">Trending</string>
     <string name="compose_placeholder">Share your thoughts, moments, opinion...</string>
     <string name="choose_paragraph_type">Choose paragraph type</string>
     <string name="type_text">Text</string>
