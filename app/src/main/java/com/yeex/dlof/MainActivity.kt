@@ -45,12 +45,14 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val themeMode by SettingsPrefsStore.themeMode
+            val textScale by SettingsPrefsStore.textScale
             YeexTheme(
                 darkTheme = when (themeMode) {
                     SettingsPrefsStore.THEME_DARK -> true
                     SettingsPrefsStore.THEME_LIGHT -> false
                     else -> androidx.compose.foundation.isSystemInDarkTheme()
-                }
+                },
+                fontScale = textScale
             ) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val context = LocalContext.current
