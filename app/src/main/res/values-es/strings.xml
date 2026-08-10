@@ -418,4 +418,56 @@
     <string name="report_problem_placeholder">¿Qué pasó?</string>
     <string name="report_problem_send">Enviar</string>
 
+    <!-- Popularity star + view milestones -->
+    <string name="action_star">Popularidad</string>
+    <string name="profile_views_label">Visitas del perfil</string>
+    <string name="popularity_label">Popularidad</string>
+    <string name="view_milestone_badge_title">Recompensa de vistas</string>
+    <string name="view_milestone_earned">Alcanzó %1$s vistas</string>
+    <string name="view_milestone_next">Próxima meta: %1$s vistas</string>
+    <string name="view_milestone_none_yet">Aún sin recompensa de vistas</string>
+    <string name="view_milestone_max_reached">¡Máxima recompensa alcanzada (100M)!</string>
+
+    <!-- Subscriptions -->
+    <string name="subscription_title">Suscripción</string>
+    <string name="subscription_title_named">Suscribirse a %1$s</string>
+    <string name="subscription_dev_label">Suscripción (en desarrollo)</string>
+    <string name="subscription_manage">Gestionar suscripción</string>
+    <string name="subscription_subscribe_button">Suscribirse</string>
+    <string name="subscription_subscribed_label">Suscrito</string>
+    <string name="subscription_unsubscribe">Cancelar suscripción</string>
+    <string name="subscription_create_plan">Crear un plan de suscripción</string>
+    <string name="subscription_plan_name_hint">Nombre del plan (ej. Oro)</string>
+    <string name="subscription_plan_price_hint">Precio (ej. 5$ / mes)</string>
+    <string name="subscription_plan_description_hint">Descripción breve del plan</string>
+    <string name="subscription_plan_features_hint">Añade un beneficio para suscriptores</string>
+    <string name="subscription_add_feature">Añadir beneficio</string>
+    <string name="subscription_no_plans">Aún no hay planes de suscripción</string>
+    <string name="subscription_no_plans_owner">Crea un plan para que tus seguidores se suscriban y obtengan los beneficios que elijas</string>
+    <string name="subscription_save_plan">Guardar plan</string>
+    <string name="subscription_delete_plan">Eliminar plan</string>
+    <string name="subscription_your_plans">Tus planes</string>
+    <string name="subscription_choose_plan">Elige un plan</string>
+    <string name="subscription_your_subscribers">Suscriptores</string>
+    <string name="subscription_subscriber_count">%1$d suscriptores</string>
+    <string name="subscription_link_card_title">Vincular una tarjeta de pago</string>
+    <string name="subscription_card_number_hint">Número de tarjeta</string>
+    <string name="subscription_card_expiry_hint">MM/AA</string>
+    <string name="subscription_card_cvv_hint">CVV</string>
+    <string name="subscription_card_holder_hint">Nombre del titular</string>
+    <string name="subscription_card_linked">Tarjeta registrada</string>
+    <string name="subscription_card_none">Sin tarjeta vinculada</string>
+    <string name="subscription_link_card_button">Vincular tarjeta</string>
+    <string name="subscription_link_card_and_subscribe">Vincular tarjeta y suscribirse</string>
+    <string name="subscription_confirm_subscribe">Confirmar suscripción</string>
+    <string name="subscription_card_invalid">Verifica los datos de tu tarjeta</string>
+    <string name="subscription_disclaimer">Vincular una tarjeta solo guarda los últimos 4 dígitos para mostrártelos; yeex todavía no cobra ningún monto — la facturación real requiere una pasarela de pago autorizada.</string>
+    <string name="subscription_manage_card">Gestionar mi tarjeta</string>
+    <string name="subscribed_success">Suscripción exitosa</string>
+    <string name="subscription_plan_saved">Plan guardado</string>
+
+    <!-- Gallery tabs -->
+    <string name="gallery_tab_photos">Fotos</string>
+    <string name="gallery_tab_videos">Videos</string>
+
 </resources>
