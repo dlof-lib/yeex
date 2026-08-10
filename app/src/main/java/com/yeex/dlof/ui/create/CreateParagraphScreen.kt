@@ -8,6 +8,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -169,8 +171,21 @@ fun CreateParagraphScreen(
 
     // fillMaxWidth (not fillMaxSize) so this renders as a compact pop-up sheet
     // when hosted inside FeedScreen's ModalBottomSheet, rather than stretching
-    // to the full screen height.
-    Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+    // to the full screen height. verticalScroll is required here: the sheet
+    // (skipPartiallyExpanded) caps this Column's height at roughly the
+    // screen height, but nothing inside it could ever scroll — so once
+    // Moment mode adds a few stage cards the content overflows past the
+    // bottom of the sheet with no way to reach it (e.g. the "إضافة صورة"
+    // button on the last stage). navigationBarsPadding + imePadding keep
+    // that same bottom content clear of the system nav bar and the keyboard.
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp)
+            .navigationBarsPadding()
+            .imePadding()
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
