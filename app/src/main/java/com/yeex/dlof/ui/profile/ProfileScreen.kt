@@ -25,7 +25,10 @@ import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.Workspaces
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.filled.Verified
@@ -47,15 +50,20 @@ import com.yeex.dlof.R
 import com.yeex.dlof.data.local.SavedAccount
 import com.yeex.dlof.data.model.Paragraph
 import com.yeex.dlof.data.model.ParagraphType
+import com.yeex.dlof.data.model.SubscriptionPlan
 import com.yeex.dlof.data.model.User
 import com.yeex.dlof.data.repository.AuthRepository
 import com.yeex.dlof.data.repository.ParagraphRepository
+import com.yeex.dlof.data.repository.SubscriptionRepository
 import com.yeex.dlof.data.repository.UserRepository
 import com.yeex.dlof.ui.auth.authErrorStringRes
 import com.yeex.dlof.ui.components.TekButton
 import com.yeex.dlof.ui.components.UserAvatar
+import com.yeex.dlof.ui.subscription.SubscribeSheet
+import com.yeex.dlof.ui.subscription.SubscriptionManageSheet
 import com.yeex.dlof.ui.theme.YeexAccent
 import com.yeex.dlof.ui.theme.YeexCrimson
+import com.yeex.dlof.ui.theme.YeexGold
 import com.yeex.dlof.ui.theme.YeexNavy
 import com.yeex.dlof.ui.theme.YeexNavyLight
 import com.yeex.dlof.ui.theme.YeexPink
@@ -63,6 +71,7 @@ import com.yeex.dlof.ui.theme.YeexDarkCard
 import com.yeex.dlof.ui.theme.yeexBrandGradient
 import com.yeex.dlof.util.LocaleUtil
 import com.yeex.dlof.util.MediaBase64
+import com.yeex.dlof.util.ViewMilestones
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.catch
 
@@ -103,6 +112,10 @@ fun ProfileScreen(
     var showMenu by remember { mutableStateOf(false) }
     var showLogoutConfirm by remember { mutableStateOf(false) }
     var showSwitchSheet by remember { mutableStateOf(false) }
+    var showSubscriptionManage by remember { mutableStateOf(false) }
+    var showSubscribeSheet by remember { mutableStateOf(false) }
+    var ownerPlans by remember { mutableStateOf<List<SubscriptionPlan>>(emptyList()) }
+    val subscriptionRepo = remember { SubscriptionRepository() }
     val scope = rememberCoroutineScope()
     val myUid = authRepo.currentUid()
     val isMe = myUid == targetUid
@@ -115,11 +128,18 @@ fun ProfileScreen(
         // would otherwise be an uncaught exception that crashes the app.
         if (myUid != null && !isMe) {
             isFollowing = runCatching { userRepo.isTeking(myUid, targetUid) }.getOrDefault(false)
+            // Real, unique-per-viewer profile view — see UserRepository.incrementProfileView.
+            runCatching { userRepo.incrementProfileView(targetUid, myUid) }
         }
         launch {
             userRepo.observeUser(targetUid)
                 .catch { /* keep last-known user rather than crashing */ }
                 .collect { user = it }
+        }
+        launch {
+            subscriptionRepo.observePlans(targetUid)
+                .catch { }
+                .collect { ownerPlans = it }
         }
         paragraphRepo.observeParagraphs(null)
             .catch { /* keep last-known list rather than crashing */ }
@@ -306,10 +326,48 @@ fun ProfileScreen(
                         StatPill(count = todayCount.toLong(), topLabel = stringResource(R.string.latest_paragraphs_short), bottomLabel = stringResource(R.string.today_label))
                     }
 
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        StatPill(count = u.profileViewCount, topLabel = "👁", bottomLabel = stringResource(R.string.profile_views_label))
+                        StatPill(count = u.popularityCount, topLabel = "⭐", bottomLabel = stringResource(R.string.popularity_label))
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+                    ViewMilestoneBadge(totalViews = u.totalViewCount)
+
                     Spacer(Modifier.height(14.dp))
                     if (!isMe && myUid != null) {
                         TekButton(isFollowing = isFollowing) {
                             scope.launch { isFollowing = userRepo.toggleTek(myUid, targetUid) }
+                        }
+                        if (ownerPlans.isNotEmpty()) {
+                            Spacer(Modifier.height(8.dp))
+                            SubscriptionDevLabel()
+                            Spacer(Modifier.height(4.dp))
+                            Button(
+                                onClick = { showSubscribeSheet = true },
+                                modifier = Modifier.fillMaxWidth().height(44.dp),
+                                shape = RoundedCornerShape(50),
+                                colors = ButtonDefaults.buttonColors(containerColor = YeexGold, contentColor = Color.Black)
+                            ) {
+                                Icon(Icons.Filled.Star, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(stringResource(R.string.subscription_subscribe_button))
+                            }
+                        }
+                    }
+                    if (isMe) {
+                        Spacer(Modifier.height(8.dp))
+                        SubscriptionDevLabel()
+                        Spacer(Modifier.height(4.dp))
+                        OutlinedButton(
+                            onClick = { showSubscriptionManage = true },
+                            modifier = Modifier.fillMaxWidth().height(44.dp),
+                            shape = RoundedCornerShape(50)
+                        ) {
+                            Icon(Icons.Filled.Workspaces, contentDescription = null, tint = YeexAccent, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.subscription_manage))
                         }
                     }
                     if (isMe && !u.verified) {
@@ -408,6 +466,29 @@ fun ProfileScreen(
         )
     }
 
+    if (showSubscriptionManage && myUid != null) {
+        SubscriptionManageSheet(
+            visible = true,
+            ownerId = myUid,
+            repo = subscriptionRepo,
+            onDismiss = { showSubscriptionManage = false }
+        )
+    }
+
+    if (showSubscribeSheet && myUid != null) {
+        SubscribeSheet(
+            visible = true,
+            ownerId = targetUid,
+            ownerName = user?.identifier.orEmpty(),
+            subscriberId = myUid,
+            subscriberIdentifier = "",
+            plans = ownerPlans,
+            repo = subscriptionRepo,
+            onDismiss = { showSubscribeSheet = false },
+            onSubscribed = { showSubscribeSheet = false }
+        )
+    }
+
     if (showLogoutConfirm) {
         AlertDialog(
             onDismissRequest = { showLogoutConfirm = false },
@@ -443,6 +524,71 @@ private fun RowScope.StatPill(count: Long, topLabel: String, bottomLabel: String
             Spacer(Modifier.height(1.dp))
             Text(topLabel, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
             Text(bottomLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/**
+ * "الاشتراك (قيد التطوير)" — small notice shown right above the
+ * subscribe/manage-subscription buttons, since the feature only simulates
+ * the flow for now (see PaymentCard's doc comment: no real charge is made
+ * yet, only a masked card summary is stored).
+ */
+@Composable
+private fun SubscriptionDevLabel() {
+    Text(
+        stringResource(R.string.subscription_dev_label),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 4.dp)
+    )
+}
+
+/**
+ * "مكافآت المشاهدات" badge — the current [ViewMilestones.Milestone] this
+ * profile's aggregate content views ([User.totalViewCount]) has crossed,
+ * with a progress bar toward the next tier (10K -> 100M).
+ */
+@Composable
+private fun ViewMilestoneBadge(totalViews: Long) {
+    val current = ViewMilestones.currentMilestone(totalViews)
+    val next = ViewMilestones.nextMilestone(totalViews)
+    val progress = ViewMilestones.progressToNext(totalViews)
+    Surface(shape = RoundedCornerShape(14.dp), color = YeexDarkCard, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Visibility, contentDescription = null, tint = YeexGold, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    stringResource(R.string.view_milestone_badge_title),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    if (current != null) {
+                        with(ViewMilestones) { current.numberLabel() }
+                    } else "—",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = YeexGold,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(50)),
+                color = YeexGold,
+                trackColor = MaterialTheme.colorScheme.outline
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                if (next != null) {
+                    stringResource(R.string.view_milestone_next, with(ViewMilestones) { next.numberLabel() })
+                } else stringResource(R.string.view_milestone_max_reached),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
