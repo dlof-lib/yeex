@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -55,49 +57,93 @@ import com.yeex.dlof.ui.theme.YeexWhite
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** One row from the device's MediaStore image index. */
-data class GalleryImage(val uri: Uri, val dateAddedSec: Long)
+private const val TAG = "YeexGallery"
+
+/** Media kind of a gallery item, as read straight from MediaStore. */
+enum class GalleryMediaType { IMAGE, VIDEO }
+
+/** One row from the device's MediaStore image/video index — the "real gallery" built from scratch. */
+data class GalleryItem(val uri: Uri, val dateAddedSec: Long, val type: GalleryMediaType, val durationMs: Long = 0L)
 
 /**
- * Reads the device photo library straight from MediaStore so the picker can
- * render its own branded grid instead of handing off to the OS photo picker
- * UI (which mixes in screenshots, stickers, app-generated images, etc. with
- * no yeex styling).
+ * Reads the device's real photo *and* video library straight from
+ * MediaStore, built from scratch (no cached/fake state, no third-party
+ * gallery libs) so the picker renders a live, on-brand grid instead of
+ * handing off to the OS photo picker UI.
+ *
+ * Deliberately avoids the old "ORDER BY ... LIMIT n" trick embedded in the
+ * sort-order string — while MediaProvider tolerates it on stock Android, it
+ * isn't a documented/guaranteed contract and silently returns zero rows on
+ * some OEM content-provider implementations, which is what produced the
+ * "لا توجد صور" empty state even with photos present on the device. Instead
+ * this queries with a normal DATE_ADDED DESC sort and caps the result with
+ * Kotlin's `take()` after reading the cursor.
  */
 private object MediaGalleryLoader {
-    suspend fun loadImages(context: android.content.Context, limit: Int = 400): List<GalleryImage> =
-        withContext(Dispatchers.IO) {
-            val result = mutableListOf<GalleryImage>()
-            val collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-            val projection = arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DATE_ADDED)
-            val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC LIMIT $limit"
-            runCatching {
-                context.contentResolver.query(collection, projection, null, null, sortOrder)?.use { cursor ->
-                    val idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-                    val dateCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
-                    while (cursor.moveToNext()) {
-                        val id = cursor.getLong(idCol)
-                        val date = cursor.getLong(dateCol)
-                        val uri = android.content.ContentUris.withAppendedId(collection, id)
-                        result += GalleryImage(uri, date)
-                    }
+
+    private fun queryCollection(
+        context: android.content.Context,
+        collection: Uri,
+        type: GalleryMediaType,
+        limit: Int
+    ): List<GalleryItem> {
+        val result = mutableListOf<GalleryItem>()
+        val projection = buildList {
+            add(MediaStore.MediaColumns._ID)
+            add(MediaStore.MediaColumns.DATE_ADDED)
+            if (type == GalleryMediaType.VIDEO) add(MediaStore.Video.Media.DURATION)
+        }.toTypedArray()
+        val sortOrder = "${MediaStore.MediaColumns.DATE_ADDED} DESC"
+        runCatching {
+            context.contentResolver.query(collection, projection, null, null, sortOrder)?.use { cursor ->
+                val idCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
+                val dateCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED)
+                val durationCol = if (type == GalleryMediaType.VIDEO) {
+                    cursor.getColumnIndex(MediaStore.Video.Media.DURATION)
+                } else -1
+                while (cursor.moveToNext() && result.size < limit) {
+                    val id = cursor.getLong(idCol)
+                    val date = cursor.getLong(dateCol)
+                    val duration = if (durationCol >= 0) cursor.getLong(durationCol) else 0L
+                    val uri = android.content.ContentUris.withAppendedId(collection, id)
+                    result += GalleryItem(uri, date, type, duration)
                 }
             }
-            result
+        }.onFailure { e ->
+            // Surfaced via Logcat instead of swallowed, so a genuine provider
+            // failure (vs. a device with an empty library) is diagnosable.
+            Log.e(TAG, "Failed to query ${type.name} MediaStore collection", e)
+        }
+        return result
+    }
+
+    /** Loads real photos + videos from MediaStore, newest first, merged and re-sorted by date. */
+    suspend fun loadMedia(context: android.content.Context, limit: Int = 600): List<GalleryItem> =
+        withContext(Dispatchers.IO) {
+            val images = queryCollection(context, MediaStore.Images.Media.EXTERNAL_CONTENT_URI, GalleryMediaType.IMAGE, limit)
+            val videos = queryCollection(context, MediaStore.Video.Media.EXTERNAL_CONTENT_URI, GalleryMediaType.VIDEO, limit)
+            (images + videos).sortedByDescending { it.dateAddedSec }.take(limit)
         }
 }
 
-private fun readMediaPermission(): String =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.READ_MEDIA_IMAGES
-    else Manifest.permission.READ_EXTERNAL_STORAGE
+private fun readMediaPermissions(): Array<String> =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        arrayOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO)
+    } else {
+        arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+    }
+
+private enum class GalleryTab { ALL, PHOTOS, VIDEOS }
 
 /**
- * Full-screen, on-brand image picker: dark violet/black background, the
- * signature purple → pink gradient header, a live grid of the device's
- * photos, and a tap-to-select flow with an explicit confirm step so a
- * misplaced tap never immediately commits a picture.
+ * Full-screen, on-brand media picker: dark violet/black background, the
+ * signature purple → pink gradient header, a live grid of the device's real
+ * photos *and* videos with All/Photos/Videos tabs, and a tap-to-select flow
+ * with an explicit confirm step so a misplaced tap never immediately
+ * commits a picture.
  *
- * @param onImagePicked called once with the confirmed [Uri]; the sheet closes itself after.
+ * @param onImagePicked called once with the confirmed image [Uri].
+ * @param onVideoPicked called once with the confirmed video [Uri] — omit to keep this an image-only picker (e.g. avatar/banner slots).
  * @param onOpenSystemPicker optional fallback (e.g. launching ActivityResultContracts.GetContent)
  *   offered from the empty/denied states and from the header, for files outside the photo index.
  */
@@ -106,33 +152,46 @@ fun YeexGalleryPickerSheet(
     visible: Boolean,
     onDismiss: () -> Unit,
     onImagePicked: (Uri) -> Unit,
+    onVideoPicked: ((Uri) -> Unit)? = null,
+    /** When true, this instance is video-only (e.g. the video type chip in
+     * the composer) — hides the All/Photos/Videos tabs and pins the grid to
+     * videos, instead of defaulting to the mixed "all" view. */
+    forceVideoOnly: Boolean = false,
     title: String = stringResource(R.string.gallery_picker_title),
     onOpenSystemPicker: (() -> Unit)? = null
 ) {
     if (!visible) return
     val context = LocalContext.current
+    val permissions = remember { readMediaPermissions() }
 
     var hasPermission by remember {
-        mutableStateOf(
-            ContextCompatPermissionGranted(context, readMediaPermission())
-        )
+        mutableStateOf(permissions.all { ContextCompatPermissionGranted(context, it) })
     }
-    var images by remember { mutableStateOf<List<GalleryImage>>(emptyList()) }
+    var allMedia by remember { mutableStateOf<List<GalleryItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
-    var selected by remember { mutableStateOf<GalleryImage?>(null) }
+    var selected by remember { mutableStateOf<GalleryItem?>(null) }
+    var tab by remember { mutableStateOf(if (forceVideoOnly) GalleryTab.VIDEOS else GalleryTab.ALL) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted -> hasPermission = granted }
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results -> hasPermission = results.values.all { it } }
 
     LaunchedEffect(hasPermission) {
         if (hasPermission) {
             isLoading = true
-            images = MediaGalleryLoader.loadImages(context)
+            allMedia = MediaGalleryLoader.loadMedia(context)
             isLoading = false
         }
     }
 
+    val showVideos = onVideoPicked != null
+    val visibleMedia = remember(allMedia, tab, showVideos) {
+        when (tab) {
+            GalleryTab.ALL -> if (showVideos) allMedia else allMedia.filter { it.type == GalleryMediaType.IMAGE }
+            GalleryTab.PHOTOS -> allMedia.filter { it.type == GalleryMediaType.IMAGE }
+            GalleryTab.VIDEOS -> allMedia.filter { it.type == GalleryMediaType.VIDEO }
+        }
+    }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
             Modifier
@@ -174,6 +233,14 @@ fun YeexGalleryPickerSheet(
                         .clip(RoundedCornerShape(2.dp))
                         .background(YeexBrandGradient)
                 )
+                if (showVideos && !forceVideoOnly) {
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        GalleryTabChip(stringResource(R.string.gallery_picker_title), tab == GalleryTab.ALL) { tab = GalleryTab.ALL; selected = null }
+                        GalleryTabChip(stringResource(R.string.gallery_tab_photos), tab == GalleryTab.PHOTOS) { tab = GalleryTab.PHOTOS; selected = null }
+                        GalleryTabChip(stringResource(R.string.gallery_tab_videos), tab == GalleryTab.VIDEOS) { tab = GalleryTab.VIDEOS; selected = null }
+                    }
+                }
             }
 
             // ---- Body ----
@@ -184,12 +251,12 @@ fun YeexGalleryPickerSheet(
                         title = stringResource(R.string.gallery_picker_permission_title),
                         message = stringResource(R.string.gallery_picker_permission_message),
                         actionLabel = stringResource(R.string.gallery_picker_grant_access),
-                        onAction = { permissionLauncher.launch(readMediaPermission()) }
+                        onAction = { permissionLauncher.launch(permissions) }
                     )
                     isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = YeexAccent)
                     }
-                    images.isEmpty() -> GalleryEmptyState(
+                    visibleMedia.isEmpty() -> GalleryEmptyState(
                         icon = Icons.Filled.CameraAlt,
                         title = stringResource(R.string.gallery_picker_empty_title),
                         message = stringResource(R.string.gallery_picker_empty_message),
@@ -203,11 +270,11 @@ fun YeexGalleryPickerSheet(
                         verticalArrangement = Arrangement.spacedBy(3.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(images, key = { it.uri.toString() }) { img ->
+                        items(visibleMedia, key = { it.uri.toString() }) { item ->
                             GalleryThumb(
-                                image = img,
-                                isSelected = selected?.uri == img.uri,
-                                onClick = { selected = img }
+                                item = item,
+                                isSelected = selected?.uri == item.uri,
+                                onClick = { selected = item }
                             )
                         }
                     }
@@ -241,7 +308,12 @@ fun YeexGalleryPickerSheet(
                         modifier = Modifier.weight(1f)
                     )
                     Button(
-                        onClick = { selected?.let { onImagePicked(it.uri) } },
+                        onClick = {
+                            selected?.let { sel ->
+                                if (sel.type == GalleryMediaType.VIDEO) onVideoPicked?.invoke(sel.uri)
+                                else onImagePicked(sel.uri)
+                            }
+                        },
                         colors = ButtonDefaults.buttonColors(containerColor = YeexAccent, contentColor = YeexWhite),
                         shape = RoundedCornerShape(20.dp)
                     ) {
@@ -256,7 +328,24 @@ fun YeexGalleryPickerSheet(
 }
 
 @Composable
-private fun GalleryThumb(image: GalleryImage, isSelected: Boolean, onClick: () -> Unit) {
+private fun GalleryTabChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = if (selected) YeexAccent else YeexDarkCard,
+        onClick = onClick
+    ) {
+        Text(
+            label,
+            color = if (selected) YeexWhite else YeexGray,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+        )
+    }
+}
+
+@Composable
+private fun GalleryThumb(item: GalleryItem, isSelected: Boolean, onClick: () -> Unit) {
     val scale by animateFloatAsState(if (isSelected) 0.92f else 1f, label = "thumbScale")
     Box(
         Modifier
@@ -266,13 +355,21 @@ private fun GalleryThumb(image: GalleryImage, isSelected: Boolean, onClick: () -
             .clickable(onClick = onClick)
     ) {
         AsyncImage(
-            model = image.uri,
+            model = item.uri,
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxSize()
                 .scale(scale)
         )
+        if (item.type == GalleryMediaType.VIDEO) {
+            Icon(
+                Icons.Filled.PlayCircle,
+                contentDescription = null,
+                tint = YeexWhite,
+                modifier = Modifier.align(Alignment.Center).size(28.dp)
+            )
+        }
         if (isSelected) {
             Box(
                 Modifier
