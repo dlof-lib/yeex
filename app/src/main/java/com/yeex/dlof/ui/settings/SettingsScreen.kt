@@ -8,15 +8,21 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.CleaningServices
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Comment
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Logout
@@ -25,6 +31,8 @@ import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.SpeakerNotesOff
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -45,7 +53,10 @@ import com.yeex.dlof.ui.auth.authErrorStringRes
 import com.yeex.dlof.ui.components.UserAvatar
 import com.yeex.dlof.ui.theme.YeexAccent
 import com.yeex.dlof.ui.theme.YeexCrimson
+import com.yeex.dlof.util.CacheUtil
+import com.yeex.dlof.util.DataExportUtil
 import com.yeex.dlof.util.LocaleUtil
+import com.yeex.dlof.util.MutedWordsStore
 import com.yeex.dlof.util.SettingsPrefsStore
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
@@ -81,13 +92,25 @@ fun SettingsScreen(
     var showChangePassword by remember { mutableStateOf(false) }
     var showBlockedAccounts by remember { mutableStateOf(false) }
     var showCommentPrivacy by remember { mutableStateOf(false) }
+    var showMutedWords by remember { mutableStateOf(false) }
     var showTerms by remember { mutableStateOf(false) }
     var showPrivacyPolicy by remember { mutableStateOf(false) }
     var showLogoutConfirm by remember { mutableStateOf(false) }
     var showDeleteAccount by remember { mutableStateOf(false) }
+    var showReportProblem by remember { mutableStateOf(false) }
+    var showClearCacheConfirm by remember { mutableStateOf(false) }
+    var cacheSizeLabel by remember { mutableStateOf("…") }
+    var isClearingCache by remember { mutableStateOf(false) }
 
     var notifyPrefs by remember { mutableStateOf(SettingsPrefsStore.getNotificationPrefs(context)) }
     val themeMode by SettingsPrefsStore.themeMode
+    val autoplayVideos by SettingsPrefsStore.autoplayVideos
+    val textScale by SettingsPrefsStore.textScale
+    val downloadDataChooserTitle = stringResource(R.string.download_my_data)
+
+    LaunchedEffect(Unit) {
+        cacheSizeLabel = CacheUtil.currentSizeLabel(context)
+    }
 
     LaunchedEffect(myUid) {
         if (myUid != null) {
@@ -156,6 +179,12 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.settings_blocked_accounts_desc),
                 onClick = { showBlockedAccounts = true }
             )
+            SettingsRow(
+                icon = Icons.Filled.SpeakerNotesOff,
+                title = stringResource(R.string.settings_muted_words),
+                subtitle = stringResource(R.string.settings_muted_words_desc),
+                onClick = { showMutedWords = true }
+            )
 
             // ---- Notifications ----
             SettingsSectionHeader(stringResource(R.string.section_notifications))
@@ -200,6 +229,57 @@ fun SettingsScreen(
                 }
             )
 
+            // ---- Media & data ----
+            SettingsSectionHeader(stringResource(R.string.section_media_data))
+            SettingsSwitchRow(
+                icon = Icons.Filled.Videocam,
+                title = stringResource(R.string.autoplay_videos),
+                subtitle = stringResource(R.string.autoplay_videos_desc),
+                checked = autoplayVideos,
+                onCheckedChange = { SettingsPrefsStore.setAutoplayVideos(context, it) }
+            )
+            SettingsRow(
+                icon = Icons.Filled.CleaningServices,
+                title = stringResource(R.string.clear_cache),
+                subtitle = stringResource(R.string.clear_cache_size, cacheSizeLabel),
+                onClick = { showClearCacheConfirm = true }
+            )
+            SettingsRow(
+                icon = Icons.Filled.Download,
+                title = stringResource(R.string.download_my_data),
+                subtitle = stringResource(R.string.download_my_data_desc),
+                onClick = {
+                    val u = user ?: return@SettingsRow
+                    val json = DataExportUtil.buildUserDataJson(u)
+                    DataExportUtil.shareText(context, downloadDataChooserTitle, json)
+                }
+            )
+
+            // ---- Accessibility ----
+            SettingsSectionHeader(stringResource(R.string.section_accessibility))
+            Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.FormatSize, contentDescription = null, tint = YeexAccent, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Text(stringResource(R.string.text_size_label), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                }
+                Spacer(Modifier.height(10.dp))
+                val sizeOptions = listOf(
+                    SettingsPrefsStore.TEXT_SCALE_SMALL to stringResource(R.string.text_size_small),
+                    SettingsPrefsStore.TEXT_SCALE_MEDIUM to stringResource(R.string.text_size_medium),
+                    SettingsPrefsStore.TEXT_SCALE_LARGE to stringResource(R.string.text_size_large)
+                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    sizeOptions.forEachIndexed { index, (scale, label) ->
+                        SegmentedButton(
+                            selected = textScale == scale,
+                            onClick = { SettingsPrefsStore.setTextScale(context, scale) },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = sizeOptions.size)
+                        ) { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                    }
+                }
+            }
+
             // ---- Appearance & language ----
             SettingsSectionHeader(stringResource(R.string.section_appearance))
             Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
@@ -242,9 +322,15 @@ fun SettingsScreen(
                 title = stringResource(R.string.settings_help),
                 subtitle = stringResource(R.string.settings_help_desc),
                 onClick = {
-                    val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:support@yeex.app"))
+                    val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:majdsaadi10096@gmail.com"))
                     runCatching { context.startActivity(intent) }
                 }
+            )
+            SettingsRow(
+                icon = Icons.Filled.BugReport,
+                title = stringResource(R.string.settings_report_problem),
+                subtitle = stringResource(R.string.settings_report_problem_desc),
+                onClick = { showReportProblem = true }
             )
             SettingsRow(
                 icon = Icons.Filled.Description,
@@ -342,6 +428,46 @@ fun SettingsScreen(
                 showDeleteAccount = false
                 onAccountDeleted()
             }
+        )
+    }
+
+    if (showMutedWords) {
+        MutedWordsSheet(onDismiss = { showMutedWords = false })
+    }
+
+    if (showClearCacheConfirm) {
+        val clearedLabel = stringResource(R.string.clear_cache_done)
+        AlertDialog(
+            onDismissRequest = { if (!isClearingCache) showClearCacheConfirm = false },
+            title = { Text(stringResource(R.string.clear_cache_confirm_title)) },
+            text = { Text(stringResource(R.string.clear_cache_confirm_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            isClearingCache = true
+                            CacheUtil.clear(context)
+                            cacheSizeLabel = CacheUtil.currentSizeLabel(context)
+                            isClearingCache = false
+                            showClearCacheConfirm = false
+                            android.widget.Toast.makeText(context, clearedLabel, android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    enabled = !isClearingCache
+                ) { Text(stringResource(R.string.clear_cache)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearCacheConfirm = false }, enabled = !isClearingCache) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (showReportProblem) {
+        ReportProblemDialog(
+            userIdentifier = user?.identifier ?: "",
+            onDismiss = { showReportProblem = false }
         )
     }
 }
@@ -802,6 +928,142 @@ private fun DeleteAccountDialog(authRepo: AuthRepository, onDismiss: () -> Unit,
         },
         dismissButton = {
             TextButton(onClick = onDismiss, enabled = !isDeleting) { Text(stringResource(R.string.cancel)) }
+        }
+    )
+}
+
+// ---------------------------------------------------------------------------
+// Muted words
+// ---------------------------------------------------------------------------
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MutedWordsSheet(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var words by remember { mutableStateOf(MutedWordsStore.getAll(context)) }
+    var input by remember { mutableStateOf("") }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(Modifier.fillMaxWidth().fillMaxHeight(0.85f).padding(20.dp)) {
+            Text(stringResource(R.string.settings_muted_words), style = MaterialTheme.typography.headlineSmall)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                stringResource(R.string.muted_words_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(12.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = { input = it },
+                    label = { Text(stringResource(R.string.muted_words_add_placeholder)) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(8.dp))
+                IconButton(
+                    onClick = {
+                        val w = input.trim()
+                        if (w.isNotBlank()) {
+                            MutedWordsStore.add(context, w)
+                            words = MutedWordsStore.getAll(context)
+                            input = ""
+                        }
+                    },
+                    enabled = input.isNotBlank()
+                ) { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.btn_add)) }
+            }
+
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(8.dp))
+
+            if (words.isEmpty()) {
+                Text(
+                    stringResource(R.string.muted_words_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 16.dp)
+                )
+            } else {
+                Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+                    words.forEach { word ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(word, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                            IconButton(onClick = {
+                                MutedWordsStore.remove(context, word)
+                                words = MutedWordsStore.getAll(context)
+                            }) {
+                                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.btn_remove), tint = YeexCrimson)
+                            }
+                        }
+                        HorizontalDivider()
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Report a problem — separate from the general "help" mailto, this one
+// bundles device/app diagnostics (see DataExportUtil.deviceDiagnosticsText)
+// so support isn't stuck asking a follow-up question for the app version.
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun ReportProblemDialog(userIdentifier: String, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    var description by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_report_problem)) },
+        text = {
+            Column {
+                Text(
+                    stringResource(R.string.report_problem_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text(stringResource(R.string.report_problem_placeholder)) },
+                    minLines = 4,
+                    maxLines = 8,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val body = buildString {
+                        appendLine(description)
+                        appendLine()
+                        appendLine("— @$userIdentifier —")
+                        append(DataExportUtil.deviceDiagnosticsText())
+                    }
+                    val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:majdsaadi10096@gmail.com")).apply {
+                        putExtra(Intent.EXTRA_SUBJECT, "yeex — الإبلاغ عن مشكلة")
+                        putExtra(Intent.EXTRA_TEXT, body)
+                    }
+                    runCatching { context.startActivity(intent) }
+                    onDismiss()
+                },
+                enabled = description.isNotBlank()
+            ) { Text(stringResource(R.string.report_problem_send)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         }
     )
 }
