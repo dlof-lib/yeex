@@ -24,5 +24,16 @@ data class Room(
     // Owner-only live-stream link, played inline via LiveStreamPlayer when
     // non-blank. Direct .m3u8/.mpd/.mp4 URLs play natively; anything else
     // (a YouTube/Twitch page link, etc.) is embedded via WebView.
-    val liveStreamUrl: String = ""
+    val liveStreamUrl: String = "",
+    // "فئة الغرفة" — topical classification, one of com.yeex.dlof.util.RoomCategory.
+    // Independent from [roomType], which is about the room's *format*
+    // (general feed vs. TV channel), not its subject matter.
+    val category: String = "GENERAL",
+    // Optional wide banner shown at the top of RoomScreen, above the name —
+    // separate from [iconUrl] (the small round avatar used in room lists).
+    val coverUrl: String = "",
+    // Owner-authored "قوانين الغرفة" (community guidelines), shown to every
+    // member on RoomScreen — a lightweight moderation tool so large/public
+    // rooms can set expectations without a full rules/mod-log system.
+    val rules: String = ""
 )
