@@ -90,6 +90,7 @@ fun FeedScreen(
                         onComment = { commentsParagraphId = item.id },
                         onRepost = { onRepost(item.id) },
                         onOpenProfile = onOpenProfile,
+                        onBlockAuthor = { authorId -> viewModel.blockAuthor(authorId) },
                         // Only the page the pager has actually settled on
                         // should autoplay its video — otherwise the page
                         // mid-swipe-in plays too, and two videos' audio
