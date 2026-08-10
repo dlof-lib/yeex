@@ -1,6 +1,7 @@
 package com.yeex.dlof.data.repository
 
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ServerValue
 import com.yeex.dlof.data.model.Room
 import kotlinx.coroutines.tasks.await
 
@@ -10,6 +11,9 @@ class RoomRepository(
     private val roomsRef get() = db.getReference("rooms")
     private val membersRef get() = db.getReference("roomMembers")
     private val userRoomsRef get() = db.getReference("userRooms")
+    // One presence node per (roomId, viewerUid) — real unique-viewer count,
+    // same pattern as ParagraphRepository's paragraphViews. See [incrementView].
+    private val roomViewsRef get() = db.getReference("roomViews")
 
     suspend fun createRoom(room: Room, ownerUid: String): String {
         val id = roomsRef.push().key ?: error("no id")
@@ -30,6 +34,23 @@ class RoomRepository(
 
     suspend fun getRoom(roomId: String): Room? =
         roomsRef.child(roomId).get().await().getValue(Room::class.java)
+
+    /**
+     * Bumps [Room.viewCount] once per (room, real signed-in account) — a
+     * presence node stops the same visitor's repeat opens/relaunches from
+     * inflating the number, matching the "مشاهدات حقيقية" requirement used
+     * for paragraphs too. Safe to call every time RoomScreen opens; it's a
+     * no-op after the first successful call for a given viewer.
+     */
+    suspend fun incrementView(roomId: String, viewerUid: String) {
+        if (roomId.isBlank() || viewerUid.isBlank()) return
+        runCatching {
+            val ref = roomViewsRef.child(roomId).child(viewerUid)
+            if (ref.get().await().exists()) return@runCatching
+            ref.setValue(true).await()
+            roomsRef.child(roomId).child("viewCount").setValue(ServerValue.increment(1)).await()
+        }
+    }
 
     /**
      * Sets/clears the room's live-stream link (empty string clears it) —
