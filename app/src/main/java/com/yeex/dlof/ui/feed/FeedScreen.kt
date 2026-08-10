@@ -66,7 +66,7 @@ fun FeedScreen(
         when {
             // First Firebase snapshot hasn't arrived yet — skeleton, not the empty state.
             isLoading -> {
-                ParagraphSkeleton(modifier = Modifier.fillMaxSize().padding(16.dp))
+                ParagraphSkeleton(modifier = Modifier.fillMaxSize())
             }
             paragraphs.isEmpty() -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
