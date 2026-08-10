@@ -204,6 +204,37 @@
     <string name="edit_live_stream">Editar enlace de transmisión</string>
     <string name="live_stream_save">Guardar</string>
     <string name="live_stream_remove">Quitar transmisión</string>
+
+    <!-- Room category / rules -->
+    <string name="room_category_label">Categoría de la sala</string>
+    <string name="room_category_all">Todas</string>
+    <string name="room_category_general">General</string>
+    <string name="room_category_gaming">Videojuegos</string>
+    <string name="room_category_music">Música</string>
+    <string name="room_category_sports">Deportes</string>
+    <string name="room_category_movies_tv">Películas y TV</string>
+    <string name="room_category_news_politics">Noticias y política</string>
+    <string name="room_category_education">Educación</string>
+    <string name="room_category_technology">Tecnología</string>
+    <string name="room_category_business_finance">Negocios y finanzas</string>
+    <string name="room_category_art_design">Arte y diseño</string>
+    <string name="room_category_fashion_beauty">Moda y belleza</string>
+    <string name="room_category_food_drink">Comida y bebida</string>
+    <string name="room_category_travel">Viajes</string>
+    <string name="room_category_health_fitness">Salud y fitness</string>
+    <string name="room_category_science">Ciencia</string>
+    <string name="room_category_books_literature">Libros y literatura</string>
+    <string name="room_category_family_parenting">Familia y crianza</string>
+    <string name="room_category_comedy">Comedia</string>
+    <string name="room_category_religion_spirituality">Religión y espiritualidad</string>
+    <string name="room_category_automotive">Automóviles</string>
+    <string name="room_category_pets_animals">Mascotas y animales</string>
+    <string name="room_category_relationships">Relaciones</string>
+    <string name="room_category_other">Otra</string>
+    <string name="room_rules_label">Reglas de la sala</string>
+    <string name="room_rules_hint">Escribe las reglas y pautas para los miembros de la sala</string>
+    <string name="room_rules_edit">Editar reglas de la sala</string>
+    <string name="room_trending_badge">Tendencia</string>
     <string name="compose_placeholder">Comparte tus ideas, momentos, opinión...</string>
     <string name="choose_paragraph_type">Elige el tipo de párrafo</string>
     <string name="type_text">Texto</string>
