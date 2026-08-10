@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Timeline
@@ -89,7 +90,9 @@ fun ProfileScreen(
     /** A saved account was switched to successfully — navigate to the feed. */
     onAccountSwitched: () -> Unit = {},
     /** The chosen saved account had no remembered password — navigate to login, prefilled. */
-    onNeedAccountPassword: (identifier: String) -> Unit = {}
+    onNeedAccountPassword: (identifier: String) -> Unit = {},
+    /** Open the "الإعدادات والخصوصية" screen. */
+    onOpenSettings: () -> Unit = {}
 ) {
     var user by remember { mutableStateOf<User?>(null) }
     var isFollowing by remember { mutableStateOf(false) }
@@ -176,6 +179,14 @@ fun ProfileScreen(
                                 onClick = {
                                     showMenu = false
                                     showSwitchSheet = true
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.settings_title)) },
+                                leadingIcon = { Icon(Icons.Filled.Settings, contentDescription = null) },
+                                onClick = {
+                                    showMenu = false
+                                    onOpenSettings()
                                 }
                             )
                             HorizontalDivider()
