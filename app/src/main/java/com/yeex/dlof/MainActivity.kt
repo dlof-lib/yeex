@@ -16,6 +16,7 @@ import com.yeex.dlof.ui.common.NoInternetScreen
 import com.yeex.dlof.ui.theme.YeexTheme
 import com.yeex.dlof.util.LocaleUtil
 import com.yeex.dlof.util.NetworkUtil
+import com.yeex.dlof.util.SettingsPrefsStore
 
 class MainActivity : ComponentActivity() {
 
@@ -34,13 +35,23 @@ class MainActivity : ComponentActivity() {
         // Routes.SPLASH) which owns the actual animated logo + hold + navigate.
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        // Loads the saved "المظهر" (theme) choice from the "مظهر التطبيق" section of
+        // Settings & Privacy before the first composition — see SettingsPrefsStore.
+        SettingsPrefsStore.init(this)
         // Lets the feed (ParagraphCard) draw its media behind the status/nav
         // bars for a true full-screen TikTok-style look; NoInternetScreen and
         // other non-feed screens still get correct inset padding via Compose's
         // own systemBars insets in each screen that needs it.
         enableEdgeToEdge()
         setContent {
-            YeexTheme {
+            val themeMode by SettingsPrefsStore.themeMode
+            YeexTheme(
+                darkTheme = when (themeMode) {
+                    SettingsPrefsStore.THEME_DARK -> true
+                    SettingsPrefsStore.THEME_LIGHT -> false
+                    else -> androidx.compose.foundation.isSystemInDarkTheme()
+                }
+            ) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val context = LocalContext.current
                     val isOnline by NetworkUtil.rememberIsOnline(context)
