@@ -70,6 +70,9 @@ fun YeexCard(
     shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(YeexDimens.radiusLarge),
     containerColor: Color = YeexDarkCard,
     borderColor: Color = MaterialTheme.colorScheme.outline,
+    // Subtle lift for cards that should read as "raised" content (e.g.
+    // TopicCard) vs. the flat default every other card still gets.
+    elevation: Dp = 0.dp,
     content: @Composable () -> Unit
 ) {
     Surface(
@@ -79,6 +82,7 @@ fun YeexCard(
         shape = shape,
         color = containerColor,
         border = BorderStroke(YeexDimens.borderWidth, borderColor),
+        shadowElevation = elevation,
         content = content
     )
 }
