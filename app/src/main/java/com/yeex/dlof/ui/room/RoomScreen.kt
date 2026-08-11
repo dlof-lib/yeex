@@ -29,6 +29,7 @@ fun RoomScreen(
     repo: RoomRepository = RoomRepository(),
     authRepo: AuthRepository = AuthRepository(),
     onOpenProfile: (String) -> Unit = {},
+    onOpenTopic: (String) -> Unit = {},
     onRepost: (String) -> Unit
 ) {
     var room by remember { mutableStateOf<Room?>(null) }
@@ -186,6 +187,7 @@ fun RoomScreen(
         FeedScreen(
             roomId = roomId,
             onOpenProfile = onOpenProfile,
+            onOpenTopic = onOpenTopic,
             onRepost = onRepost
         )
     }
