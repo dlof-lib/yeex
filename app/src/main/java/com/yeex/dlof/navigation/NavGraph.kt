@@ -23,6 +23,7 @@ import com.yeex.dlof.ui.components.BottomTab
 import com.yeex.dlof.ui.components.GlobalTaskProgressBar
 import com.yeex.dlof.ui.components.YeexBottomBar
 import com.yeex.dlof.ui.create.CreateParagraphScreen
+import com.yeex.dlof.ui.create.CreateTopicScreen
 import com.yeex.dlof.ui.feed.FeedScreen
 import com.yeex.dlof.ui.profile.ProfileScreen
 import com.yeex.dlof.ui.repost.RepostScreen
@@ -31,6 +32,8 @@ import com.yeex.dlof.ui.room.CreateRoomScreen
 import com.yeex.dlof.ui.room.RoomScreen
 import com.yeex.dlof.ui.search.SearchScreen
 import com.yeex.dlof.ui.settings.SettingsScreen
+import com.yeex.dlof.ui.topics.TopicDetailScreen
+import com.yeex.dlof.ui.topics.TopicsScreen
 import com.yeex.dlof.ui.verify.VerificationRequestScreen
 
 object Routes {
@@ -51,11 +54,18 @@ object Routes {
     const val VERIFY = "verify"
     const val REPOST = "repost/{paragraphId}"
     const val SETTINGS = "settings"
+    // YEEX TOPICS | المواضيع — permanent, text-first posts, independent of paragraphs.
+    const val TOPICS = "topics?authorUid={authorUid}&roomId={roomId}"
+    const val CREATE_TOPIC = "create_topic?roomId={roomId}"
+    const val TOPIC_DETAIL = "topic/{topicId}"
 
     fun login(prefill: String = "") = "login?prefill=$prefill"
     fun room(id: String) = "room/$id"
     fun profile(uid: String) = "profile/$uid"
     fun repost(paragraphId: String) = "repost/$paragraphId"
+    fun topics(authorUid: String = "", roomId: String = "") = "topics?authorUid=$authorUid&roomId=$roomId"
+    fun createTopic(roomId: String = "") = "create_topic?roomId=$roomId"
+    fun topicDetail(topicId: String) = "topic/$topicId"
 }
 
 /**
@@ -145,6 +155,8 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
                     onOpenProfile = { uid -> navController.navigate(Routes.profile(uid)) },
                     onOpenRooms = { navController.navigate(Routes.ROOMS) },
                     onOpenSearch = { navController.navigate(Routes.SEARCH) },
+                    onOpenTopics = { navController.navigate(Routes.topics()) },
+                    onOpenTopic = { topicId -> navController.navigate(Routes.topicDetail(topicId)) },
                     onRepost = { paragraphId -> navController.navigate(Routes.repost(paragraphId)) }
                 )
             }
@@ -175,6 +187,7 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
                 RoomScreen(
                     roomId = roomId,
                     onOpenProfile = { uid -> navController.navigate(Routes.profile(uid)) },
+                    onOpenTopic = { topicId -> navController.navigate(Routes.topicDetail(topicId)) },
                     onRepost = { paragraphId -> navController.navigate(Routes.repost(paragraphId)) }
                 )
             }
@@ -200,7 +213,8 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
                     onNeedAccountPassword = { identifier ->
                         navController.navigate(Routes.login(identifier))
                     },
-                    onOpenSettings = { navController.navigate(Routes.SETTINGS) }
+                    onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                    onOpenTopics = { uid -> navController.navigate(Routes.topics(authorUid = uid)) }
                 )
             }
             composable(Routes.SETTINGS) {
@@ -236,6 +250,53 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
             ) { backStackEntry ->
                 val paragraphId = backStackEntry.arguments?.getString("paragraphId") ?: return@composable
                 RepostScreen(paragraphId = paragraphId, onDone = { navController.popBackStack() })
+            }
+
+            // ---- YEEX TOPICS | المواضيع ----
+            composable(
+                Routes.TOPICS,
+                arguments = listOf(
+                    navArgument("authorUid") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("roomId") { type = NavType.StringType; defaultValue = "" }
+                )
+            ) { backStackEntry ->
+                val authorUid = backStackEntry.arguments?.getString("authorUid").orEmpty()
+                val roomId = backStackEntry.arguments?.getString("roomId").orEmpty()
+                TopicsScreen(
+                    authorUid = authorUid.ifBlank { null },
+                    roomId = roomId.ifBlank { null },
+                    onBack = { navController.popBackStack() },
+                    onOpenTopic = { id -> navController.navigate(Routes.topicDetail(id)) },
+                    onCreateTopic = { navController.navigate(Routes.createTopic(roomId)) },
+                    onOpenProfile = { uid -> navController.navigate(Routes.profile(uid)) }
+                )
+            }
+            composable(
+                Routes.CREATE_TOPIC,
+                arguments = listOf(navArgument("roomId") { type = NavType.StringType; defaultValue = "" })
+            ) { backStackEntry ->
+                val roomId = backStackEntry.arguments?.getString("roomId").orEmpty()
+                CreateTopicScreen(
+                    roomId = roomId.ifBlank { null },
+                    onPublished = { id ->
+                        navController.navigate(Routes.topicDetail(id)) {
+                            popUpTo(Routes.TOPICS) { inclusive = false }
+                        }
+                    },
+                    onCancel = { navController.popBackStack() }
+                )
+            }
+            composable(
+                Routes.TOPIC_DETAIL,
+                arguments = listOf(navArgument("topicId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val topicId = backStackEntry.arguments?.getString("topicId") ?: return@composable
+                TopicDetailScreen(
+                    topicId = topicId,
+                    onBack = { navController.popBackStack() },
+                    onOpenProfile = { uid -> navController.navigate(Routes.profile(uid)) },
+                    onOpenParagraph = { }
+                )
             }
             }
 
