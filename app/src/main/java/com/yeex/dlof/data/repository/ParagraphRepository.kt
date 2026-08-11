@@ -73,6 +73,25 @@ class ParagraphRepository(
             .filter { it.expiresAt > now }
     }
 
+    /**
+     * Client-side text search over currently-active (non-expired) paragraphs
+     * — matches [Paragraph.text], which is also where hashtags typed inline
+     * (e.g. "#باري_تيوب") live, so this doubles as a hashtag search for
+     * [com.yeex.dlof.ui.search.SearchScreen]. Realtime Database has no
+     * full-text/substring index, so — same trade-off [getActiveParagraphs]
+     * above already makes — this reuses that one-shot fetch of the (small,
+     * 24h-bounded) set of active paragraphs and filters in memory rather
+     * than querying a text index that doesn't exist on the free tier.
+     */
+    suspend fun searchActiveByText(query: String, limit: Int = 30): List<Paragraph> {
+        val q = query.trim().removePrefix("#").lowercase()
+        if (q.isEmpty()) return emptyList()
+        return getActiveParagraphs()
+            .filter { it.text.lowercase().contains(q) }
+            .sortedByDescending { it.createdAt }
+            .take(limit)
+    }
+
     /** Live feed: either the global public feed (roomId == "") or a specific room. */
     fun observeParagraphs(roomId: String? = null): Flow<List<Paragraph>> = callbackFlow {
         val query = if (roomId != null) {
