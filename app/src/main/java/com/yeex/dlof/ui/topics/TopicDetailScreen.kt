@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -342,7 +343,7 @@ fun TopicDetailScreen(
                 )
             }
         }
-        items(updates, key = { it.id }) { update ->
+        itemsIndexed(updates, key = { _, update -> update.id }) { index, update ->
             Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
                 Box(
                     Modifier
@@ -353,7 +354,7 @@ fun TopicDetailScreen(
                 )
                 Column {
                     Text(
-                        stringResource(R.string.topic_update_label, updates.indexOf(update).let { updates.size - it }),
+                        stringResource(R.string.topic_update_label, updates.size - index),
                         style = MaterialTheme.typography.labelSmall,
                         color = YeexAccent,
                         fontWeight = FontWeight.Bold
