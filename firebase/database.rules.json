@@ -157,7 +157,7 @@
 
     "paragraphs": {
       ".read": true,
-      ".indexOn": ["createdAt", "roomId", "expiresAt"],
+      ".indexOn": ["createdAt", "roomId", "expiresAt", "authorId"],
       "$paragraphId": {
         ".write": "auth != null && (!data.exists() ? newData.child('authorId').val() === auth.uid : (data.child('authorId').val() === auth.uid || root.child('admins').child(auth.uid).exists() || (!newData.exists() && data.child('expiresAt').val() < now)))",
         ".validate": "newData.hasChildren(['authorId','type','createdAt','expiresAt']) && newData.child('expiresAt').val() === newData.child('createdAt').val() + 86400000",
@@ -175,6 +175,7 @@
         "repostOfId": { ".validate": "newData.isString()" },
         "repostComment": { ".validate": "newData.isString() && newData.val().length <= 2000" },
         "engagementScore": { ".validate": "newData.isNumber()" },
+        "topicId": { ".validate": "newData.isString() && newData.val().length <= 60" },
 
         "momentSteps": {
           ".validate": "newData.hasChildren() || newData.val() === null",
@@ -276,6 +277,114 @@
           "$uid": {
             ".write": "auth != null && auth.uid === $uid",
             ".validate": "newData.isBoolean() && newData.val() === true"
+          }
+        }
+      }
+    },
+
+    "topics": {
+      ".read": true,
+      ".indexOn": ["createdAt", "authorId", "roomId", "type"],
+      "$topicId": {
+        ".write": "auth != null && (!data.exists() ? newData.child('authorId').val() === auth.uid : (data.child('authorId').val() === auth.uid || root.child('admins').child(auth.uid).exists()))",
+        ".validate": "newData.hasChildren(['authorId','type','createdAt'])",
+
+        "authorId": { ".validate": "newData.isString() && newData.val() === auth.uid" },
+        "authorIdentifier": { ".validate": "newData.isString()" },
+        "authorVerified": { ".validate": "newData.isBoolean()" },
+        "type": { ".validate": "newData.isString() && (newData.val() === 'TEXT' || newData.val() === 'LINK')" },
+        "title": { ".validate": "newData.isString() && newData.val().length <= 150" },
+        "body": { ".validate": "newData.isString() && newData.val().length <= 20000" },
+        "imageBase64": { ".validate": "newData.isString() && newData.val().length <= 8500000" },
+        "roomId": { ".validate": "newData.isString()" },
+        "createdAt": { ".validate": "newData.isNumber() && newData.val() <= now + 300000" },
+        "updatedAt": { ".validate": "newData.isNumber()" },
+        "engagementScore": { ".validate": "newData.isNumber()" },
+
+        "link": {
+          ".validate": "newData.hasChildren() || newData.val() === null",
+          "url": { ".validate": "newData.isString() && newData.val().length <= 2000" },
+          "cardType": { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "title": { ".validate": "newData.isString() && newData.val().length <= 300" },
+          "description": { ".validate": "newData.isString() && newData.val().length <= 500" },
+          "imageUrl": { ".validate": "newData.isString() && newData.val().length <= 2000" },
+          "siteName": { ".validate": "newData.isString() && newData.val().length <= 100" }
+        },
+        "hashtags": { ".validate": "newData.hasChildren() || newData.val() === null" },
+        "mentions": { ".validate": "newData.hasChildren() || newData.val() === null" },
+        "linkedParagraphIds": { ".validate": "newData.hasChildren() || newData.val() === null" },
+
+        "likeCount": {
+          ".write": "auth != null",
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "commentCount": {
+          ".write": "auth != null",
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "viewCount": {
+          ".write": "auth != null",
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "updateCount": {
+          ".write": "auth != null",
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        }
+      }
+    },
+
+    "topicViews": {
+      "$topicId": {
+        ".read": true,
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.isBoolean() && newData.val() === true"
+        }
+      }
+    },
+
+    "topicLikes": {
+      "$topicId": {
+        ".read": true,
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.isBoolean() && newData.val() === true"
+        }
+      }
+    },
+
+    "topicUpdates": {
+      ".read": true,
+      "$topicId": {
+        ".indexOn": ["createdAt"],
+        "$updateId": {
+          ".write": "auth != null && (!data.exists() ? root.child('topics').child($topicId).child('authorId').val() === auth.uid : (data.child('authorId').val() === auth.uid || root.child('admins').child(auth.uid).exists()))",
+          ".validate": "newData.hasChildren(['id','topicId','text']) || newData.hasChildren(['id','topicId','imageBase64'])",
+          "id": { ".validate": "newData.isString() && newData.val() === $updateId" },
+          "topicId": { ".validate": "newData.isString() && newData.val() === $topicId" },
+          "text": { ".validate": "newData.isString() && newData.val().length <= 4000" },
+          "imageBase64": { ".validate": "newData.isString() && newData.val().length <= 8500000" },
+          "createdAt": { ".validate": "newData.isNumber() && newData.val() <= now + 300000" }
+        }
+      }
+    },
+
+    "topicComments": {
+      ".read": true,
+      "$topicId": {
+        ".indexOn": ["createdAt"],
+        "$commentId": {
+          ".write": "auth != null && (!data.exists() ? newData.child('authorId').val() === auth.uid : data.child('authorId').val() === auth.uid || root.child('admins').child(auth.uid).exists())",
+          ".validate": "newData.hasChildren(['authorId','text'])",
+          "authorId": { ".validate": "newData.isString() && newData.val() === auth.uid" },
+          "authorIdentifier": { ".validate": "newData.isString()" },
+          "paragraphId": { ".validate": "newData.isString() && newData.val() === $topicId" },
+          "text": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 1000" },
+          "createdAt": { ".validate": "newData.isNumber() && newData.val() <= now + 300000" },
+          "parentId": { ".validate": "newData.isString()" },
+          "likeCount": {
+            ".write": "auth != null",
+            ".validate": "newData.isNumber() && newData.val() >= 0"
           }
         }
       }
