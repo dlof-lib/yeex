@@ -113,7 +113,7 @@ class TopicRepository(
         val ref = likesRef.child(topicId).child(uid)
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) { trySend(snapshot.exists()) }
-            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+            override fun onCancelled(error: DatabaseError) { trySend(false) }
         }
         ref.addValueEventListener(listener)
         awaitClose { ref.removeEventListener(listener) }
