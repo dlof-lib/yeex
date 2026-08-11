@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Image as ImageIcon
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Settings
@@ -101,7 +102,9 @@ fun ProfileScreen(
     /** The chosen saved account had no remembered password — navigate to login, prefilled. */
     onNeedAccountPassword: (identifier: String) -> Unit = {},
     /** Open the "الإعدادات والخصوصية" screen. */
-    onOpenSettings: () -> Unit = {}
+    onOpenSettings: () -> Unit = {},
+    /** Open this profile's YEEX TOPICS list (permanent posts, separate from paragraphs). */
+    onOpenTopics: (String) -> Unit = {}
 ) {
     var user by remember { mutableStateOf<User?>(null) }
     var isFollowing by remember { mutableStateOf(false) }
@@ -168,6 +171,9 @@ fun ProfileScreen(
                 // Own-profile-only actions (edit, switch account, logout)
                 // stay grouped under the overflow menu next to it. ----
                 if (user != null) {
+                    IconButton(onClick = { onOpenTopics(targetUid) }) {
+                        Icon(Icons.Filled.MenuBook, contentDescription = stringResource(R.string.topics_title))
+                    }
                     IconButton(onClick = { showGlanceSheet = true }) {
                         Icon(Icons.Filled.Info, contentDescription = stringResource(R.string.account_glance))
                     }
