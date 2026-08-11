@@ -471,4 +471,32 @@
     <string name="gallery_tab_photos">Fotos</string>
     <string name="gallery_tab_videos">Videos</string>
 
+    <!-- YEEX TOPICS -->
+    <string name="topics_title">Temas</string>
+    <string name="topics_empty">Aún no hay temas</string>
+    <string name="topic_create_title">Nuevo tema</string>
+    <string name="topic_type_text">Texto</string>
+    <string name="topic_type_link">Enlace</string>
+    <string name="topic_title_hint">Título del tema</string>
+    <string name="topic_body_hint">Escribe tu tema…</string>
+    <string name="topic_link_hint">Pega un enlace (YouTube, GitHub, un sitio web…)</string>
+    <string name="topic_link_comment_hint">Comentario sobre el enlace (opcional)</string>
+    <string name="topic_link_preview_button">Vista previa del enlace</string>
+    <string name="topic_link_fetch_error">No se pudo obtener una vista previa de este enlace</string>
+    <string name="topic_add_cover_image">Añadir imagen de portada</string>
+    <string name="topic_toolbar_heading">Subtítulo</string>
+    <string name="topic_toolbar_quote">Cita</string>
+    <string name="topic_toolbar_list">Lista</string>
+    <string name="topic_toolbar_code">Bloque de código</string>
+    <string name="topic_attach_paragraphs_title">Adjuntar párrafos</string>
+    <string name="topic_linked_paragraphs_title">Párrafos adjuntos</string>
+    <string name="topic_publish_button">Publicar tema</string>
+    <string name="topic_invalid_error">Añade un título o contenido antes de publicar</string>
+    <string name="topic_updates_title">Actualizaciones</string>
+    <string name="topic_add_update_hint">Añade una nueva actualización a este tema…</string>
+    <string name="topic_no_updates">Aún no hay actualizaciones</string>
+    <string name="topic_update_label">Actualización #%d</string>
+    <string name="topic_update_count">%d actualizaciones</string>
+    <string name="paragraph_linked_topic">Tema vinculado</string>
+
 </resources>
