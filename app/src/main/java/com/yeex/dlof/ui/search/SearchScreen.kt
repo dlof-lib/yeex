@@ -5,30 +5,39 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Notes
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material.icons.outlined.TravelExplore
 import androidx.compose.material3.*
@@ -38,7 +47,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -54,12 +65,16 @@ import androidx.compose.ui.unit.dp
 import com.yeex.dlof.R
 import com.yeex.dlof.data.model.Container
 import com.yeex.dlof.data.model.Paragraph
+import com.yeex.dlof.data.model.ParagraphType
 import com.yeex.dlof.data.model.Room
+import com.yeex.dlof.data.model.Topic
+import com.yeex.dlof.data.model.TopicType
 import com.yeex.dlof.data.model.User
 import com.yeex.dlof.data.repository.ContainerRepository
 import com.yeex.dlof.data.repository.ParagraphRepository
 import com.yeex.dlof.data.repository.RoomRepository
 import com.yeex.dlof.data.repository.AuthRepository
+import com.yeex.dlof.data.repository.TopicRepository
 import com.yeex.dlof.data.repository.UserRepository
 import com.yeex.dlof.ui.components.ShimmerBox
 import com.yeex.dlof.ui.components.UserAvatar
@@ -68,14 +83,16 @@ import com.yeex.dlof.ui.theme.YeexBrandGradient
 import com.yeex.dlof.ui.theme.YeexCrimson
 import com.yeex.dlof.ui.theme.YeexPink
 import com.yeex.dlof.util.FeedRanking
+import com.yeex.dlof.util.MediaBase64
 import com.yeex.dlof.util.RoomRanking
 import com.yeex.dlof.util.RoomType
 import com.yeex.dlof.util.SearchHistoryStore
 import com.yeex.dlof.util.SearchRanking
+import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private enum class SearchFilter { ALL, USERS, ROOMS }
+private enum class SearchFilter { ALL, USERS, ROOMS, PARAGRAPHS, TOPICS }
 
 /**
  * Professional, real-time search screen.
@@ -86,8 +103,13 @@ private enum class SearchFilter { ALL, USERS, ROOMS }
  *     [UserRepository.searchByIdentifierPrefix], PLUS a display-name prefix
  *     search via [UserRepository.searchByDisplayNamePrefix] (merged and
  *     de-duplicated) so a typed name matches too — AND public room-name
- *     search via [RoomRepository.searchByName], shown as two filterable
- *     sections.
+ *     search via [RoomRepository.searchByName] — AND real text search over
+ *     paragraphs ([ParagraphRepository.searchActiveByText]) and topics
+ *     ([TopicRepository.searchByText]), including "#hashtag" queries, shown
+ *     as four filterable sections instead of only accounts/rooms. The old
+ *     "منشورات رائجة" idle-state row showed trending posts regardless of
+ *     what was typed; typing a query now actually searches paragraph/topic
+ *     text and hashtags, not just their authors' identifiers.
  *
  * Search now runs as-you-type (debounced) instead of requiring a separate
  * "بحث" button tap, with a filter row (الكل / الحسابات / الغرف), a loading
@@ -125,16 +147,20 @@ fun SearchScreen(
     userRepo: UserRepository = UserRepository(),
     roomRepo: RoomRepository = RoomRepository(),
     paragraphRepo: ParagraphRepository = ParagraphRepository(),
+    topicRepo: TopicRepository = TopicRepository(),
     authRepo: AuthRepository = AuthRepository(),
     onOpenContainer: (Container) -> Unit,
     onOpenUser: (User) -> Unit = {},
     onOpenRoom: (Room) -> Unit = {},
-    onOpenRooms: () -> Unit = {}
+    onOpenRooms: () -> Unit = {},
+    onOpenTopic: (Topic) -> Unit = {}
 ) {
     var query by remember { mutableStateOf("") }
     var containerResults by remember { mutableStateOf<List<Container>>(emptyList()) }
     var userResults by remember { mutableStateOf<List<User>>(emptyList()) }
     var roomResults by remember { mutableStateOf<List<Room>>(emptyList()) }
+    var paragraphResults by remember { mutableStateOf<List<Paragraph>>(emptyList()) }
+    var topicResults by remember { mutableStateOf<List<Topic>>(emptyList()) }
     var isContainerQuery by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var hasSearched by remember { mutableStateOf(false) }
@@ -193,6 +219,8 @@ fun SearchScreen(
             containerResults = emptyList()
             userResults = emptyList()
             roomResults = emptyList()
+            paragraphResults = emptyList()
+            topicResults = emptyList()
             return@LaunchedEffect
         }
         isLoading = true
@@ -210,6 +238,8 @@ fun SearchScreen(
                 containerResults = containerRepo.findByName(containerName)
                 userResults = emptyList()
                 roomResults = emptyList()
+                paragraphResults = emptyList()
+                topicResults = emptyList()
             } else {
                 containerResults = emptyList()
                 // Firebase's prefix query returns plain lexicographic order —
@@ -227,12 +257,21 @@ fun SearchScreen(
                 val mergedUsers = (byIdentifier + byDisplayName).distinctBy { it.uid }
                 userResults = SearchRanking.rankUsers(trimmed, mergedUsers)
                 roomResults = SearchRanking.rankRooms(trimmed, roomRepo.searchByName(trimmed))
+                // Real content search: paragraph text and topic
+                // title/body/hashtags, not just their authors' handles —
+                // see [ParagraphRepository.searchActiveByText] /
+                // [TopicRepository.searchByText]'s doc comments for why
+                // this filters in memory rather than querying a text index.
+                paragraphResults = SearchRanking.rankParagraphs(trimmed, paragraphRepo.searchActiveByText(trimmed))
+                topicResults = SearchRanking.rankTopics(trimmed, topicRepo.searchByText(trimmed))
             }
         }.onFailure {
             searchError = true
             containerResults = emptyList()
             userResults = emptyList()
             roomResults = emptyList()
+            paragraphResults = emptyList()
+            topicResults = emptyList()
         }.onSuccess {
             // Only recorded once the search actually resolved (not on
             // failure) — a query that only ever errored out isn't a
@@ -245,8 +284,14 @@ fun SearchScreen(
 
     val showUsers = !isContainerQuery && (filter == SearchFilter.ALL || filter == SearchFilter.USERS)
     val showRooms = !isContainerQuery && (filter == SearchFilter.ALL || filter == SearchFilter.ROOMS)
+    val showParagraphs = !isContainerQuery && (filter == SearchFilter.ALL || filter == SearchFilter.PARAGRAPHS)
+    val showTopics = !isContainerQuery && (filter == SearchFilter.ALL || filter == SearchFilter.TOPICS)
     val noResults = hasSearched && !isLoading && !searchError && containerResults.isEmpty() &&
-        (if (isContainerQuery) true else userResults.isEmpty() && roomResults.isEmpty())
+        (if (isContainerQuery) {
+            true
+        } else {
+            userResults.isEmpty() && roomResults.isEmpty() && paragraphResults.isEmpty() && topicResults.isEmpty()
+        })
 
     Column(Modifier.fillMaxSize()) {
         // ---- Header (top bar + search bar) ----
@@ -400,7 +445,13 @@ fun SearchScreen(
 
                 if (!isContainerQuery) {
                     Spacer(Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Scrollable, not a fixed Row: five pills (all/accounts/
+                    // rooms/posts/topics) no longer reliably fit one phone
+                    // width the way the original three did.
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.horizontalScroll(rememberScrollState())
+                    ) {
                         FilterPill(
                             label = stringResource(R.string.search_tab_all),
                             selected = filter == SearchFilter.ALL,
@@ -415,6 +466,16 @@ fun SearchScreen(
                             label = stringResource(R.string.search_tab_rooms),
                             selected = filter == SearchFilter.ROOMS,
                             onClick = { filter = SearchFilter.ROOMS }
+                        )
+                        FilterPill(
+                            label = stringResource(R.string.search_tab_paragraphs),
+                            selected = filter == SearchFilter.PARAGRAPHS,
+                            onClick = { filter = SearchFilter.PARAGRAPHS }
+                        )
+                        FilterPill(
+                            label = stringResource(R.string.search_tab_topics),
+                            selected = filter == SearchFilter.TOPICS,
+                            onClick = { filter = SearchFilter.TOPICS }
                         )
                     }
                 }
@@ -473,6 +534,30 @@ fun SearchScreen(
                         }
                         items(roomResults, key = { it.id }) { r ->
                             RoomResultCard(r, query = query, onClick = { onOpenRoom(r) })
+                        }
+                    }
+
+                    if (showParagraphs && paragraphResults.isNotEmpty()) {
+                        item {
+                            SectionHeader(stringResource(R.string.search_paragraphs_section))
+                        }
+                        items(paragraphResults, key = { it.id }) { p ->
+                            ParagraphResultCard(
+                                paragraph = p,
+                                query = query,
+                                onClick = {
+                                    onOpenUser(User(uid = p.authorId, identifier = p.authorIdentifier, verified = p.authorVerified))
+                                }
+                            )
+                        }
+                    }
+
+                    if (showTopics && topicResults.isNotEmpty()) {
+                        item {
+                            SectionHeader(stringResource(R.string.search_topics_section))
+                        }
+                        items(topicResults, key = { it.id }) { t ->
+                            TopicResultCard(topic = t, query = query, onClick = { onOpenTopic(t) })
                         }
                     }
 
@@ -1039,6 +1124,69 @@ private fun ResultChevron() {
 }
 
 /**
+ * A square media/type thumbnail leading a paragraph or topic search
+ * result — an actual decoded cover image for IMAGE paragraphs and topics
+ * with a cover photo, the remote link-preview image for LINK topics, a
+ * branded video/Moment placeholder (with a small play-badge for video) for
+ * those types, and [fallbackIcon] only when there's genuinely nothing
+ * visual to show (a plain TEXT paragraph/topic). Lets a paragraph/topic
+ * result read as "what it actually looks like" — image, video, text, etc.
+ * — instead of only "which section it's under".
+ */
+@Composable
+private fun SearchResultThumbnail(
+    bitmap: android.graphics.Bitmap?,
+    remoteImageUrl: String? = null,
+    fallbackIcon: androidx.compose.ui.graphics.vector.ImageVector,
+    isVideo: Boolean = false,
+    size: Dp = 52.dp
+) {
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                Brush.linearGradient(listOf(YeexAccent.copy(alpha = 0.18f), YeexPink.copy(alpha = 0.18f)))
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        when {
+            bitmap != null -> Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            !remoteImageUrl.isNullOrBlank() -> AsyncImage(
+                model = remoteImageUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            else -> Icon(fallbackIcon, contentDescription = null, tint = YeexAccent, modifier = Modifier.size(size * 0.42f))
+        }
+        // Small play-badge over a video cover (or the video placeholder
+        // itself), so a video result reads as "video" at a glance even
+        // when it has no decodable still frame to show — matching the
+        // "▶" treatment [com.yeex.dlof.ui.profile.ProfileScreen]'s own
+        // paragraph thumbnails use for the same case.
+        if (isVideo) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(3.dp)
+                    .size(18.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.55f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(11.dp))
+            }
+        }
+    }
+}
+
+/**
  * A single "browse other accounts" row: avatar, display name + verified
  * badge, @identifier, and Teking/Teker counts, all inside a tappable card —
  * reads like a real account preview instead of a bare-text lookup.
@@ -1108,6 +1256,130 @@ private fun RoomResultCard(room: Room, query: String = "", onClick: () -> Unit) 
             Text(
                 stringResource(R.string.room_members_count, room.memberCount.toString()),
                 style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        ResultChevron()
+    }
+}
+
+/**
+ * A search result row for a matched paragraph (فقرة) — the matched snippet
+ * of [Paragraph.text] (which is also where hashtags live), the author's
+ * @identifier, and the like count, so a text/hashtag search result reads
+ * as "why this matched" the same way [UserResultCard]/[RoomResultCard] do.
+ * Tapping it opens the author's profile — paragraphs have no standalone
+ * detail screen of their own (they're ephemeral, swiped through in the
+ * feed), so this mirrors what [TrendingParagraphRow] already does.
+ */
+@Composable
+private fun ParagraphResultCard(paragraph: Paragraph, query: String = "", onClick: () -> Unit) {
+    // Same "only IMAGE decodes to a still frame" rule ParagraphThumbCard
+    // uses in ProfileScreen — VIDEO paragraphs store raw MP4 bytes, which
+    // BitmapFactory can't decode, so those fall through to the branded
+    // video placeholder below instead of a broken image.
+    val bitmap = remember(paragraph.id) {
+        if (paragraph.mediaBase64.isNotEmpty() && paragraph.type != ParagraphType.VIDEO.name) {
+            MediaBase64.decodeToBitmap(paragraph.mediaBase64)
+        } else null
+    }
+    ResultCardShell(onClick = onClick) {
+        SearchResultThumbnail(
+            bitmap = bitmap,
+            fallbackIcon = when (paragraph.type) {
+                ParagraphType.VIDEO.name -> Icons.Filled.Videocam
+                ParagraphType.MOMENT.name -> Icons.Filled.Timeline
+                else -> Icons.Filled.Notes
+            },
+            isVideo = paragraph.type == ParagraphType.VIDEO.name
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "@${paragraph.authorIdentifier}",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (paragraph.authorVerified) {
+                    Spacer(Modifier.width(4.dp))
+                    Icon(
+                        Icons.Filled.Verified,
+                        contentDescription = stringResource(R.string.verified_badge),
+                        tint = YeexCrimson,
+                        modifier = Modifier.size(13.dp)
+                    )
+                }
+            }
+            if (paragraph.text.isNotBlank()) {
+                Text(
+                    highlightedAnnotatedString(paragraph.text, query),
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Spacer(Modifier.height(2.dp))
+            Text(
+                "❤ ${paragraph.likeCount} · 💬 ${paragraph.commentCount}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        ResultChevron()
+    }
+}
+
+/** A search result row for a matched topic (موضوع) — see [ParagraphResultCard]
+ * for the general shape. Unlike paragraphs, topics have their own permanent
+ * detail screen, so this opens [onClick] straight into it. */
+@Composable
+private fun TopicResultCard(topic: Topic, query: String = "", onClick: () -> Unit) {
+    val cover = remember(topic.id) {
+        if (topic.imageBase64.isNotBlank()) MediaBase64.decodeToBitmap(topic.imageBase64) else null
+    }
+    val isLink = topic.type == TopicType.LINK.name
+    ResultCardShell(onClick = onClick) {
+        SearchResultThumbnail(
+            bitmap = cover,
+            remoteImageUrl = topic.link?.imageUrl,
+            fallbackIcon = if (isLink) Icons.Filled.Link else Icons.Filled.Article
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    highlightedAnnotatedString(topic.title.ifBlank { topic.body }, query),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                if (topic.authorVerified) {
+                    Spacer(Modifier.width(4.dp))
+                    Icon(
+                        Icons.Filled.Verified,
+                        contentDescription = stringResource(R.string.verified_badge),
+                        tint = YeexCrimson,
+                        modifier = Modifier.size(13.dp)
+                    )
+                }
+            }
+            Text(
+                "@${topic.authorIdentifier}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                "❤ ${topic.likeCount} · 💬 ${topic.commentCount}",
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
