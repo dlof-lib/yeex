@@ -50,6 +50,9 @@ fun FeedScreen(
     onOpenProfile: (String) -> Unit = {},
     onOpenRooms: (() -> Unit)? = null,
     onOpenSearch: (() -> Unit)? = null,
+    onOpenTopics: (() -> Unit)? = null,
+    // Opens a topic that a paragraph is attached to (موضوع ↔ فقرة) — see ParagraphCard's "الموضوع المرتبط" chip.
+    onOpenTopic: (String) -> Unit = {},
     onRepost: (String) -> Unit
 ) {
     val paragraphs by viewModel.paragraphs.collectAsState()
@@ -90,6 +93,7 @@ fun FeedScreen(
                         onComment = { commentsParagraphId = item.id },
                         onRepost = { onRepost(item.id) },
                         onOpenProfile = onOpenProfile,
+                        onOpenTopic = onOpenTopic,
                         onBlockAuthor = { authorId -> viewModel.blockAuthor(authorId) },
                         // Only the page the pager has actually settled on
                         // should autoplay its video — otherwise the page
@@ -112,6 +116,7 @@ fun FeedScreen(
             showWordmark = roomId == null,
             onOpenRooms = if (roomId == null) onOpenRooms else null,
             onOpenSearch = if (roomId == null) onOpenSearch else null,
+            onOpenTopics = if (roomId == null) onOpenTopics else null,
             center = {
                 if (roomId == null) {
                     FeedTabRow(
