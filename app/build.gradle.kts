@@ -85,7 +85,16 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.2")
     implementation("androidx.navigation:navigation-compose:2.7.7")
 
-    implementation(platform("androidx.compose:compose-bom:2024.06.00"))
+    // Bumped from 2024.06.00: compose-shimmer (and telephoto, which forced
+    // compileSdk to 35 earlier) are compiled against a much newer Compose
+    // runtime than this BOM resolves to. That ABI mismatch is what crashes
+    // the app the instant TopicsScreen renders its shimmer skeleton loading
+    // state (NoSuchMethodError/AbstractMethodError at runtime -- invisible
+    // at compile time, which is why the GitHub Actions build succeeds).
+    // 2025.10.01 aligns the whole Compose UI/Foundation/Material3 stack to
+    // one consistent, current version instead of a patchwork of
+    // BOM-declared vs. transitively-forced versions.
+    implementation(platform("androidx.compose:compose-bom:2025.10.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
