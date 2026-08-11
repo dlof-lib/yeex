@@ -78,17 +78,27 @@ fun TopicsScreen(
             .collect { list ->
             topics = list
             isLoading = false
-            val missing = list.map { it.authorId }.distinct().filter { it !in avatars }
-            if (missing.isNotEmpty()) {
-                val fetched = missing.associateWith { uid -> userRepo.getUser(uid)?.profileIconUrl.orEmpty() }
-                avatars = avatars + fetched
+            // NOTE: everything below runs inside collect{}, so a Flow's upstream
+            // .catch{} operator can NOT protect it — any exception here (network,
+            // Firebase permission-denied, etc.) would otherwise propagate
+            // uncaught and crash the app the moment the Topics list loads.
+            // Wrapping each side-effect in runCatching keeps one failed lookup
+            // from taking down the whole screen.
+            runCatching {
+                val missing = list.map { it.authorId }.distinct().filter { it !in avatars }
+                if (missing.isNotEmpty()) {
+                    val fetched = missing.associateWith { uid -> userRepo.getUser(uid)?.profileIconUrl.orEmpty() }
+                    avatars = avatars + fetched
+                }
             }
             if (myUid != null) {
-                val liked = mutableSetOf<String>()
-                for (t in list) {
-                    if (repo.getLikedByMe(t.id, myUid)) liked.add(t.id)
+                runCatching {
+                    val liked = mutableSetOf<String>()
+                    for (t in list) {
+                        if (repo.getLikedByMe(t.id, myUid)) liked.add(t.id)
+                    }
+                    likedByMe = liked
                 }
-                likedByMe = liked
             }
         }
     }
@@ -132,8 +142,10 @@ fun TopicsScreen(
                             onLike = {
                                 if (myUid != null) {
                                     scope.launch {
-                                        val nowLiked = repo.toggleLike(topic.id, myUid)
-                                        likedByMe = if (nowLiked) likedByMe + topic.id else likedByMe - topic.id
+                                        runCatching { repo.toggleLike(topic.id, myUid) }
+                                            .onSuccess { nowLiked ->
+                                                likedByMe = if (nowLiked) likedByMe + topic.id else likedByMe - topic.id
+                                            }
                                     }
                                 }
                             },
