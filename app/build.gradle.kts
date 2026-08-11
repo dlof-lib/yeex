@@ -1,6 +1,8 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    // Kotlin 2.0+ Compose compiler plugin -- see root build.gradle.kts note.
+    id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.gms.google-services")
 }
 
@@ -59,9 +61,11 @@ android {
         // & Privacy — AGP 8+ no longer generates BuildConfig by default.
         buildConfig = true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.14"
-    }
+    // composeOptions.kotlinCompilerExtensionVersion removed: with Kotlin 2.0+
+    // the Compose compiler version is driven entirely by the
+    // org.jetbrains.kotlin.plugin.compose plugin (applied above), not this
+    // setting -- leaving it in place is now a no-op at best and a warning at
+    // worst.
 
     lint {
         disable += "MissingTranslation"
