@@ -471,4 +471,32 @@
     <string name="gallery_tab_photos">Photos</string>
     <string name="gallery_tab_videos">Videos</string>
 
+    <!-- YEEX TOPICS -->
+    <string name="topics_title">Topics</string>
+    <string name="topics_empty">No topics yet</string>
+    <string name="topic_create_title">New Topic</string>
+    <string name="topic_type_text">Text</string>
+    <string name="topic_type_link">Link</string>
+    <string name="topic_title_hint">Topic title</string>
+    <string name="topic_body_hint">Write your topic…</string>
+    <string name="topic_link_hint">Paste a link (YouTube, GitHub, a website…)</string>
+    <string name="topic_link_comment_hint">Comment on the link (optional)</string>
+    <string name="topic_link_preview_button">Preview link</string>
+    <string name="topic_link_fetch_error">Couldn\'t fetch a preview for this link</string>
+    <string name="topic_add_cover_image">Add a cover image</string>
+    <string name="topic_toolbar_heading">Subheading</string>
+    <string name="topic_toolbar_quote">Quote</string>
+    <string name="topic_toolbar_list">List</string>
+    <string name="topic_toolbar_code">Code block</string>
+    <string name="topic_attach_paragraphs_title">Attach paragraphs</string>
+    <string name="topic_linked_paragraphs_title">Attached paragraphs</string>
+    <string name="topic_publish_button">Publish topic</string>
+    <string name="topic_invalid_error">Add a title or content before publishing</string>
+    <string name="topic_updates_title">Updates</string>
+    <string name="topic_add_update_hint">Add a new update to this topic…</string>
+    <string name="topic_no_updates">No updates yet</string>
+    <string name="topic_update_label">Update #%d</string>
+    <string name="topic_update_count">%d updates</string>
+    <string name="paragraph_linked_topic">Linked topic</string>
+
 </resources>
