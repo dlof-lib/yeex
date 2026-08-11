@@ -8,15 +8,19 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBackIosNew
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -32,9 +36,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.LottieConstants
+import com.airbnb.lottie.compose.animateLottieCompositionAsState
+import com.airbnb.lottie.compose.rememberLottieComposition
+import com.valentinilk.shimmer.ShimmerBounds
+import com.valentinilk.shimmer.rememberShimmer
+import com.valentinilk.shimmer.shimmer
 import com.yeex.dlof.R
 import com.yeex.dlof.data.model.Topic
 import com.yeex.dlof.data.repository.AuthRepository
@@ -126,10 +139,22 @@ fun TopicsScreen(
             }
 
             when {
-                isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = YeexAccent)
+                // A shimmer-skeleton list (shaped like real TopicCards) instead
+                // of a bare spinner — reads as "content is arriving" rather
+                // than "the screen is frozen".
+                isLoading -> Column(Modifier.fillMaxSize().padding(vertical = 8.dp)) {
+                    val shimmerInstance = rememberShimmer(ShimmerBounds.View)
+                    repeat(4) { TopicSkeletonCard(shimmerInstance) }
                 }
-                topics.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                topics.isEmpty() -> Column(
+                    Modifier.fillMaxSize().padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.topics_empty))
+                    val progress by animateLottieCompositionAsState(composition, iterations = LottieConstants.IterateForever)
+                    LottieAnimation(composition = composition, progress = { progress }, modifier = Modifier.size(120.dp))
+                    Spacer(Modifier.height(8.dp))
                     Text(stringResource(R.string.topics_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 else -> LazyColumn(contentPadding = PaddingValues(vertical = 8.dp)) {
@@ -161,3 +186,34 @@ fun TopicsScreen(
 
 @Composable
 private fun rememberCoroutineScopeCompat() = androidx.compose.runtime.rememberCoroutineScope()
+
+/**
+ * A skeleton row shaped like [TopicCard] (avatar + byline, title, body
+ * lines) so the shimmering loading state doesn't jump/reflow once real
+ * topics arrive — see compose-shimmer's `shimmer()` modifier.
+ */
+@Composable
+private fun TopicSkeletonCard(shimmerInstance: com.valentinilk.shimmer.Shimmer) {
+    val block = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            .shimmer(shimmerInstance)
+            .padding(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(32.dp).clip(CircleShape).background(block))
+            Spacer(Modifier.width(10.dp))
+            Box(Modifier.width(96.dp).height(10.dp).clip(RoundedCornerShape(5.dp)).background(block))
+        }
+        Spacer(Modifier.height(14.dp))
+        Box(Modifier.fillMaxWidth(0.65f).height(16.dp).clip(RoundedCornerShape(4.dp)).background(block))
+        Spacer(Modifier.height(8.dp))
+        Box(Modifier.fillMaxWidth().height(12.dp).clip(RoundedCornerShape(4.dp)).background(block))
+        Spacer(Modifier.height(6.dp))
+        Box(Modifier.fillMaxWidth(0.8f).height(12.dp).clip(RoundedCornerShape(4.dp)).background(block))
+    }
+}
