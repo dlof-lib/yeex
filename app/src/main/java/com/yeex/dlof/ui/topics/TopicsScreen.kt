@@ -43,6 +43,7 @@ import com.yeex.dlof.data.repository.UserRepository
 import com.yeex.dlof.ui.components.TopicCard
 import com.yeex.dlof.ui.theme.YeexAccent
 import com.yeex.dlof.ui.theme.yeexBrandGradient
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
 /**
@@ -72,7 +73,9 @@ fun TopicsScreen(
     var likedByMe by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     LaunchedEffect(authorUid, roomId) {
-        repo.observeTopics(authorId = authorUid, roomId = roomId).collect { list ->
+        repo.observeTopics(authorId = authorUid, roomId = roomId)
+            .catch { isLoading = false }
+            .collect { list ->
             topics = list
             isLoading = false
             val missing = list.map { it.authorId }.distinct().filter { it !in avatars }
