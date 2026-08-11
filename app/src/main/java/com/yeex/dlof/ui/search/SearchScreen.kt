@@ -623,7 +623,11 @@ private fun FilterPill(label: String, selected: Boolean, onClick: () -> Unit) {
             )
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = androidx.compose.material.ripple.rememberRipple(),
+                // rememberRipple() is now a hard compile error (not just
+                // deprecated) as of the newer compose-bom -- androidx.compose
+                // .material3.ripple.ripple() is its non-composable, drop-in
+                // replacement (no remember{} needed, it's already stable).
+                indication = androidx.compose.material3.ripple.ripple(),
                 onClick = onClick
             )
     ) {
