@@ -502,4 +502,32 @@
     <string name="gallery_tab_photos">الصور</string>
     <string name="gallery_tab_videos">الفيديوهات</string>
 
+    <!-- YEEX TOPICS | المواضيع -->
+    <string name="topics_title">المواضيع</string>
+    <string name="topics_empty">لا توجد مواضيع بعد</string>
+    <string name="topic_create_title">موضوع جديد</string>
+    <string name="topic_type_text">نص</string>
+    <string name="topic_type_link">رابط</string>
+    <string name="topic_title_hint">عنوان الموضوع</string>
+    <string name="topic_body_hint">اكتب موضوعك…</string>
+    <string name="topic_link_hint">الصق رابطًا (يوتيوب، جيت هاب، موقع…)</string>
+    <string name="topic_link_comment_hint">تعليق على الرابط (اختياري)</string>
+    <string name="topic_link_preview_button">معاينة الرابط</string>
+    <string name="topic_link_fetch_error">تعذّر جلب معاينة لهذا الرابط</string>
+    <string name="topic_add_cover_image">إضافة صورة للموضوع</string>
+    <string name="topic_toolbar_heading">عنوان فرعي</string>
+    <string name="topic_toolbar_quote">اقتباس</string>
+    <string name="topic_toolbar_list">قائمة</string>
+    <string name="topic_toolbar_code">كود برمجي</string>
+    <string name="topic_attach_paragraphs_title">إرفاق فقرات</string>
+    <string name="topic_linked_paragraphs_title">الفقرات المرفقة</string>
+    <string name="topic_publish_button">نشر الموضوع</string>
+    <string name="topic_invalid_error">أضف عنوانًا أو محتوى قبل النشر</string>
+    <string name="topic_updates_title">التحديثات</string>
+    <string name="topic_add_update_hint">أضف تحديثًا جديدًا للموضوع…</string>
+    <string name="topic_no_updates">لا توجد تحديثات بعد</string>
+    <string name="topic_update_label">تحديث #%d</string>
+    <string name="topic_update_count">%d تحديثات</string>
+    <string name="paragraph_linked_topic">الموضوع المرتبط</string>
+
 </resources>
