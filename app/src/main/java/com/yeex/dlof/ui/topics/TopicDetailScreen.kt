@@ -69,6 +69,7 @@ import com.yeex.dlof.data.repository.UserRepository
 import com.yeex.dlof.ui.components.LinkPreviewCard
 import com.yeex.dlof.ui.components.MarkdownText
 import com.yeex.dlof.ui.components.UserAvatar
+import me.saket.telephoto.zoomable.coil.ZoomableAsyncImage
 import com.yeex.dlof.ui.theme.YeexAccent
 import com.yeex.dlof.ui.theme.YeexCrimson
 import com.yeex.dlof.ui.theme.YeexDimens
@@ -201,8 +202,12 @@ fun TopicDetailScreen(
                         runCatching { MediaBase64.decodeToBitmap(current.imageBase64) }.getOrNull()
                     }
                     if (cover != null) {
-                        androidx.compose.foundation.Image(
-                            bitmap = cover.asImageBitmap(),
+                        // Pinch-to-zoom / pan on the cover image (telephoto) so a
+                        // screenshot, diagram, or code capture pasted as a
+                        // Topic's cover can actually be read up close instead of
+                        // being stuck at card width.
+                        ZoomableAsyncImage(
+                            model = cover,
                             contentDescription = current.title,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(12.dp))
