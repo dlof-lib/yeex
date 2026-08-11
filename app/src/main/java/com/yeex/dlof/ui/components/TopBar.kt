@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,9 +42,9 @@ import com.yeex.dlof.ui.theme.yeexBrandGradient
  * @param showWordmark Off for screens that are already one level below the
  *   home feed (e.g. a room's own feed, which shows the room's name instead)
  *   so the brand mark isn't shown twice.
- * @param onOpenRooms/onOpenSearch When null, that action icon is omitted
- *   entirely rather than shown disabled, so callers that don't need an
- *   action don't have to pass a no-op lambda.
+ * @param onOpenRooms/onOpenSearch/onOpenTopics When null, that action icon is
+ *   omitted entirely rather than shown disabled, so callers that don't need
+ *   an action don't have to pass a no-op lambda.
  * @param center The swappable middle slot — the "لك / متابعين / حاويات"
  *   segmented control on the home feed, a screen title elsewhere, or
  *   nothing at all.
@@ -54,6 +55,7 @@ fun YeexTopBar(
     showWordmark: Boolean = true,
     onOpenRooms: (() -> Unit)? = null,
     onOpenSearch: (() -> Unit)? = null,
+    onOpenTopics: (() -> Unit)? = null,
     center: @Composable () -> Unit = {}
 ) {
     Box(
@@ -90,6 +92,13 @@ fun YeexTopBar(
                     icon = Icons.Filled.Groups,
                     contentDescription = stringResource(R.string.browse_rooms),
                     onClick = onOpenRooms
+                )
+            }
+            if (onOpenTopics != null) {
+                TopBarIcon(
+                    icon = Icons.Filled.MenuBook,
+                    contentDescription = stringResource(R.string.topics_title),
+                    onClick = onOpenTopics
                 )
             }
             if (onOpenSearch != null) {
