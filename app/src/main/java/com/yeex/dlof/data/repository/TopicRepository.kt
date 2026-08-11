@@ -70,12 +70,17 @@ class TopicRepository(
      * author's topics (profile), or a single room's topics. Sorted newest
      * first client-side; topics never expire so, unlike
      * [ParagraphRepository.observeParagraphs], nothing is ever purged here.
+     * [limit] bounds every branch (including the authorId/roomId ones — a
+     * single prolific author/room can grow just as unbounded as the global
+     * feed) so this listener can't re-fetch and hold an ever-growing table
+     * in memory, matching the scanLimit trade-off [searchByText] already
+     * makes for the same reason.
      */
-    fun observeTopics(authorId: String? = null, roomId: String? = null): Flow<List<Topic>> = callbackFlow {
+    fun observeTopics(authorId: String? = null, roomId: String? = null, limit: Int = 200): Flow<List<Topic>> = callbackFlow {
         val query = when {
-            authorId != null -> topicsRef.orderByChild("authorId").equalTo(authorId)
-            roomId != null -> topicsRef.orderByChild("roomId").equalTo(roomId)
-            else -> topicsRef.orderByChild("createdAt")
+            authorId != null -> topicsRef.orderByChild("authorId").equalTo(authorId).limitToLast(limit)
+            roomId != null -> topicsRef.orderByChild("roomId").equalTo(roomId).limitToLast(limit)
+            else -> topicsRef.orderByChild("createdAt").limitToLast(limit)
         }
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
