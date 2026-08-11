@@ -92,6 +92,35 @@ class TopicRepository(
         topicsRef.child(topicId).removeValue().await()
     }
 
+    /**
+     * Client-side text search across topics — matches [Topic.title],
+     * [Topic.body], and [Topic.hashtags], so both a plain keyword search
+     * ("مواضيع") and a "#hashtag" search land here for
+     * [com.yeex.dlof.ui.search.SearchScreen]. Same trade-off as
+     * [ParagraphRepository.searchActiveByText]: Realtime Database has no
+     * full-text index, so this fetches topics ordered by recency and
+     * filters in memory. Bounded to the most recent [scanLimit] topics
+     * rather than the whole table — unlike paragraphs, topics never expire
+     * and could otherwise grow unbounded — with [limit] applied after
+     * filtering to cap what's actually returned to the UI.
+     */
+    suspend fun searchByText(query: String, limit: Int = 30, scanLimit: Int = 500): List<Topic> {
+        val q = query.trim().removePrefix("#").lowercase()
+        if (q.isEmpty()) return emptyList()
+        val snapshot = topicsRef.orderByChild("createdAt")
+            .limitToLast(scanLimit)
+            .get().await()
+        return snapshot.children
+            .mapNotNull { runCatching { it.getValue(Topic::class.java) }.getOrNull() }
+            .filter { topic ->
+                topic.title.lowercase().contains(q) ||
+                    topic.body.lowercase().contains(q) ||
+                    topic.hashtags.any { it.lowercase().contains(q) }
+            }
+            .sortedByDescending { it.createdAt }
+            .take(limit)
+    }
+
     // ---- Views (unique-per-account, mirrors ParagraphRepository.incrementView) ----
 
     suspend fun incrementView(topicId: String, viewerUid: String) {
