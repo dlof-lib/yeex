@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Person
@@ -127,6 +128,10 @@ fun ParagraphCard(
     onComment: () -> Unit,
     onRepost: () -> Unit,
     onOpenProfile: (String) -> Unit = {},
+    // Opens the permanent YEEX TOPIC this paragraph is attached to, if any
+    // (paragraph.topicId set from the topic side — see TopicRepository.linkParagraph).
+    // A no-op default so existing callers don't need to wire it.
+    onOpenTopic: (String) -> Unit = {},
     // Optimistically hides every paragraph from this author out of the
     // *current* feed instance the instant the person confirms "حظر" — see
     // FeedViewModel.blockAuthor. A no-op default so RepostScreen's read-only
@@ -829,6 +834,29 @@ fun ParagraphCard(
                             color = YeexAccent.copy(alpha = 0.95f),
                             fontWeight = FontWeight.SemiBold,
                             style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+            }
+            // ---- موضوع ↔ فقرة: this paragraph is attached to a permanent YEEX TOPIC ----
+            if (paragraph.topicId.isNotBlank()) {
+                Spacer(Modifier.height(6.dp))
+                Surface(
+                    onClick = { onOpenTopic(paragraph.topicId) },
+                    shape = RoundedCornerShape(50),
+                    color = Color.White.copy(alpha = 0.14f)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Icon(Icons.Filled.MenuBook, contentDescription = null, tint = Color.White, modifier = Modifier.size(13.dp))
+                        Spacer(Modifier.width(5.dp))
+                        Text(
+                            stringResource(R.string.paragraph_linked_topic),
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
