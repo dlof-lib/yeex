@@ -11,6 +11,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -73,11 +74,14 @@ import com.yeex.dlof.data.repository.AuthRepository
 import com.yeex.dlof.data.repository.BlockRepository
 import com.yeex.dlof.data.repository.ReportRepository
 import com.yeex.dlof.ui.theme.YeexAccent
+import com.yeex.dlof.ui.theme.YeexBlack
 import com.yeex.dlof.ui.theme.YeexCrimson
 import com.yeex.dlof.ui.theme.YeexDislike
 import com.yeex.dlof.ui.theme.YeexGold
 import com.yeex.dlof.ui.theme.YeexLike
 import com.yeex.dlof.ui.theme.YeexLikeGlow
+import com.yeex.dlof.ui.theme.YeexPink
+import com.yeex.dlof.ui.theme.yeexBrandGradient
 import com.yeex.dlof.data.repository.ParagraphRepository
 import com.yeex.dlof.util.BackgroundTaskType
 import com.yeex.dlof.util.DownloadUtil
@@ -295,25 +299,40 @@ fun ParagraphCard(
                     )
                 }
                 else -> {
-                    // Text-only paragraphs get a subtle brand gradient instead of a blank void.
+                    // Text-only paragraphs get the full brand gradient (all
+                    // three stops, diagonal) instead of a single flat purple
+                    // fade — reads as a designed "card" rather than a
+                    // placeholder background behind the words.
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(YeexAccent.copy(alpha = 0.55f), Color.Black)
+                                Brush.linearGradient(
+                                    colors = listOf(YeexAccent.copy(alpha = 0.9f), YeexPink.copy(alpha = 0.55f), Color.Black)
                                 )
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            paragraph.text,
-                            color = Color.White,
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Medium,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 28.dp)
-                        )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            // Small brand mark above the text — a quiet
+                            // signature so a pure-text فقرة still feels
+                            // authored rather than a bare quote card.
+                            Box(
+                                modifier = Modifier
+                                    .size(3.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.7f))
+                            )
+                            Spacer(Modifier.height(18.dp))
+                            Text(
+                                paragraph.text,
+                                color = Color.White,
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 30.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -348,14 +367,35 @@ fun ParagraphCard(
         }
 
         // ---- Bottom scrim for legibility over the media ----
+        // Multi-stop fade (instead of a flat two-color gradient) so the
+        // darkening reads as gradual and cinematic rather than a hard band,
+        // plus a faint brand-tinted glow hugging the very bottom edge — a
+        // quiet signature touch that separates this from a generic
+        // TikTok/Instagram black-fade overlay.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(260.dp)
+                .height(300.dp)
                 .align(Alignment.BottomCenter)
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f))
+                        colorStops = arrayOf(
+                            0f to Color.Transparent,
+                            0.42f to Color.Black.copy(alpha = 0.16f),
+                            0.72f to Color.Black.copy(alpha = 0.62f),
+                            1f to Color.Black.copy(alpha = 0.90f)
+                        )
+                    )
+                )
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(110.dp)
+                .align(Alignment.BottomCenter)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, YeexAccent.copy(alpha = 0.12f))
                     )
                 )
         )
@@ -769,30 +809,45 @@ fun ParagraphCard(
                     onClick = { if (paragraph.authorId.isNotBlank()) onOpenProfile(paragraph.authorId) }
                 )
             ) {
+                // Avatar sits inside the brand gradient ring — the same
+                // purple→pink signature used on buttons/chips elsewhere —
+                // instead of a flat translucent-white circle, so even the
+                // placeholder person glyph reads as "YEEX" at a glance.
                 Box(
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(26.dp)
                         .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.25f)),
+                        .background(yeexBrandGradient())
+                        .padding(1.6.dp)
+                        .clip(CircleShape)
+                        .background(YeexBlack.copy(alpha = 0.92f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Filled.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                    Icon(Icons.Filled.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(13.dp))
                 }
-                Spacer(Modifier.width(6.dp))
+                Spacer(Modifier.width(7.dp))
                 Text(
                     "@${paragraph.authorIdentifier}",
                     color = Color.White,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.labelMedium
                 )
                 if (paragraph.authorVerified) {
                     Spacer(Modifier.width(3.dp))
-                    Icon(
-                        Icons.Filled.Verified,
-                        contentDescription = stringResource(R.string.verified_badge),
-                        tint = YeexCrimson,
-                        modifier = Modifier.size(12.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(15.dp)
+                            .clip(CircleShape)
+                            .background(YeexCrimson.copy(alpha = 0.16f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Filled.Verified,
+                            contentDescription = stringResource(R.string.verified_badge),
+                            tint = YeexCrimson,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
                 }
                 if (paragraph.createdAt > 0L) {
                     Spacer(Modifier.width(6.dp))
@@ -811,40 +866,89 @@ fun ParagraphCard(
             Spacer(Modifier.height(8.dp))
 
             if (captionText.isNotBlank()) {
-                Text(
-                    translatedText ?: captionText,
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 3
-                )
-                if (translatedText != null) {
-                    Text(
-                        stringResource(R.string.translated_label),
-                        color = Color.White.copy(alpha = 0.6f),
-                        style = MaterialTheme.typography.labelSmall
+                // A slim gradient "quote bar" on the leading edge — the
+                // فقرة's own visual signature, echoing the brand gradient
+                // instead of the plain unadorned caption block every other
+                // short-video app uses. Row respects LayoutDirection, so
+                // this sits correctly on the RTL leading edge automatically.
+                Row(
+                    modifier = Modifier.height(IntrinsicSize.Min)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(3.dp)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(50))
+                            .background(yeexBrandGradient())
                     )
+                    Spacer(Modifier.width(9.dp))
+                    Column {
+                        Text(
+                            translatedText ?: captionText,
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 3
+                        )
+                        if (translatedText != null) {
+                            Spacer(Modifier.height(2.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Filled.Translate,
+                                    contentDescription = null,
+                                    tint = YeexAccent.copy(alpha = 0.85f),
+                                    modifier = Modifier.size(11.dp)
+                                )
+                                Spacer(Modifier.width(3.dp))
+                                Text(
+                                    stringResource(R.string.translated_label),
+                                    color = Color.White.copy(alpha = 0.6f),
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
+                    }
                 }
             }
             if (hashtags.isNotEmpty()) {
-                Spacer(Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    hashtags.take(4).forEach { tag ->
-                        Text(
-                            "#$tag",
-                            color = YeexAccent.copy(alpha = 0.95f),
-                            fontWeight = FontWeight.SemiBold,
-                            style = MaterialTheme.typography.labelMedium
-                        )
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    hashtags.take(3).forEach { tag ->
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = YeexAccent.copy(alpha = 0.16f),
+                            border = BorderStroke(0.6.dp, YeexAccent.copy(alpha = 0.5f))
+                        ) {
+                            Text(
+                                "#$tag",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
+                            )
+                        }
                     }
                 }
             }
             // ---- موضوع ↔ فقرة: this paragraph is attached to a permanent YEEX TOPIC ----
             if (paragraph.topicId.isNotBlank()) {
-                Spacer(Modifier.height(6.dp))
-                Surface(
-                    onClick = { onOpenTopic(paragraph.topicId) },
-                    shape = RoundedCornerShape(50),
-                    color = Color.White.copy(alpha = 0.14f)
+                Spacer(Modifier.height(8.dp))
+                // Gradient-ring pill (Surface can't paint a gradient border
+                // directly, so a 1.2dp gradient-filled outer Box hosts a
+                // near-black inner pill) — makes the موضوع link read as a
+                // distinct, premium capsule rather than a plain grey chip.
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(yeexBrandGradient())
+                        .padding(1.2.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(YeexBlack.copy(alpha = 0.6f))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = LocalIndication.current,
+                            onClick = { onOpenTopic(paragraph.topicId) }
+                        )
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -856,20 +960,33 @@ fun ParagraphCard(
                             stringResource(R.string.paragraph_linked_topic),
                             color = Color.White,
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
             }
             Spacer(Modifier.height(10.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Visibility, contentDescription = null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(15.dp))
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    stringResource(R.string.view_count, formatCount(paragraph.viewCount)),
-                    color = Color.White.copy(alpha = 0.85f),
-                    style = MaterialTheme.typography.labelMedium
-                )
+            // View count as a soft glass capsule instead of bare icon+text
+            // floating on the scrim — small but consistent with the
+            // gradient-pill language used above it.
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = Color.White.copy(alpha = 0.10f),
+                border = BorderStroke(0.6.dp, Color.White.copy(alpha = 0.16f))
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Icon(Icons.Filled.Visibility, contentDescription = null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(13.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        stringResource(R.string.view_count, formatCount(paragraph.viewCount)),
+                        color = Color.White.copy(alpha = 0.92f),
+                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
             }
         }
     }
