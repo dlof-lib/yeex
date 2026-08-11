@@ -6,7 +6,13 @@ plugins {
 
 android {
     namespace = "com.yeex.dlof"
-    compileSdk = 34
+    // Bumped from 34 -> 35: several deps (androidx.compose.* 1.8.1 pulled in
+    // transitively by telephoto/richtext/lottie, etc.) declare an AAR
+    // metadata requirement of compileSdk >= 35. Building against 34 failed
+    // ':app:checkDebugAarMetadata' with 14 "requires ... version 35" errors.
+    // AGP was bumped to 8.9.1 alongside this since AGP 8.5.0's max supported
+    // compileSdk was 34.
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.yeex.dlof"
@@ -18,7 +24,7 @@ android {
         // -requires minSdk 23 in its own manifest. Going lower would either
         // fail the manifest merge or force dropping encrypted local storage.
         minSdk = 23
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
     }
