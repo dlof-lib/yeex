@@ -22,6 +22,11 @@ data class Paragraph(
     val mediaBase64: String = "",   // "" for TEXT paragraphs
     val mediaMimeType: String = "", // e.g. image/jpeg, video/mp4
     val roomId: String = "",        // "" if posted outside any room
+    // Optional reverse link to a permanent YEEX TOPIC (موضوع ↔ فقرة) — set
+    // when this paragraph was attached to a topic from the topic side (see
+    // Topic.linkedParagraphIds / TopicRepository.linkParagraph). "" if this
+    // paragraph isn't attached to any topic.
+    val topicId: String = "",
     val createdAt: Long = 0L,
     val expiresAt: Long = 0L,       // createdAt + 24h, indexed for cleanup queries
     val likeCount: Long = 0,
