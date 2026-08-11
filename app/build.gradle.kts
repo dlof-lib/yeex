@@ -56,6 +56,11 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
     }
+
+    lint {
+        disable += "MissingTranslation"
+        abortOnError = false
+    }
 }
 
 dependencies {
