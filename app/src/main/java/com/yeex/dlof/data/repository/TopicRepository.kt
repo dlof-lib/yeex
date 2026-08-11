@@ -42,15 +42,24 @@ class TopicRepository(
     }
 
     suspend fun getTopic(id: String): Topic? =
-        topicsRef.child(id).get().await().getValue(Topic::class.java)
+        runCatching { topicsRef.child(id).get().await().getValue(Topic::class.java) }.getOrNull()
 
+    /**
+     * NOTE: snapshot.getValue(Topic::class.java) throws (not returns null) if
+     * a stored record doesn't exactly match the model — a legacy/partial
+     * write, a type mismatch, etc. Every deserialization here is wrapped in
+     * runCatching so one malformed topic can never crash the whole screen;
+     * onCancelled also no longer closes the flow with an exception (e.g. on a
+     * transient permission error) — it just sends an empty/last-known-safe
+     * result so the UI shows an empty state instead of the app dying.
+     */
     fun observeTopic(id: String): Flow<Topic?> = callbackFlow {
         val ref = topicsRef.child(id)
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                trySend(snapshot.getValue(Topic::class.java))
+                trySend(runCatching { snapshot.getValue(Topic::class.java) }.getOrNull())
             }
-            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+            override fun onCancelled(error: DatabaseError) { trySend(null) }
         }
         ref.addValueEventListener(listener)
         awaitClose { ref.removeEventListener(listener) }
@@ -70,10 +79,10 @@ class TopicRepository(
         }
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val all = snapshot.children.mapNotNull { it.getValue(Topic::class.java) }
+                val all = snapshot.children.mapNotNull { runCatching { it.getValue(Topic::class.java) }.getOrNull() }
                 trySend(all.sortedByDescending { it.createdAt })
             }
-            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+            override fun onCancelled(error: DatabaseError) { trySend(emptyList()) }
         }
         query.addValueEventListener(listener)
         awaitClose { query.removeEventListener(listener) }
@@ -130,9 +139,9 @@ class TopicRepository(
         val query = updatesRef.child(topicId).orderByChild("createdAt")
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                trySend(snapshot.children.mapNotNull { it.getValue(TopicUpdate::class.java) })
+                trySend(snapshot.children.mapNotNull { runCatching { it.getValue(TopicUpdate::class.java) }.getOrNull() })
             }
-            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+            override fun onCancelled(error: DatabaseError) { trySend(emptyList()) }
         }
         query.addValueEventListener(listener)
         awaitClose { query.removeEventListener(listener) }
@@ -193,7 +202,7 @@ class TopicRepository(
     suspend fun getMyAttachableParagraphs(uid: String): List<Paragraph> {
         val now = System.currentTimeMillis()
         return paragraphsRef.orderByChild("authorId").equalTo(uid).get().await().children
-            .mapNotNull { it.getValue(Paragraph::class.java) }
+            .mapNotNull { runCatching { it.getValue(Paragraph::class.java) }.getOrNull() }
             .filter { it.expiresAt > now }
             .sortedByDescending { it.createdAt }
     }
@@ -204,9 +213,9 @@ class TopicRepository(
         val query = commentsRef.child(topicId).orderByChild("createdAt")
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                trySend(snapshot.children.mapNotNull { it.getValue(Comment::class.java) })
+                trySend(snapshot.children.mapNotNull { runCatching { it.getValue(Comment::class.java) }.getOrNull() })
             }
-            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+            override fun onCancelled(error: DatabaseError) { trySend(emptyList()) }
         }
         query.addValueEventListener(listener)
         awaitClose { query.removeEventListener(listener) }
