@@ -73,6 +73,7 @@ import com.yeex.dlof.ui.theme.YeexCrimson
 import com.yeex.dlof.ui.theme.YeexDimens
 import com.yeex.dlof.ui.theme.YeexSectionHeader
 import com.yeex.dlof.util.MediaBase64
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -111,20 +112,32 @@ fun TopicDetailScreen(
     var isSendingUpdate by remember { mutableStateOf(false) }
 
     LaunchedEffect(topicId) {
-        repo.observeTopic(topicId).collect { t ->
-            topic = t
-            if (t != null) {
-                if (authorIcon.isBlank()) authorIcon = userRepo.getUser(t.authorId)?.profileIconUrl.orEmpty()
-                linkedParagraphs = repo.getLinkedParagraphs(t)
-                if (myUid != null) {
-                    hasLiked = repo.getLikedByMe(topicId, myUid)
-                    repo.incrementView(topicId, myUid)
+        repo.observeTopic(topicId)
+            .catch { emit(null) }
+            .collect { t ->
+                topic = t
+                if (t != null) {
+                    runCatching {
+                        if (authorIcon.isBlank()) authorIcon = userRepo.getUser(t.authorId)?.profileIconUrl.orEmpty()
+                        linkedParagraphs = repo.getLinkedParagraphs(t)
+                        if (myUid != null) {
+                            hasLiked = repo.getLikedByMe(topicId, myUid)
+                            repo.incrementView(topicId, myUid)
+                        }
+                    }
                 }
             }
-        }
     }
-    LaunchedEffect(topicId) { repo.observeUpdates(topicId).collect { updates = it.sortedByDescending { u -> u.createdAt } } }
-    LaunchedEffect(topicId) { repo.observeComments(topicId).collect { comments = it } }
+    LaunchedEffect(topicId) {
+        repo.observeUpdates(topicId)
+            .catch { emit(emptyList()) }
+            .collect { updates = it.sortedByDescending { u -> u.createdAt } }
+    }
+    LaunchedEffect(topicId) {
+        repo.observeComments(topicId)
+            .catch { emit(emptyList()) }
+            .collect { comments = it }
+    }
 
     val current = topic
     if (current == null) {
