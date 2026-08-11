@@ -238,7 +238,8 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
                     onOpenContainer = { },
                     onOpenUser = { user -> navController.navigate(Routes.profile(user.uid)) },
                     onOpenRoom = { room -> navController.navigate(Routes.room(room.id)) },
-                    onOpenRooms = { navController.navigate(Routes.ROOMS) }
+                    onOpenRooms = { navController.navigate(Routes.ROOMS) },
+                    onOpenTopic = { topic -> navController.navigate(Routes.topicDetail(topic.id)) }
                 )
             }
             composable(Routes.VERIFY) {
