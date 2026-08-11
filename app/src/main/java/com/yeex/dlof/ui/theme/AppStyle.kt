@@ -93,8 +93,8 @@ fun YeexCard(
 fun YeexChip(
     label: String,
     selected: Boolean,
-    onClick: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null
 ) {
     Surface(
         modifier = modifier,
