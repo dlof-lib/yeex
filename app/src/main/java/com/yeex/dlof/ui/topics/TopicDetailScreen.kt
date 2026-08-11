@@ -225,7 +225,10 @@ fun TopicDetailScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.clickable {
                             if (myUid != null) {
-                                scope.launch { hasLiked = repo.toggleLike(topicId, myUid) }
+                                scope.launch {
+                                    runCatching { repo.toggleLike(topicId, myUid) }
+                                        .onSuccess { hasLiked = it }
+                                }
                             }
                         }
                     ) {
