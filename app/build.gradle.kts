@@ -79,6 +79,26 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
 
     implementation("io.coil-kt:coil-compose:2.6.0")
+    // GIF frame decoding for Coil — without this, a pasted GIF link preview
+    // (LinkPreviewCard) or a GIF cover image just shows a frozen first
+    // frame. Registered app-wide via YeexApp's ImageLoaderFactory.
+    implementation("io.coil-kt:coil-gif:2.6.0")
+
+    // ---- YEEX TOPICS | المواضيع — style/visual upgrade packages ----
+    // Proper CommonMark rendering (headings, nested lists, tables, code
+    // spans) as a polished alternative/upgrade path to MarkdownText.kt's
+    // hand-rolled line parser for a topic's long-form body.
+    implementation("com.halilibo.compose-richtext:richtext-ui-material3:0.16.0")
+    implementation("com.halilibo.compose-richtext:richtext-commonmark:0.16.0")
+    // Shimmer skeleton placeholders for the Topics list while it loads,
+    // replacing the bare spinner with a shape-matched loading state.
+    implementation("com.valentinilk.shimmer:compose-shimmer:1.3.3")
+    // Lottie animations — used for the Topics empty state (see
+    // res/raw/topics_empty.json) instead of plain text.
+    implementation("com.airbnb.android:lottie-compose:6.7.1")
+    // Pinch-to-zoom / pan for a Topic's cover image and Link Card image —
+    // a drop-in ZoomableAsyncImage replacement for Coil's AsyncImage.
+    implementation("me.saket.telephoto:zoomable-image-coil:0.19.0")
 
     // Video playback for VIDEO-type paragraphs (feed previously tried to
     // decode raw MP4 bytes as a Bitmap, which returns null and crashes —
