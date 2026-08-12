@@ -405,6 +405,16 @@
     <string name="section_media_data">Medios y datos</string>
     <string name="autoplay_videos">Reproducción automática de videos</string>
     <string name="autoplay_videos_desc">Reproduce los videos automáticamente al aparecer en el feed</string>
+    <string name="settings_screenshot_suggest">Sugerir publicar capturas de pantalla</string>
+    <string name="settings_screenshot_suggest_desc">Al tomar una captura de pantalla, YEEX te sugiere publicarla como párrafo o tema</string>
+    <string name="share_target_title">Publicar en YEEX</string>
+    <string name="share_target_screenshot_subtitle">Acabas de tomar una captura de pantalla. ¿Quieres publicarla?</string>
+    <string name="share_target_share_subtitle">Elige cómo quieres publicar esto</string>
+    <string name="share_target_as_paragraph">Publicar como párrafo</string>
+    <string name="share_target_as_paragraph_desc">Contenido rápido que aparece en el feed durante 24 horas</string>
+    <string name="share_target_as_topic">Publicar como tema</string>
+    <string name="share_target_as_topic_desc">Contenido permanente para leer y comentar</string>
+    <string name="share_target_dismiss">Descartar</string>
     <string name="clear_cache">Borrar caché</string>
     <string name="clear_cache_size">Tamaño actual: %1$s</string>
     <string name="clear_cache_confirm_title">¿Borrar la caché?</string>
