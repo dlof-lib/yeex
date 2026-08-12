@@ -1,13 +1,17 @@
 package com.yeex.dlof.ui.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.MenuBook
@@ -22,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -38,6 +43,10 @@ import com.yeex.dlof.ui.theme.yeexBrandGradient
  * It floats over full-bleed media (video, images) instead of pushing content
  * down like a Scaffold TopAppBar, so it always draws a soft top-to-transparent
  * scrim behind itself first to keep icons and text legible over bright media.
+ * The brand mark itself is the app's official launcher icon (a small rounded
+ * badge, matching what the person already recognizes from their home screen
+ * and the OS share sheet) next to the wordmark, rather than text alone —
+ * reads as a "real app" top bar instead of a generic label.
  *
  * @param showWordmark Off for screens that are already one level below the
  *   home feed (e.g. a room's own feed, which shows the room's name instead)
@@ -63,22 +72,35 @@ fun YeexTopBar(
             .fillMaxWidth()
             .background(
                 Brush.verticalGradient(
-                    listOf(Color.Black.copy(alpha = 0.6f), Color.Transparent)
+                    listOf(Color.Black.copy(alpha = 0.65f), Color.Black.copy(alpha = 0.28f), Color.Transparent)
                 )
             )
             .statusBarsPadding()
             .padding(horizontal = 12.dp)
-            .height(52.dp)
+            .height(56.dp)
     ) {
         if (showWordmark) {
-            Text(
-                stringResource(R.string.app_name),
-                style = MaterialTheme.typography.titleLarge.copy(
-                    brush = yeexBrandGradient(),
-                    fontWeight = FontWeight.ExtraBold
-                ),
-                modifier = Modifier.align(Alignment.CenterStart)
-            )
+            Row(
+                modifier = Modifier.align(Alignment.CenterStart),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Image(
+                    painter = painterResource(R.mipmap.ic_launcher_round),
+                    contentDescription = stringResource(R.string.app_name),
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clip(CircleShape)
+                        .border(1.dp, Color.White.copy(alpha = 0.35f), CircleShape)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        brush = yeexBrandGradient(),
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                )
+            }
         }
 
         Box(Modifier.align(Alignment.Center)) { center() }
@@ -122,11 +144,16 @@ private fun TopBarIcon(
         Box(
             modifier = Modifier
                 .size(34.dp)
-                .clip(androidx.compose.foundation.shape.CircleShape)
+                .clip(CircleShape)
                 .background(Color.White.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(icon, contentDescription = contentDescription, tint = Color.White, modifier = Modifier.size(20.dp))
         }
     }
+}
+
+@Composable
+private fun Spacer(modifier: Modifier) {
+    androidx.compose.foundation.layout.Spacer(modifier)
 }
