@@ -97,6 +97,12 @@ private const val BODY_MAX_LEN = 20000
 @Composable
 fun CreateTopicScreen(
     roomId: String? = null,
+    // Same external-prefill contract as CreateParagraphScreen: a screenshot
+    // (ScreenshotWatcher) or shared content from another app
+    // (ShareTargetSheet/PendingShareBridge) can seed the cover image / body
+    // text before the person starts typing.
+    initialImageUri: Uri? = null,
+    initialText: String = "",
     authRepo: AuthRepository = AuthRepository(),
     userRepo: UserRepository = UserRepository(),
     repo: TopicRepository = TopicRepository(),
@@ -109,8 +115,8 @@ fun CreateTopicScreen(
 
     var mode by remember { mutableStateOf(TopicType.TEXT) }
     var title by remember { mutableStateOf("") }
-    var body by remember { mutableStateOf("") }
-    var coverUri by remember { mutableStateOf<Uri?>(null) }
+    var body by remember { mutableStateOf(initialText) }
+    var coverUri by remember { mutableStateOf(initialImageUri) }
     var showGallery by remember { mutableStateOf(false) }
 
     var linkInput by remember { mutableStateOf("") }
