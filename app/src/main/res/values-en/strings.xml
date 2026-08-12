@@ -405,6 +405,16 @@
     <string name="section_media_data">Media &amp; Data</string>
     <string name="autoplay_videos">Autoplay videos</string>
     <string name="autoplay_videos_desc">Play videos automatically as they appear in the feed</string>
+    <string name="settings_screenshot_suggest">Suggest posting screenshots</string>
+    <string name="settings_screenshot_suggest_desc">When you take a screenshot, YEEX offers to post it as a paragraph or a topic</string>
+    <string name="share_target_title">Post to YEEX</string>
+    <string name="share_target_screenshot_subtitle">You just took a screenshot — want to post it?</string>
+    <string name="share_target_share_subtitle">Choose how you\'d like to post this</string>
+    <string name="share_target_as_paragraph">Post as a paragraph</string>
+    <string name="share_target_as_paragraph_desc">Quick content that appears in the feed for 24 hours</string>
+    <string name="share_target_as_topic">Post as a topic</string>
+    <string name="share_target_as_topic_desc">Permanent content for reading and discussion</string>
+    <string name="share_target_dismiss">Dismiss</string>
     <string name="clear_cache">Clear cache</string>
     <string name="clear_cache_size">Current size: %1$s</string>
     <string name="clear_cache_confirm_title">Clear cache?</string>
