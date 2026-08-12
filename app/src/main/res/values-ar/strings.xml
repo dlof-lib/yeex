@@ -409,6 +409,16 @@
     <string name="section_media_data">الوسائط والبيانات</string>
     <string name="autoplay_videos">تشغيل الفيديو تلقائيًا</string>
     <string name="autoplay_videos_desc">تشغيل مقاطع الفيديو فور ظهورها في الفيد</string>
+    <string name="settings_screenshot_suggest">اقتراح نشر لقطات الشاشة</string>
+    <string name="settings_screenshot_suggest_desc">عند التقاط لقطة شاشة، يقترح عليك يكس نشرها كفقرة أو موضوع</string>
+    <string name="share_target_title">نشر عبر YEEX</string>
+    <string name="share_target_screenshot_subtitle">التقطت لقطة شاشة للتو — هل تريد نشرها؟</string>
+    <string name="share_target_share_subtitle">اختر كيف تريد نشر هذا المحتوى</string>
+    <string name="share_target_as_paragraph">نشر كفقرة</string>
+    <string name="share_target_as_paragraph_desc">محتوى سريع يظهر في الفيد لمدة 24 ساعة</string>
+    <string name="share_target_as_topic">نشر كموضوع</string>
+    <string name="share_target_as_topic_desc">محتوى دائم للنقاش والقراءة</string>
+    <string name="share_target_dismiss">تجاهل</string>
     <string name="clear_cache">مسح ذاكرة التخزين المؤقت</string>
     <string name="clear_cache_size">الحجم الحالي: %1$s</string>
     <string name="clear_cache_confirm_title">مسح ذاكرة التخزين المؤقت؟</string>
