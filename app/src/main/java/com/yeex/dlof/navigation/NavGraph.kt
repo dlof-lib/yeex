@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,9 +33,11 @@ import com.yeex.dlof.ui.room.CreateRoomScreen
 import com.yeex.dlof.ui.room.RoomScreen
 import com.yeex.dlof.ui.search.SearchScreen
 import com.yeex.dlof.ui.settings.SettingsScreen
+import com.yeex.dlof.ui.share.ShareTargetSheet
 import com.yeex.dlof.ui.topics.TopicDetailScreen
 import com.yeex.dlof.ui.topics.TopicsScreen
 import com.yeex.dlof.ui.verify.VerificationRequestScreen
+import com.yeex.dlof.util.PendingShareBridge
 
 object Routes {
     const val SPLASH = "splash"
@@ -117,8 +120,7 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
         }
     ) { outerPadding ->
         Box(modifier = Modifier.fillMaxSize()) {
-            NavHost(
-                navController = navController,
+            NavHost(                navController = navController,
                 startDestination = Routes.SPLASH,
                 modifier = Modifier.padding(bottom = outerPadding.calculateBottomPadding())
             ) {
@@ -164,7 +166,17 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
             // deep link) even though FeedScreen/RoomScreen now publish via their own
             // in-place ModalBottomSheet pop-up instead of navigating here.
             composable(Routes.CREATE_PARAGRAPH) {
-                CreateParagraphScreen(onPublished = { navController.popBackStack() })
+                // Pre-fill from a screenshot/external-share hand-off (see
+                // ShareTargetSheet below) if that's how this route was
+                // reached; consumed once so a later, unrelated visit to this
+                // same route (FAB tap) starts blank as usual.
+                val prefill = PendingShareBridge.consumedForComposer.value
+                LaunchedEffect(Unit) { PendingShareBridge.clearComposerHandoff() }
+                CreateParagraphScreen(
+                    initialImageUri = prefill?.imageUri,
+                    initialText = prefill?.text.orEmpty(),
+                    onPublished = { navController.popBackStack() }
+                )
             }
             composable(Routes.ROOMS) {
                 BrowseRoomsScreen(
@@ -277,8 +289,13 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
                 arguments = listOf(navArgument("roomId") { type = NavType.StringType; defaultValue = "" })
             ) { backStackEntry ->
                 val roomId = backStackEntry.arguments?.getString("roomId").orEmpty()
+                // Same screenshot/external-share hand-off as CREATE_PARAGRAPH.
+                val prefill = PendingShareBridge.consumedForComposer.value
+                LaunchedEffect(Unit) { PendingShareBridge.clearComposerHandoff() }
                 CreateTopicScreen(
                     roomId = roomId.ifBlank { null },
+                    initialImageUri = prefill?.imageUri,
+                    initialText = prefill?.text.orEmpty(),
                     onPublished = { id ->
                         navController.navigate(Routes.topicDetail(id)) {
                             popUpTo(Routes.TOPICS) { inclusive = false }
@@ -308,6 +325,28 @@ fun YeexNavGraph(authRepo: AuthRepository = AuthRepository()) {
             GlobalTaskProgressBar(
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
+
+            // Same "mounted once at the app root" reasoning as
+            // GlobalTaskProgressBar above: a screenshot (ScreenshotWatcher,
+            // opt-in) or a share-in from another app (MainActivity's
+            // ACTION_SEND handling) can happen while the person is on any
+            // screen, so the choice sheet lives here rather than inside any
+            // one route.
+            val pendingShare by PendingShareBridge.pending
+            pendingShare?.let { content ->
+                ShareTargetSheet(
+                    content = content,
+                    onChoosePublishAsParagraph = {
+                        PendingShareBridge.handOffToComposer()
+                        navController.navigate(Routes.CREATE_PARAGRAPH)
+                    },
+                    onChoosePublishAsTopic = {
+                        PendingShareBridge.handOffToComposer()
+                        navController.navigate(Routes.createTopic())
+                    },
+                    onDismiss = { PendingShareBridge.dismiss() }
+                )
+            }
         }
     }
 }
