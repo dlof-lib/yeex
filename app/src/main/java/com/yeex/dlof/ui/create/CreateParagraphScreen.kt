@@ -82,6 +82,13 @@ private data class MomentStepDraft(
 @Composable
 fun CreateParagraphScreen(
     roomId: String? = null,
+    // Pre-fills the composer from an external source — a screenshot the
+    // person chose to post (see ScreenshotWatcher) or content shared into
+    // YEEX from another app (see ShareTargetSheet/PendingShareBridge).
+    // Consumed once on first composition; typing afterwards behaves like a
+    // normal draft, same as if the person had picked the image themselves.
+    initialImageUri: Uri? = null,
+    initialText: String = "",
     authRepo: AuthRepository = AuthRepository(),
     userRepo: UserRepository = UserRepository(),
     repo: ParagraphRepository = ParagraphRepository(),
@@ -90,8 +97,8 @@ fun CreateParagraphScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var text by remember { mutableStateOf("") }
-    var imageUri by remember { mutableStateOf<Uri?>(null) }
+    var text by remember { mutableStateOf(initialText) }
+    var imageUri by remember { mutableStateOf(initialImageUri) }
     var videoUri by remember { mutableStateOf<Uri?>(null) }
     var momentMode by remember { mutableStateOf(false) }
     // Starts with the minimum 2 stages once MOMENT is picked (see the TypeChip
