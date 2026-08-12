@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Info
@@ -108,6 +109,7 @@ fun SettingsScreen(
     val themeMode by SettingsPrefsStore.themeMode
     val autoplayVideos by SettingsPrefsStore.autoplayVideos
     val textScale by SettingsPrefsStore.textScale
+    val screenshotSuggestEnabled by SettingsPrefsStore.screenshotSuggestEnabled
     val downloadDataChooserTitle = stringResource(R.string.download_my_data)
 
     LaunchedEffect(Unit) {
@@ -247,6 +249,13 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.autoplay_videos_desc),
                 checked = autoplayVideos,
                 onCheckedChange = { SettingsPrefsStore.setAutoplayVideos(context, it) }
+            )
+            SettingsSwitchRow(
+                icon = Icons.Filled.PhotoCamera,
+                title = stringResource(R.string.settings_screenshot_suggest),
+                subtitle = stringResource(R.string.settings_screenshot_suggest_desc),
+                checked = screenshotSuggestEnabled,
+                onCheckedChange = { SettingsPrefsStore.setScreenshotSuggestEnabled(context, it) }
             )
             SettingsRow(
                 icon = Icons.Filled.CleaningServices,
