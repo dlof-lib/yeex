@@ -21,15 +21,19 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
 import com.yeex.dlof.R
 import com.yeex.dlof.ui.theme.yeexBrandGradient
 
@@ -80,19 +84,38 @@ fun YeexTopBar(
             .height(56.dp)
     ) {
         if (showWordmark) {
+            val context = LocalContext.current
+            // R.mipmap.ic_launcher_round resolves to an <adaptive-icon> XML
+            // on API 26+ (mipmap-anydpi-v26) rather than a plain PNG/vector.
+            // painterResource() only understands VectorDrawables and
+            // rasterized assets and throws immediately on anything else —
+            // that crash was happening the instant the home feed (the first
+            // screen after login) composed this bar. Going through
+            // Drawable.toBitmap() instead works for every drawable type
+            // (adaptive icon, plain PNG, vector) on every API level, so this
+            // can never throw.
+            val appIconBitmap = remember {
+                runCatching {
+                    ContextCompat.getDrawable(context, R.mipmap.ic_launcher_round)
+                        ?.toBitmap(width = 96, height = 96)
+                        ?.asImageBitmap()
+                }.getOrNull()
+            }
             Row(
                 modifier = Modifier.align(Alignment.CenterStart),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Image(
-                    painter = painterResource(R.mipmap.ic_launcher_round),
-                    contentDescription = stringResource(R.string.app_name),
-                    modifier = Modifier
-                        .size(30.dp)
-                        .clip(CircleShape)
-                        .border(1.dp, Color.White.copy(alpha = 0.35f), CircleShape)
-                )
-                Spacer(Modifier.width(8.dp))
+                if (appIconBitmap != null) {
+                    Image(
+                        bitmap = appIconBitmap,
+                        contentDescription = stringResource(R.string.app_name),
+                        modifier = Modifier
+                            .size(30.dp)
+                            .clip(CircleShape)
+                            .border(1.dp, Color.White.copy(alpha = 0.35f), CircleShape)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
                 Text(
                     stringResource(R.string.app_name),
                     style = MaterialTheme.typography.titleLarge.copy(
