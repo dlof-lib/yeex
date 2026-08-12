@@ -29,6 +29,7 @@ object SettingsPrefsStore {
     private const val KEY_NOTIFY_ROOMS = "notify_rooms"
     private const val KEY_AUTOPLAY_VIDEOS = "autoplay_videos"
     private const val KEY_TEXT_SCALE = "text_scale"
+    private const val KEY_SCREENSHOT_SUGGEST = "screenshot_suggest_paragraph"
 
     const val THEME_SYSTEM = "system"
     const val THEME_LIGHT = "light"
@@ -53,6 +54,17 @@ object SettingsPrefsStore {
     /** "حجم الخط" — see [YeexTheme]'s fontScale param. */
     val textScale = mutableStateOf(TEXT_SCALE_MEDIUM)
 
+    /**
+     * "اقتراح نشر لقطات الشاشة" — opt-in, OFF by default. When on,
+     * [com.yeex.dlof.util.ScreenshotWatcher] listens for new screenshots
+     * while the app is in the foreground and offers to start a new
+     * paragraph/topic pre-filled with the captured image (see
+     * [com.yeex.dlof.ui.share.ShareTargetSheet]). Purely a local device
+     * preference — nothing is watched or uploaded unless the person turns
+     * this on themselves.
+     */
+    val screenshotSuggestEnabled = mutableStateOf(false)
+
     private fun prefs(context: Context): SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -62,6 +74,12 @@ object SettingsPrefsStore {
         themeMode.value = p.getString(KEY_THEME_MODE, THEME_SYSTEM) ?: THEME_SYSTEM
         autoplayVideos.value = p.getBoolean(KEY_AUTOPLAY_VIDEOS, true)
         textScale.value = p.getFloat(KEY_TEXT_SCALE, TEXT_SCALE_MEDIUM)
+        screenshotSuggestEnabled.value = p.getBoolean(KEY_SCREENSHOT_SUGGEST, false)
+    }
+
+    fun setScreenshotSuggestEnabled(context: Context, enabled: Boolean) {
+        screenshotSuggestEnabled.value = enabled
+        prefs(context).edit().putBoolean(KEY_SCREENSHOT_SUGGEST, enabled).apply()
     }
 
     fun setThemeMode(context: Context, mode: String) {
