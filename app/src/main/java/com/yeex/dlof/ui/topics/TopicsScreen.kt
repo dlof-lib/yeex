@@ -86,33 +86,55 @@ fun TopicsScreen(
     var likedByMe by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     LaunchedEffect(authorUid, roomId) {
-        repo.observeTopics(authorId = authorUid, roomId = roomId)
-            .catch { isLoading = false }
-            .collect { list ->
-            topics = list
-            isLoading = false
-            // NOTE: everything below runs inside collect{}, so a Flow's upstream
-            // .catch{} operator can NOT protect it — any exception here (network,
-            // Firebase permission-denied, etc.) would otherwise propagate
-            // uncaught and crash the app the moment the Topics list loads.
-            // Wrapping each side-effect in runCatching keeps one failed lookup
-            // from taking down the whole screen.
-            runCatching {
-                val missing = list.map { it.authorId }.distinct().filter { it !in avatars }
-                if (missing.isNotEmpty()) {
-                    val fetched = missing.associateWith { uid -> userRepo.getUser(uid)?.profileIconUrl.orEmpty() }
-                    avatars = avatars + fetched
-                }
-            }
-            if (myUid != null) {
-                runCatching {
-                    val liked = mutableSetOf<String>()
-                    for (t in list) {
-                        if (repo.getLikedByMe(t.id, myUid)) liked.add(t.id)
+        // Belt-and-suspenders: the whole subscription is wrapped in
+        // runCatching on top of the Flow's own .catch{} operator. .catch{}
+        // only protects exceptions raised while the flow is *emitting*; it
+        // can't protect against an exception thrown synchronously while the
+        // flow/query itself is being *built* (e.g. repo.observeTopics(...)
+        // constructing a malformed Firebase Query before any collection
+        // starts). Without this outer guard that class of failure would
+        // propagate straight out of the LaunchedEffect coroutine, uncaught,
+        // and crash the app the instant someone opens "المواضيع" — which is
+        // exactly the bug this screen used to have. Now every failure path,
+        // however early it happens, ends in isLoading = false + an empty
+        // list instead of a crash.
+        runCatching {
+            repo.observeTopics(authorId = authorUid, roomId = roomId)
+                .catch { isLoading = false }
+                .collect { list ->
+                    topics = list
+                    isLoading = false
+                    // NOTE: everything below runs inside collect{}, so the
+                    // upstream .catch{} operator can NOT protect it — any
+                    // exception here (network, Firebase permission-denied,
+                    // a corrupt avatar/like lookup, etc.) would otherwise
+                    // propagate uncaught and crash the app the moment the
+                    // Topics list loads. Wrapping each side-effect in
+                    // runCatching keeps one failed lookup from taking down
+                    // the whole screen.
+                    runCatching {
+                        val missing = list.map { it.authorId }.distinct().filter { it !in avatars }
+                        if (missing.isNotEmpty()) {
+                            val fetched = missing.associateWith { uid -> runCatching { userRepo.getUser(uid)?.profileIconUrl }.getOrNull().orEmpty() }
+                            avatars = avatars + fetched
+                        }
                     }
-                    likedByMe = liked
+                    if (myUid != null) {
+                        runCatching {
+                            val liked = mutableSetOf<String>()
+                            for (t in list) {
+                                if (runCatching { repo.getLikedByMe(t.id, myUid) }.getOrDefault(false)) liked.add(t.id)
+                            }
+                            likedByMe = liked
+                        }
+                    }
                 }
-            }
+        }.onFailure {
+            // Query construction itself blew up (bad args, Firebase not
+            // ready yet, etc.) — fail into the same safe empty state rather
+            // than letting the exception escape the coroutine.
+            isLoading = false
+            topics = emptyList()
         }
     }
 
